@@ -142,6 +142,8 @@ Example request body:
 
 ## Environment Variables
 
+Copy `.env.example` to `.env` and update `DATABASE_URL` for your local PostgreSQL instance.
+
 ```bash
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/vesti
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -152,14 +154,56 @@ ESCROW_ADAPTER_MODE=mock
 ESCROW_PROGRAM_ID=
 ```
 
-## Development
+## Quick Start
+
+Use Node.js 20+ and Corepack.
 
 ```bash
-pnpm install
-pnpm prisma generate
-pnpm prisma migrate dev
-pnpm dev
-pnpm lint
+corepack pnpm install
+corepack pnpm prisma generate
+corepack pnpm prisma migrate dev --name init
+corepack pnpm seed
+corepack pnpm dev
+```
+
+On Windows, if port `3000` is excluded by the system, run:
+
+```bash
+corepack pnpm exec next dev -H 127.0.0.1 -p 3100
+```
+
+More detailed local operation notes are available in [`docs/operations.md`](docs/operations.md).
+
+## Demo Operation
+
+The current MVP uses a demo wallet switcher instead of real wallet signing.
+
+```text
+Creator: creator_demo_wallet_8pQ7n2
+Worker:  worker_demo_wallet_5kL9s1
+```
+
+Demo path:
+
+1. Open `/dashboard`.
+2. Create a contract or run `corepack pnpm seed`.
+3. As Creator, fund the contract.
+4. Switch to Worker and submit proof for a ready milestone.
+5. Switch back to Creator and approve the milestone.
+6. Release the milestone payment.
+7. Confirm status, amount progress, proof history, and Event Timeline.
+
+## Commands
+
+```bash
+corepack pnpm dev
+corepack pnpm lint
+corepack pnpm build
+corepack pnpm prisma validate
+corepack pnpm prisma generate
+corepack pnpm prisma migrate dev
+corepack pnpm prisma studio
+corepack pnpm seed
 ```
 
 ## MVP Rules
@@ -185,3 +229,13 @@ pnpm lint
 ## Status
 
 This repository contains the off-chain MVP scaffold with a mocked escrow adapter. The next step is to configure PostgreSQL, run the Prisma migration, and test the full demo flow locally.
+
+## Commit Checklist
+
+Before committing code changes:
+
+```bash
+corepack pnpm prisma validate
+corepack pnpm lint
+corepack pnpm build
+```
