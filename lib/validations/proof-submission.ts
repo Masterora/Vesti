@@ -16,6 +16,13 @@ export const approveMilestoneSchema = z.object({
   walletAddress: walletAddressSchema
 });
 
+export const requestRevisionSchema = z.object({
+  contractId: z.string().trim().min(1),
+  milestoneId: z.string().trim().min(1),
+  walletAddress: walletAddressSchema,
+  note: z.string().trim().min(1, "Revision note is required")
+});
+
 export const releaseMilestoneSchema = z.object({
   contractId: z.string().trim().min(1),
   milestoneId: z.string().trim().min(1),
@@ -24,4 +31,5 @@ export const releaseMilestoneSchema = z.object({
 
 export type SubmitProofInput = z.infer<typeof submitProofSchema>;
 export type ApproveMilestoneInput = z.infer<typeof approveMilestoneSchema>;
+export type RequestRevisionInput = z.infer<typeof requestRevisionSchema>;
 export type ReleaseMilestoneInput = z.infer<typeof releaseMilestoneSchema>;

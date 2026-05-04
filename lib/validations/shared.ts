@@ -12,4 +12,5 @@ export const optionalDateSchema = z
   .string()
   .trim()
   .optional()
-  .transform((value) => (value ? value : undefined));
+  .transform((value) => (value ? value : undefined))
+  .refine((value) => !value || !Number.isNaN(Date.parse(value)), "Date must be valid");

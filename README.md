@@ -45,6 +45,7 @@ Roles are determined by wallet address.
 Create contract
   -> Fund contract
   -> Submit proof
+  -> Request revision when needed
   -> Approve milestone
   -> Release payment
   -> Track events
@@ -126,6 +127,7 @@ POST /api/contracts/list
 POST /api/contracts/get
 POST /api/contracts/fund
 POST /api/milestones/submit-proof
+POST /api/milestones/request-revision
 POST /api/milestones/approve
 POST /api/milestones/release
 ```
@@ -142,6 +144,8 @@ Example request body:
 
 ## Environment Variables
 
+Copy `.env.example` to `.env` and update `DATABASE_URL` for your local PostgreSQL instance.
+
 ```bash
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/vesti
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -152,14 +156,103 @@ ESCROW_ADAPTER_MODE=mock
 ESCROW_PROGRAM_ID=
 ```
 
-## Development
+## Quick Start
+
+Use Node.js 20+ and Corepack.
 
 ```bash
-pnpm install
-pnpm prisma generate
-pnpm prisma migrate dev
-pnpm dev
-pnpm lint
+corepack pnpm install
+docker compose up -d postgres
+corepack pnpm prisma generate
+corepack pnpm prisma migrate dev --name init
+corepack pnpm seed
+corepack pnpm dev
+```
+
+On Windows, if port `3000` is excluded by the system, run:
+
+```bash
+corepack pnpm exec next dev -H 127.0.0.1 -p 3100
+```
+
+More detailed local operation notes are available in [`docs/operations.md`](docs/operations.md).
+
+## Docker
+
+The MVP only needs PostgreSQL in Docker. The Next.js app runs locally for faster development.
+
+```bash
+docker compose up -d postgres
+docker compose ps
+```
+
+Use this database URL in `.env`:
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/vesti
+```
+
+After the database is healthy, run:
+
+```bash
+corepack pnpm prisma migrate dev --name init
+corepack pnpm seed
+```
+
+To stop the database:
+
+```bash
+docker compose down
+```
+
+To remove local database data:
+
+```bash
+docker compose down -v
+```
+
+## Demo Operation
+
+The current MVP uses a demo wallet switcher instead of real wallet signing.
+
+```text
+Creator: creator_demo_wallet_8pQ7n2
+Worker:  worker_demo_wallet_5kL9s1
+```
+
+Demo path:
+
+1. Open `/dashboard`.
+2. Create a contract or run `corepack pnpm seed`.
+3. As Creator, fund the contract.
+4. Switch to Worker and submit proof for a ready milestone.
+5. Switch back to Creator and request revision or approve the milestone.
+6. If revision is requested, switch to Worker and submit a new proof version.
+7. Release the milestone payment after approval.
+8. Confirm status, amount progress, proof history, and Event Timeline.
+
+## Commands
+
+```bash
+corepack pnpm dev
+corepack pnpm lint
+corepack pnpm build
+corepack pnpm prisma validate
+corepack pnpm prisma generate
+corepack pnpm prisma migrate dev
+corepack pnpm prisma studio
+corepack pnpm seed
+docker compose up -d postgres
+docker compose down
+```
+
+## Commit Style
+
+Use concise conventional commits:
+
+```bash
+git add .
+git commit -m "feat: add milestone revision workflow"
 ```
 
 ## MVP Rules
@@ -170,6 +263,7 @@ pnpm lint
 - Released amount cannot exceed funded amount.
 - Released milestones cannot be released again.
 - Proof submissions must keep version history.
+- Creator revision requests move a submitted milestone back to Worker action.
 - Key actions must be recorded as events.
 
 ## Demo Flow
@@ -185,3 +279,13 @@ pnpm lint
 ## Status
 
 This repository contains the off-chain MVP scaffold with a mocked escrow adapter. The next step is to configure PostgreSQL, run the Prisma migration, and test the full demo flow locally.
+
+## Commit Checklist
+
+Before committing code changes:
+
+```bash
+corepack pnpm prisma validate
+corepack pnpm lint
+corepack pnpm build
+```
