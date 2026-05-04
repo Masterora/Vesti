@@ -45,6 +45,7 @@ Roles are determined by wallet address.
 Create contract
   -> Fund contract
   -> Submit proof
+  -> Request revision when needed
   -> Approve milestone
   -> Release payment
   -> Track events
@@ -126,6 +127,7 @@ POST /api/contracts/list
 POST /api/contracts/get
 POST /api/contracts/fund
 POST /api/milestones/submit-proof
+POST /api/milestones/request-revision
 POST /api/milestones/approve
 POST /api/milestones/release
 ```
@@ -189,9 +191,10 @@ Demo path:
 2. Create a contract or run `corepack pnpm seed`.
 3. As Creator, fund the contract.
 4. Switch to Worker and submit proof for a ready milestone.
-5. Switch back to Creator and approve the milestone.
-6. Release the milestone payment.
-7. Confirm status, amount progress, proof history, and Event Timeline.
+5. Switch back to Creator and request revision or approve the milestone.
+6. If revision is requested, switch to Worker and submit a new proof version.
+7. Release the milestone payment after approval.
+8. Confirm status, amount progress, proof history, and Event Timeline.
 
 ## Commands
 
@@ -206,6 +209,15 @@ corepack pnpm prisma studio
 corepack pnpm seed
 ```
 
+## Commit Style
+
+Use concise conventional commits:
+
+```bash
+git add .
+git commit -m "feat: add milestone revision workflow"
+```
+
 ## MVP Rules
 
 - Only the Creator can fund, approve, and release payments.
@@ -214,6 +226,7 @@ corepack pnpm seed
 - Released amount cannot exceed funded amount.
 - Released milestones cannot be released again.
 - Proof submissions must keep version history.
+- Creator revision requests move a submitted milestone back to Worker action.
 - Key actions must be recorded as events.
 
 ## Demo Flow

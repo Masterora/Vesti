@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { Check, CircleDollarSign, ExternalLink, RefreshCw, Send, Wallet } from "lucide-react";
+import {
+  Check,
+  CircleDollarSign,
+  ExternalLink,
+  RefreshCw,
+  RotateCcw,
+  Send,
+  Wallet
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +35,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
   const { walletAddress } = useWallet();
   const [contract, setContract] = useState<SerializedContract | null>(null);
   const [proofDrafts, setProofDrafts] = useState<Record<string, ProofDraft>>({});
+  const [revisionDrafts, setRevisionDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(Boolean(contractId));
   const [activeAction, setActiveAction] = useState("");
@@ -109,6 +118,13 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
         proofUrl: current[milestoneId]?.proofUrl ?? "",
         ...patch
       }
+    }));
+  };
+
+  const updateRevisionDraft = (milestoneId: string, note: string) => {
+    setRevisionDrafts((current) => ({
+      ...current,
+      [milestoneId]: note
     }));
   };
 
@@ -224,13 +240,23 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                     role={role}
                     activeAction={activeAction}
                     draft={proofDrafts[milestone.id] ?? { note: "", proofUrl: "" }}
+                    revisionNote={revisionDrafts[milestone.id] ?? ""}
                     onDraftChange={(patch) => updateDraft(milestone.id, patch)}
+                    onRevisionNoteChange={(note) => updateRevisionDraft(milestone.id, note)}
                     onSubmitProof={() => submitProof(milestone)}
                     onApprove={() =>
                       runAction(`approve-${milestone.id}`, "/api/milestones/approve", {
                         contractId: contract.id,
                         milestoneId: milestone.id,
                         walletAddress
+                      })
+                    }
+                    onRequestRevision={() =>
+                      runAction(`revision-${milestone.id}`, "/api/milestones/request-revision", {
+                        contractId: contract.id,
+                        milestoneId: milestone.id,
+                        walletAddress,
+                        note: revisionDrafts[milestone.id]
                       })
                     }
                     onRelease={() =>
@@ -310,18 +336,24 @@ function MilestoneActions({
   role,
   activeAction,
   draft,
+  revisionNote,
   onDraftChange,
+  onRevisionNoteChange,
   onSubmitProof,
   onApprove,
+  onRequestRevision,
   onRelease
 }: {
   milestone: SerializedMilestone;
   role: string;
   activeAction: string;
   draft: ProofDraft;
+  revisionNote: string;
   onDraftChange: (patch: Partial<ProofDraft>) => void;
+  onRevisionNoteChange: (note: string) => void;
   onSubmitProof: () => void;
   onApprove: () => void;
+  onRequestRevision: () => void;
   onRelease: () => void;
 }) {
   if (role === "worker" && ["ready", "revision_requested"].includes(milestone.status)) {
@@ -360,15 +392,36 @@ function MilestoneActions({
 
   if (role === "creator" && milestone.status === "submitted") {
     return (
-      <div className="mt-5">
-        <Button
-          type="button"
-          onClick={onApprove}
-          disabled={activeAction === `approve-${milestone.id}`}
-        >
-          <Check className="mr-2 size-4" aria-hidden="true" />
-          {activeAction === `approve-${milestone.id}` ? "Approving..." : "Approve milestone"}
-        </Button>
+      <div className="mt-5 rounded-lg bg-muted p-4">
+        <div className="grid gap-3">
+          <div className="grid gap-2">
+            <Label>Revision note</Label>
+            <Textarea
+              value={revisionNote}
+              onChange={(event) => onRevisionNoteChange(event.target.value)}
+              placeholder="Describe what needs to be changed before approval."
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              onClick={onApprove}
+              disabled={activeAction === `approve-${milestone.id}`}
+            >
+              <Check className="mr-2 size-4" aria-hidden="true" />
+              {activeAction === `approve-${milestone.id}` ? "Approving..." : "Approve milestone"}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onRequestRevision}
+              disabled={!revisionNote || activeAction === `revision-${milestone.id}`}
+            >
+              <RotateCcw className="mr-2 size-4" aria-hidden="true" />
+              {activeAction === `revision-${milestone.id}` ? "Requesting..." : "Request revision"}
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

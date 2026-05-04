@@ -4,6 +4,7 @@ export const eventTypes = [
   "contract_activated",
   "milestone_ready",
   "milestone_proof_submitted",
+  "milestone_revision_requested",
   "milestone_approved",
   "milestone_released",
   "contract_completed",
