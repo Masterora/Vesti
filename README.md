@@ -162,6 +162,7 @@ Use Node.js 20+ and Corepack.
 
 ```bash
 corepack pnpm install
+docker compose up -d postgres
 corepack pnpm prisma generate
 corepack pnpm prisma migrate dev --name init
 corepack pnpm seed
@@ -175,6 +176,40 @@ corepack pnpm exec next dev -H 127.0.0.1 -p 3100
 ```
 
 More detailed local operation notes are available in [`docs/operations.md`](docs/operations.md).
+
+## Docker
+
+The MVP only needs PostgreSQL in Docker. The Next.js app runs locally for faster development.
+
+```bash
+docker compose up -d postgres
+docker compose ps
+```
+
+Use this database URL in `.env`:
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/vesti
+```
+
+After the database is healthy, run:
+
+```bash
+corepack pnpm prisma migrate dev --name init
+corepack pnpm seed
+```
+
+To stop the database:
+
+```bash
+docker compose down
+```
+
+To remove local database data:
+
+```bash
+docker compose down -v
+```
 
 ## Demo Operation
 
@@ -207,6 +242,8 @@ corepack pnpm prisma generate
 corepack pnpm prisma migrate dev
 corepack pnpm prisma studio
 corepack pnpm seed
+docker compose up -d postgres
+docker compose down
 ```
 
 ## Commit Style

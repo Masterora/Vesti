@@ -16,22 +16,33 @@ corepack pnpm install
 copy .env.example .env
 ```
 
-3. Make sure PostgreSQL is running and `DATABASE_URL` points to the local database.
+3. Start PostgreSQL with Docker.
 
-4. Generate Prisma Client and migrate the database.
+```bash
+docker compose up -d postgres
+docker compose ps
+```
+
+4. Make sure `DATABASE_URL` points to the local database.
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/vesti
+```
+
+5. Generate Prisma Client and migrate the database.
 
 ```bash
 corepack pnpm prisma generate
 corepack pnpm prisma migrate dev --name init
 ```
 
-5. Optional: create a funded demo contract.
+6. Optional: create a funded demo contract.
 
 ```bash
 corepack pnpm seed
 ```
 
-6. Start the app.
+7. Start the app.
 
 ```bash
 corepack pnpm dev
@@ -41,6 +52,22 @@ If Windows excludes port `3000`, use:
 
 ```bash
 corepack pnpm exec next dev -H 127.0.0.1 -p 3100
+```
+
+## Docker Database
+
+The compose file only starts PostgreSQL. Keep the app running locally with `corepack pnpm dev`.
+
+```bash
+docker compose up -d postgres
+docker compose logs -f postgres
+docker compose down
+```
+
+Use this only when you want to reset all local database data:
+
+```bash
+docker compose down -v
 ```
 
 ## Demo Wallets
