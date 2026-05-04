@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+dist
+.env
+.env*.local
+*.tsbuildinfo
+package-lock.json
+yarn.lock
+coverage
+.DS_Store
+dev-server.log

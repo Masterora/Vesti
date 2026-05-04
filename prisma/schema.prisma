@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ContractStatus {
+  draft
+  funded
+  active
+  completed
+  cancelled
+  disputed
+}
+
+enum MilestoneStatus {
+  pending
+  ready
+  submitted
+  revision_requested
+  approved
+  released
+  disputed
+}
+
+enum EventType {
+  contract_created
+  contract_funded
+  contract_activated
+  milestone_ready
+  milestone_proof_submitted
+  milestone_approved
+  milestone_released
+  contract_completed
+  contract_cancelled
+  contract_disputed
+}
+
+model User {
+  id            String   @id @default(cuid())
+  walletAddress String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Contract {
+  id             String         @id @default(cuid())
+  creatorWallet  String
+  workerWallet   String
+  title          String
+  description    String?
+  totalAmount    Decimal        @db.Decimal(18, 6)
+  fundedAmount   Decimal        @default(0) @db.Decimal(18, 6)
+  releasedAmount Decimal        @default(0) @db.Decimal(18, 6)
+  status         ContractStatus @default(draft)
+  escrowAccount  String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  milestones Milestone[]
+  events     Event[]
+
+  @@index([creatorWallet])
+  @@index([workerWallet])
+  @@index([status])
+}
+
+model Milestone {
+  id          String          @id @default(cuid())
+  contractId  String
+  index       Int
+  title       String
+  description String?
+  amount      Decimal         @db.Decimal(18, 6)
+  dueAt       DateTime?
+  status      MilestoneStatus @default(pending)
+  submittedAt DateTime?
+  approvedAt  DateTime?
+  releasedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  contract         Contract          @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  proofSubmissions ProofSubmission[]
+  events           Event[]
+
+  @@unique([contractId, index])
+  @@index([contractId])
+  @@index([status])
+}
+
+model ProofSubmission {
+  id          String   @id @default(cuid())
+  milestoneId String
+  submittedBy String
+  note        String
+  proofUrl    String?
+  proofHash   String?
+  version     Int
+  createdAt   DateTime @default(now())
+
+  milestone Milestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+
+  @@unique([milestoneId, version])
+  @@index([milestoneId])
+  @@index([submittedBy])
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  contractId  String
+  milestoneId String?
+  actorWallet String
+  eventType   EventType
+  payload     Json?
+  txSig       String?
+  createdAt   DateTime  @default(now())
+
+  contract  Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  milestone Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+
+  @@index([contractId])
+  @@index([milestoneId])
+  @@index([eventType])
+  @@index([createdAt])
+}

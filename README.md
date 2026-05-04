@@ -184,4 +184,4 @@ pnpm lint
 
 ## Status
 
-The repository is currently in the planning stage. The recommended first implementation is a Next.js app with PostgreSQL, Prisma, and a mocked escrow adapter.
+This repository contains the off-chain MVP scaffold with a mocked escrow adapter. The next step is to configure PostgreSQL, run the Prisma migration, and test the full demo flow locally.
