@@ -86,6 +86,7 @@ vesti/
         list/route.ts
         get/route.ts
         fund/route.ts
+        cancel/route.ts
       milestones/
         submit-proof/route.ts
         approve/route.ts
@@ -126,6 +127,7 @@ POST /api/contracts/create
 POST /api/contracts/list
 POST /api/contracts/get
 POST /api/contracts/fund
+POST /api/contracts/cancel
 POST /api/milestones/submit-proof
 POST /api/milestones/request-revision
 POST /api/milestones/approve
@@ -224,7 +226,7 @@ Demo path:
 
 1. Open `/dashboard`.
 2. Create a contract or run `corepack pnpm seed`.
-3. As Creator, fund the contract.
+3. As Creator, fund the contract, or cancel it while it is still a draft.
 4. Switch to Worker and submit proof for a ready milestone.
 5. Switch back to Creator and request revision or approve the milestone.
 6. If revision is requested, switch to Worker and submit a new proof version.
@@ -258,6 +260,7 @@ git commit -m "feat: add milestone revision workflow"
 ## MVP Rules
 
 - Only the Creator can fund, approve, and release payments.
+- Only the Creator can cancel a draft contract.
 - Only the assigned Worker can submit proof.
 - Milestone amounts must add up to the contract total.
 - Released amount cannot exceed funded amount.

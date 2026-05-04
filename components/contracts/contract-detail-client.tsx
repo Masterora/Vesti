@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   Check,
   CircleDollarSign,
+  Ban,
   ExternalLink,
   RefreshCw,
   RotateCcw,
@@ -36,6 +37,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
   const [contract, setContract] = useState<SerializedContract | null>(null);
   const [proofDrafts, setProofDrafts] = useState<Record<string, ProofDraft>>({});
   const [revisionDrafts, setRevisionDrafts] = useState<Record<string, string>>({});
+  const [cancelReason, setCancelReason] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(Boolean(contractId));
   const [activeAction, setActiveAction] = useState("");
@@ -193,20 +195,47 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                 />
               </div>
               {role === "creator" && contract.status === "draft" ? (
-                <div className="mt-6">
-                  <Button
-                    type="button"
-                    onClick={() =>
-                      runAction("fund", "/api/contracts/fund", {
-                        contractId: contract.id,
-                        walletAddress
-                      })
-                    }
-                    disabled={activeAction === "fund"}
-                  >
-                    <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
-                    {activeAction === "fund" ? "Funding..." : "Fund contract"}
-                  </Button>
+                <div className="mt-6 rounded-lg bg-muted p-4">
+                  <div className="grid gap-3">
+                    <div className="grid gap-2">
+                      <Label>Cancel reason</Label>
+                      <Textarea
+                        value={cancelReason}
+                        onChange={(event) => setCancelReason(event.target.value)}
+                        placeholder="Optional note for the event timeline."
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        onClick={() =>
+                          runAction("fund", "/api/contracts/fund", {
+                            contractId: contract.id,
+                            walletAddress
+                          })
+                        }
+                        disabled={activeAction === "fund"}
+                      >
+                        <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
+                        {activeAction === "fund" ? "Funding..." : "Fund contract"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        onClick={() =>
+                          runAction("cancel", "/api/contracts/cancel", {
+                            contractId: contract.id,
+                            walletAddress,
+                            reason: cancelReason || undefined
+                          })
+                        }
+                        disabled={activeAction === "cancel"}
+                      >
+                        <Ban className="mr-2 size-4" aria-hidden="true" />
+                        {activeAction === "cancel" ? "Cancelling..." : "Cancel draft"}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               ) : null}
             </Card>
