@@ -33,6 +33,13 @@ type ProofDraft = {
   proofUrl: string;
 };
 
+async function fetchContract(contractId: string, walletAddress: string) {
+  return postJson<SerializedContract>("/api/contracts/get", {
+    contractId,
+    walletAddress
+  });
+}
+
 export function ContractDetailClient({ contractId }: ContractDetailClientProps) {
   const { walletAddress } = useWallet();
   const [contract, setContract] = useState<SerializedContract | null>(null);
@@ -69,11 +76,9 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
     setError("");
 
     try {
-      const data = await postJson<SerializedContract>("/api/contracts/get", {
-        contractId,
-        walletAddress
-      });
+      const data = await fetchContract(contractId, walletAddress);
       setContract(data);
+      setError("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Failed to load contract");
     } finally {
@@ -82,8 +87,37 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
   }, [contractId, walletAddress]);
 
   useEffect(() => {
-    void loadContract();
-  }, [loadContract]);
+    if (!contractId) {
+      return;
+    }
+
+    let isCurrent = true;
+
+    const loadInitialContract = async () => {
+      try {
+        const data = await fetchContract(contractId, walletAddress);
+
+        if (isCurrent) {
+          setContract(data);
+          setError("");
+        }
+      } catch (caught) {
+        if (isCurrent) {
+          setError(caught instanceof Error ? caught.message : "Failed to load contract");
+        }
+      } finally {
+        if (isCurrent) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadInitialContract();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [contractId, walletAddress]);
 
   const runAction = async (actionKey: string, url: string, body: unknown) => {
     setActiveAction(actionKey);

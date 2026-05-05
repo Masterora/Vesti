@@ -1,12 +1,15 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 
 const defaultWallets = {
   creator: "creator_demo_wallet_8pQ7n2",
   worker: "worker_demo_wallet_5kL9s1"
 };
+
+const walletStorageKey = "vesti.walletAddress";
+const walletChangeEvent = "vesti.walletAddress.changed";
 
 type WalletContextValue = {
   walletAddress: string;
@@ -16,21 +19,41 @@ type WalletContextValue = {
 
 const WalletContext = createContext<WalletContextValue | null>(null);
 
-export function WalletProvider({ children }: { children: ReactNode }) {
-  const [walletAddress, setWalletAddressState] = useState(defaultWallets.creator);
+function getWalletSnapshot() {
+  return window.localStorage.getItem(walletStorageKey) || defaultWallets.creator;
+}
 
-  useEffect(() => {
-    const saved = window.localStorage.getItem("vesti.walletAddress");
+function getServerWalletSnapshot() {
+  return defaultWallets.creator;
+}
 
-    if (saved) {
-      setWalletAddressState(saved);
+function subscribeWalletAddress(onStoreChange: () => void) {
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === walletStorageKey) {
+      onStoreChange();
     }
-  }, []);
-
-  const setWalletAddress = (wallet: string) => {
-    setWalletAddressState(wallet);
-    window.localStorage.setItem("vesti.walletAddress", wallet);
   };
+
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener(walletChangeEvent, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(walletChangeEvent, onStoreChange);
+  };
+}
+
+export function WalletProvider({ children }: { children: ReactNode }) {
+  const walletAddress = useSyncExternalStore(
+    subscribeWalletAddress,
+    getWalletSnapshot,
+    getServerWalletSnapshot
+  );
+
+  const setWalletAddress = useCallback((wallet: string) => {
+    window.localStorage.setItem(walletStorageKey, wallet);
+    window.dispatchEvent(new Event(walletChangeEvent));
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -38,7 +61,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setWalletAddress,
       defaultWallets
     }),
-    [walletAddress]
+    [setWalletAddress, walletAddress]
   );
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
