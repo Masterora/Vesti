@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import {
+  AlertTriangle,
   Check,
   CircleDollarSign,
+  Ban,
   ExternalLink,
   RefreshCw,
   RotateCcw,
@@ -36,6 +38,8 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
   const [contract, setContract] = useState<SerializedContract | null>(null);
   const [proofDrafts, setProofDrafts] = useState<Record<string, ProofDraft>>({});
   const [revisionDrafts, setRevisionDrafts] = useState<Record<string, string>>({});
+  const [disputeDrafts, setDisputeDrafts] = useState<Record<string, string>>({});
+  const [cancelReason, setCancelReason] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(Boolean(contractId));
   const [activeAction, setActiveAction] = useState("");
@@ -128,6 +132,13 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
     }));
   };
 
+  const updateDisputeDraft = (milestoneId: string, reason: string) => {
+    setDisputeDrafts((current) => ({
+      ...current,
+      [milestoneId]: reason
+    }));
+  };
+
   if (!contractId) {
     return (
       <div className="page-shell py-10">
@@ -193,20 +204,47 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                 />
               </div>
               {role === "creator" && contract.status === "draft" ? (
-                <div className="mt-6">
-                  <Button
-                    type="button"
-                    onClick={() =>
-                      runAction("fund", "/api/contracts/fund", {
-                        contractId: contract.id,
-                        walletAddress
-                      })
-                    }
-                    disabled={activeAction === "fund"}
-                  >
-                    <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
-                    {activeAction === "fund" ? "Funding..." : "Fund contract"}
-                  </Button>
+                <div className="mt-6 rounded-lg bg-muted p-4">
+                  <div className="grid gap-3">
+                    <div className="grid gap-2">
+                      <Label>Cancel reason</Label>
+                      <Textarea
+                        value={cancelReason}
+                        onChange={(event) => setCancelReason(event.target.value)}
+                        placeholder="Optional note for the event timeline."
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        onClick={() =>
+                          runAction("fund", "/api/contracts/fund", {
+                            contractId: contract.id,
+                            walletAddress
+                          })
+                        }
+                        disabled={activeAction === "fund"}
+                      >
+                        <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
+                        {activeAction === "fund" ? "Funding..." : "Fund contract"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        onClick={() =>
+                          runAction("cancel", "/api/contracts/cancel", {
+                            contractId: contract.id,
+                            walletAddress,
+                            reason: cancelReason || undefined
+                          })
+                        }
+                        disabled={activeAction === "cancel"}
+                      >
+                        <Ban className="mr-2 size-4" aria-hidden="true" />
+                        {activeAction === "cancel" ? "Cancelling..." : "Cancel draft"}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               ) : null}
             </Card>
@@ -237,12 +275,15 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
 
                   <MilestoneActions
                     milestone={milestone}
+                    contractStatus={contract.status}
                     role={role}
                     activeAction={activeAction}
                     draft={proofDrafts[milestone.id] ?? { note: "", proofUrl: "" }}
                     revisionNote={revisionDrafts[milestone.id] ?? ""}
+                    disputeReason={disputeDrafts[milestone.id] ?? ""}
                     onDraftChange={(patch) => updateDraft(milestone.id, patch)}
                     onRevisionNoteChange={(note) => updateRevisionDraft(milestone.id, note)}
+                    onDisputeReasonChange={(reason) => updateDisputeDraft(milestone.id, reason)}
                     onSubmitProof={() => submitProof(milestone)}
                     onApprove={() =>
                       runAction(`approve-${milestone.id}`, "/api/milestones/approve", {
@@ -257,6 +298,14 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                         milestoneId: milestone.id,
                         walletAddress,
                         note: revisionDrafts[milestone.id]
+                      })
+                    }
+                    onDispute={() =>
+                      runAction(`dispute-${milestone.id}`, "/api/milestones/dispute", {
+                        contractId: contract.id,
+                        milestoneId: milestone.id,
+                        walletAddress,
+                        reason: disputeDrafts[milestone.id]
                       })
                     }
                     onRelease={() =>
@@ -333,113 +382,159 @@ function ProofHistory({ milestone }: { milestone: SerializedMilestone }) {
 
 function MilestoneActions({
   milestone,
+  contractStatus,
   role,
   activeAction,
   draft,
   revisionNote,
+  disputeReason,
   onDraftChange,
   onRevisionNoteChange,
+  onDisputeReasonChange,
   onSubmitProof,
   onApprove,
   onRequestRevision,
+  onDispute,
   onRelease
 }: {
   milestone: SerializedMilestone;
+  contractStatus: string;
   role: string;
   activeAction: string;
   draft: ProofDraft;
   revisionNote: string;
+  disputeReason: string;
   onDraftChange: (patch: Partial<ProofDraft>) => void;
   onRevisionNoteChange: (note: string) => void;
+  onDisputeReasonChange: (reason: string) => void;
   onSubmitProof: () => void;
   onApprove: () => void;
   onRequestRevision: () => void;
+  onDispute: () => void;
   onRelease: () => void;
 }) {
+  const canDispute =
+    contractStatus === "active" &&
+    ["creator", "worker"].includes(role) &&
+    ["ready", "submitted", "revision_requested", "approved"].includes(milestone.status);
+  const disputeControl = canDispute ? (
+    <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
+      <div className="grid gap-3">
+        <div className="grid gap-2">
+          <Label>Dispute reason</Label>
+          <Textarea
+            value={disputeReason}
+            onChange={(event) => onDisputeReasonChange(event.target.value)}
+            placeholder="Explain why this milestone needs to enter dispute."
+          />
+        </div>
+        <Button
+          type="button"
+          variant="danger"
+          className="w-max"
+          onClick={onDispute}
+          disabled={!disputeReason || activeAction === `dispute-${milestone.id}`}
+        >
+          <AlertTriangle className="mr-2 size-4" aria-hidden="true" />
+          {activeAction === `dispute-${milestone.id}` ? "Opening..." : "Open dispute"}
+        </Button>
+      </div>
+    </div>
+  ) : null;
+
   if (role === "worker" && ["ready", "revision_requested"].includes(milestone.status)) {
     return (
-      <div className="mt-5 rounded-lg bg-muted p-4">
-        <div className="grid gap-3">
-          <div className="grid gap-2">
-            <Label>Proof note</Label>
-            <Textarea
-              value={draft.note}
-              onChange={(event) => onDraftChange({ note: event.target.value })}
-              placeholder="Summarize what was delivered."
-            />
+      <>
+        <div className="mt-5 rounded-lg bg-muted p-4">
+          <div className="grid gap-3">
+            <div className="grid gap-2">
+              <Label>Proof note</Label>
+              <Textarea
+                value={draft.note}
+                onChange={(event) => onDraftChange({ note: event.target.value })}
+                placeholder="Summarize what was delivered."
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Proof URL</Label>
+              <Input
+                value={draft.proofUrl}
+                onChange={(event) => onDraftChange({ proofUrl: event.target.value })}
+                placeholder="https://..."
+              />
+            </div>
+            <Button
+              type="button"
+              className="w-max"
+              onClick={onSubmitProof}
+              disabled={!draft.note || activeAction === `submit-${milestone.id}`}
+            >
+              <Send className="mr-2 size-4" aria-hidden="true" />
+              {activeAction === `submit-${milestone.id}` ? "Submitting..." : "Submit proof"}
+            </Button>
           </div>
-          <div className="grid gap-2">
-            <Label>Proof URL</Label>
-            <Input
-              value={draft.proofUrl}
-              onChange={(event) => onDraftChange({ proofUrl: event.target.value })}
-              placeholder="https://..."
-            />
-          </div>
-          <Button
-            type="button"
-            className="w-max"
-            onClick={onSubmitProof}
-            disabled={!draft.note || activeAction === `submit-${milestone.id}`}
-          >
-            <Send className="mr-2 size-4" aria-hidden="true" />
-            {activeAction === `submit-${milestone.id}` ? "Submitting..." : "Submit proof"}
-          </Button>
         </div>
-      </div>
+        {disputeControl}
+      </>
     );
   }
 
   if (role === "creator" && milestone.status === "submitted") {
     return (
-      <div className="mt-5 rounded-lg bg-muted p-4">
-        <div className="grid gap-3">
-          <div className="grid gap-2">
-            <Label>Revision note</Label>
-            <Textarea
-              value={revisionNote}
-              onChange={(event) => onRevisionNoteChange(event.target.value)}
-              placeholder="Describe what needs to be changed before approval."
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              onClick={onApprove}
-              disabled={activeAction === `approve-${milestone.id}`}
-            >
-              <Check className="mr-2 size-4" aria-hidden="true" />
-              {activeAction === `approve-${milestone.id}` ? "Approving..." : "Approve milestone"}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onRequestRevision}
-              disabled={!revisionNote || activeAction === `revision-${milestone.id}`}
-            >
-              <RotateCcw className="mr-2 size-4" aria-hidden="true" />
-              {activeAction === `revision-${milestone.id}` ? "Requesting..." : "Request revision"}
-            </Button>
+      <>
+        <div className="mt-5 rounded-lg bg-muted p-4">
+          <div className="grid gap-3">
+            <div className="grid gap-2">
+              <Label>Revision note</Label>
+              <Textarea
+                value={revisionNote}
+                onChange={(event) => onRevisionNoteChange(event.target.value)}
+                placeholder="Describe what needs to be changed before approval."
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                onClick={onApprove}
+                disabled={activeAction === `approve-${milestone.id}`}
+              >
+                <Check className="mr-2 size-4" aria-hidden="true" />
+                {activeAction === `approve-${milestone.id}` ? "Approving..." : "Approve milestone"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onRequestRevision}
+                disabled={!revisionNote || activeAction === `revision-${milestone.id}`}
+              >
+                <RotateCcw className="mr-2 size-4" aria-hidden="true" />
+                {activeAction === `revision-${milestone.id}` ? "Requesting..." : "Request revision"}
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+        {disputeControl}
+      </>
     );
   }
 
   if (role === "creator" && milestone.status === "approved") {
     return (
-      <div className="mt-5">
-        <Button
-          type="button"
-          onClick={onRelease}
-          disabled={activeAction === `release-${milestone.id}`}
-        >
-          <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
-          {activeAction === `release-${milestone.id}` ? "Releasing..." : "Release payment"}
-        </Button>
-      </div>
+      <>
+        <div className="mt-5">
+          <Button
+            type="button"
+            onClick={onRelease}
+            disabled={activeAction === `release-${milestone.id}`}
+          >
+            <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
+            {activeAction === `release-${milestone.id}` ? "Releasing..." : "Release payment"}
+          </Button>
+        </div>
+        {disputeControl}
+      </>
     );
   }
 
-  return null;
+  return disputeControl;
 }

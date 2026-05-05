@@ -83,14 +83,15 @@ Worker:  worker_demo_wallet_5kL9s1
 
 1. Open `/dashboard` as Creator.
 2. Create a contract, or run `corepack pnpm seed`.
-3. Fund the contract as Creator.
-4. Switch to Worker.
+3. Fund the contract as Creator, or cancel it while it is still a draft.
+4. Switch to Worker after funding.
 5. Open the contract detail page and submit proof for a ready milestone.
 6. Switch back to Creator.
 7. Either approve the submitted milestone or write a revision note and request revision.
 8. If revision is requested, switch to Worker and submit a new proof version.
-9. Switch back to Creator, approve the latest proof, and release payment.
-10. Confirm amount progress, proof history, and Event Timeline updates.
+9. Optionally open a dispute as Creator or Worker before payment is released.
+10. Switch back to Creator, approve the latest proof, and release payment.
+11. Confirm amount progress, proof history, and Event Timeline updates.
 
 ## Quality Checks
 

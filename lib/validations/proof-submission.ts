@@ -29,7 +29,15 @@ export const releaseMilestoneSchema = z.object({
   walletAddress: walletAddressSchema
 });
 
+export const disputeMilestoneSchema = z.object({
+  contractId: z.string().trim().min(1),
+  milestoneId: z.string().trim().min(1),
+  walletAddress: walletAddressSchema,
+  reason: z.string().trim().min(1, "Dispute reason is required").max(500)
+});
+
 export type SubmitProofInput = z.infer<typeof submitProofSchema>;
 export type ApproveMilestoneInput = z.infer<typeof approveMilestoneSchema>;
 export type RequestRevisionInput = z.infer<typeof requestRevisionSchema>;
 export type ReleaseMilestoneInput = z.infer<typeof releaseMilestoneSchema>;
+export type DisputeMilestoneInput = z.infer<typeof disputeMilestoneSchema>;
