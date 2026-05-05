@@ -9,6 +9,12 @@ import { useWallet } from "@/components/wallet/wallet-provider";
 import { postJson } from "@/lib/api/client";
 import type { SerializedContract } from "@/types/contract";
 
+async function fetchContracts(walletAddress: string) {
+  return postJson<SerializedContract[]>("/api/contracts/list", {
+    walletAddress
+  });
+}
+
 export function DashboardClient() {
   const { walletAddress } = useWallet();
   const [contracts, setContracts] = useState<SerializedContract[]>([]);
@@ -20,10 +26,9 @@ export function DashboardClient() {
     setError("");
 
     try {
-      const data = await postJson<SerializedContract[]>("/api/contracts/list", {
-        walletAddress
-      });
+      const data = await fetchContracts(walletAddress);
       setContracts(data);
+      setError("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Failed to load contracts");
     } finally {
@@ -32,8 +37,33 @@ export function DashboardClient() {
   }, [walletAddress]);
 
   useEffect(() => {
-    void loadContracts();
-  }, [loadContracts]);
+    let isCurrent = true;
+
+    const loadInitialContracts = async () => {
+      try {
+        const data = await fetchContracts(walletAddress);
+
+        if (isCurrent) {
+          setContracts(data);
+          setError("");
+        }
+      } catch (caught) {
+        if (isCurrent) {
+          setError(caught instanceof Error ? caught.message : "Failed to load contracts");
+        }
+      } finally {
+        if (isCurrent) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void loadInitialContracts();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [walletAddress]);
 
   return (
     <div className="page-shell py-10">

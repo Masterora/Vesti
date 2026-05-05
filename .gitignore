@@ -10,3 +10,6 @@ yarn.lock
 coverage
 .DS_Store
 dev-server.log
+target
+.anchor
+test-ledger

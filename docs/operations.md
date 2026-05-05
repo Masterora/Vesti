@@ -102,3 +102,36 @@ corepack pnpm prisma validate
 corepack pnpm lint
 corepack pnpm build
 ```
+
+Stop the dev server before running `corepack pnpm build`, then restart it afterward. If a page suddenly renders without CSS during local development, stop the dev server, clear `.next`, and start it again.
+
+## On-chain Program
+
+The Rust/Anchor program is in `programs/vesti-escrow`. It currently defines escrow state,
+vault token accounts, and Token/Token-2022 compatible fund/release transfers.
+
+Anchor is not required for the off-chain MVP. When starting real Solana program work, use the
+latest validated stack for this repo instead of downgrading dependencies:
+
+```bash
+anchor --version          # anchor-cli 1.0.2
+solana --version          # solana-cli 3.1.14
+cargo build-sbf --version # solana-cargo-build-sbf 3.1.14
+```
+
+On Ubuntu 22.04, the AVM prebuilt Anchor 1.0.2 binary may require a newer GLIBC than the distro
+ships. If that happens, compile Anchor CLI from source:
+
+```bash
+cargo install --git https://github.com/solana-foundation/anchor --tag v1.0.2 anchor-cli --force
+```
+
+Then validate the program with:
+
+```bash
+cargo fmt --manifest-path programs/vesti-escrow/Cargo.toml
+cargo check --manifest-path programs/vesti-escrow/Cargo.toml
+anchor build
+```
+
+See `docs/onchain.md` for the current on-chain status and next tasks.
