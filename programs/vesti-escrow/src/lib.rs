@@ -306,7 +306,7 @@ pub struct ParticipantEscrowAction<'info> {
 #[account]
 #[derive(InitSpace)]
 pub struct EscrowState {
-    #[max_len(64)]
+    #[max_len(32)]
     pub contract_id: String,
     pub creator: Pubkey,
     pub worker: Pubkey,
@@ -321,7 +321,7 @@ pub struct EscrowState {
 }
 
 impl EscrowState {
-    pub const MAX_CONTRACT_ID_LEN: usize = 64;
+    pub const MAX_CONTRACT_ID_LEN: usize = 32;
     pub const MAX_MILESTONE_ID_LEN: usize = 64;
     pub const MAX_DISPUTE_REASON_LEN: usize = 256;
 }

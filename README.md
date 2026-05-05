@@ -289,7 +289,7 @@ git commit -m "feat: add milestone revision workflow"
 
 ## Status
 
-This repository contains a runnable off-chain MVP with a mocked escrow adapter, plus the first Rust/Anchor on-chain escrow boundary. The Rust program now models escrow state, vault token accounts, and Token/Token-2022 compatible fund/release transfers. The next on-chain step is Anchor tests and Web wallet-signing integration.
+This repository contains a runnable off-chain MVP with a mocked escrow adapter, plus the first Rust/Anchor on-chain escrow boundary. The Rust program now models escrow state, vault token accounts, and Token/Token-2022 compatible fund/release transfers. The Web adapter can derive escrow PDAs, vault PDAs, associated token accounts, and USDC token units, but wallet signing and transaction submission are not wired yet.
 
 ## Commit Checklist
 
