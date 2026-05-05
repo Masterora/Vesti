@@ -10,8 +10,9 @@ The repository contains an Anchor-style Rust program scaffold in:
 programs/vesti-escrow/
 ```
 
-The scaffold defines escrow state and instruction boundaries, but it does not yet perform real
-USDC token transfers.
+The scaffold defines escrow state, vault token accounts, and Token/Token-2022 compatible transfer
+boundaries. It is ready for Anchor tests and Web wallet-signing integration, but it has not been
+deployed yet.
 
 ## Program ID
 
@@ -30,20 +31,27 @@ Before deployment, generate a real program keypair and update:
 ## Instructions
 
 ```text
-initialize_escrow(contract_id, creator, worker, total_amount)
+initialize_escrow(contract_id, worker, total_amount)
 mark_funded(amount)
 release_milestone(milestone_id, amount)
 open_dispute(milestone_id, reason)
 ```
 
+`initialize_escrow` creates:
+
+- escrow PDA: `["escrow", contract_id]`
+- vault token account PDA: `["vault", contract_id]`
+
+`mark_funded` transfers the full contract amount from the Creator token account into the vault.
+`release_milestone` transfers the approved milestone amount from the vault to the Worker token
+account, signed by the escrow PDA.
+
 ## Next On-chain Tasks
 
-- Add SPL Token / Token-2022 vault accounts.
-- Validate `NEXT_PUBLIC_USDC_MINT`.
-- Transfer USDC into escrow on fund.
-- Transfer USDC from escrow to Worker on release.
 - Add Anchor tests for initialize, fund, release, and dispute.
 - Wire `lib/blockchain/solana-escrow-adapter.ts` to wallet signing and transaction submission.
+- Generate and deploy a real program keypair on localnet/devnet.
+- Add client-side PDA derivation and token account resolution.
 
 ## Local Commands
 

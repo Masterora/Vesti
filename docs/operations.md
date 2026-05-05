@@ -103,8 +103,11 @@ corepack pnpm lint
 corepack pnpm build
 ```
 
+Stop the dev server before running `corepack pnpm build`, then restart it afterward. If a page suddenly renders without CSS during local development, stop the dev server, clear `.next`, and start it again.
+
 ## On-chain Program
 
-The Rust/Anchor scaffold is in `programs/vesti-escrow`.
+The Rust/Anchor program is in `programs/vesti-escrow`. It currently defines escrow state,
+vault token accounts, and Token/Token-2022 compatible fund/release transfers.
 
 Anchor is not required for the off-chain MVP. Install Anchor when starting real Solana program work, then see `docs/onchain.md`.

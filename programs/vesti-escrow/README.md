@@ -1,16 +1,18 @@
 # Vesti Escrow Program
 
-This is the first Rust/Anchor scaffold for the Vesti on-chain escrow phase.
+This is the Rust/Anchor program boundary for the Vesti on-chain escrow phase.
 
-The current program stores escrow state and models these instructions:
+The current program stores escrow state, creates a vault token account, and models these
+instructions:
 
 - `initialize_escrow`
 - `mark_funded`
 - `release_milestone`
 - `open_dispute`
 
-This scaffold does not yet move SPL tokens. Token vault accounts, USDC mint validation,
-associated token accounts, and CPI transfers should be added in the next on-chain iteration.
+`initialize_escrow` creates the escrow PDA and a Token/Token-2022 compatible vault account.
+`mark_funded` transfers the full contract amount from the Creator token account into the vault.
+`release_milestone` transfers approved milestone funds from the vault to the Worker token account.
 
 The Web app should continue to use the mocked escrow adapter until the Solana adapter has
 wallet signing and transaction submission wired end to end.

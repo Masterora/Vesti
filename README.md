@@ -289,7 +289,7 @@ git commit -m "feat: add milestone revision workflow"
 
 ## Status
 
-This repository contains the off-chain MVP scaffold with a mocked escrow adapter. The next step is to configure PostgreSQL, run the Prisma migration, and test the full demo flow locally.
+This repository contains a runnable off-chain MVP with a mocked escrow adapter, plus the first Rust/Anchor on-chain escrow boundary. The Rust program now models escrow state, vault token accounts, and Token/Token-2022 compatible fund/release transfers. The next on-chain step is Anchor tests and Web wallet-signing integration.
 
 ## Commit Checklist
 
@@ -300,3 +300,5 @@ corepack pnpm prisma validate
 corepack pnpm lint
 corepack pnpm build
 ```
+
+If the dev server is running, stop it before `corepack pnpm build` and restart it afterward. Mixing `next dev` and `next build` against the same `.next` directory can leave local pages without CSS until `.next` is cleared.
