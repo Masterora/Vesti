@@ -89,8 +89,9 @@ Worker:  worker_demo_wallet_5kL9s1
 6. Switch back to Creator.
 7. Either approve the submitted milestone or write a revision note and request revision.
 8. If revision is requested, switch to Worker and submit a new proof version.
-9. Switch back to Creator, approve the latest proof, and release payment.
-10. Confirm amount progress, proof history, and Event Timeline updates.
+9. Optionally open a dispute as Creator or Worker before payment is released.
+10. Switch back to Creator, approve the latest proof, and release payment.
+11. Confirm amount progress, proof history, and Event Timeline updates.
 
 ## Quality Checks
 

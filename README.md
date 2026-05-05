@@ -47,6 +47,7 @@ Create contract
   -> Submit proof
   -> Request revision when needed
   -> Approve milestone
+  -> Open dispute when needed
   -> Release payment
   -> Track events
 ```
@@ -89,6 +90,8 @@ vesti/
         cancel/route.ts
       milestones/
         submit-proof/route.ts
+        request-revision/route.ts
+        dispute/route.ts
         approve/route.ts
         release/route.ts
     layout.tsx
@@ -130,6 +133,7 @@ POST /api/contracts/fund
 POST /api/contracts/cancel
 POST /api/milestones/submit-proof
 POST /api/milestones/request-revision
+POST /api/milestones/dispute
 POST /api/milestones/approve
 POST /api/milestones/release
 ```
@@ -230,8 +234,9 @@ Demo path:
 4. Switch to Worker and submit proof for a ready milestone.
 5. Switch back to Creator and request revision or approve the milestone.
 6. If revision is requested, switch to Worker and submit a new proof version.
-7. Release the milestone payment after approval.
-8. Confirm status, amount progress, proof history, and Event Timeline.
+7. Either party can open a dispute before payment is released.
+8. Release the milestone payment after approval.
+9. Confirm status, amount progress, proof history, and Event Timeline.
 
 ## Commands
 
@@ -267,6 +272,7 @@ git commit -m "feat: add milestone revision workflow"
 - Released milestones cannot be released again.
 - Proof submissions must keep version history.
 - Creator revision requests move a submitted milestone back to Worker action.
+- Creator or Worker can open a dispute on an active unreleased milestone.
 - Key actions must be recorded as events.
 
 ## Demo Flow
