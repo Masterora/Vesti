@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{self, Mint, TokenAccount, TokenInterface, TransferChecked};
 
-declare_id!("FPAahm7kTaMhtQWM2DjYnUFkWaYviMVitJFxyh1nAWFQ");
+declare_id!("H1cs7KqkmmPXMEppuTa7VrVC1apSaYtqUD5hJekwQqyC");
 
 pub const STATUS_INITIALIZED: u8 = 0;
 pub const STATUS_FUNDED: u8 = 1;
@@ -68,7 +68,7 @@ pub mod vesti_escrow {
 
         token_interface::transfer_checked(
             CpiContext::new(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_program.key(),
                 TransferChecked {
                     from: ctx.accounts.creator_token_account.to_account_info(),
                     mint: ctx.accounts.usdc_mint.to_account_info(),
@@ -126,7 +126,7 @@ pub mod vesti_escrow {
 
         token_interface::transfer_checked(
             CpiContext::new_with_signer(
-                ctx.accounts.token_program.to_account_info(),
+                ctx.accounts.token_program.key(),
                 TransferChecked {
                     from: ctx.accounts.vault.to_account_info(),
                     mint: ctx.accounts.usdc_mint.to_account_info(),

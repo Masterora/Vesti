@@ -11,19 +11,19 @@ programs/vesti-escrow/
 ```
 
 The scaffold defines escrow state, vault token accounts, and Token/Token-2022 compatible transfer
-boundaries. The Web app can derive the matching PDAs, associated token accounts, and USDC token
-units, but wallet signing and transaction submission are not wired yet. The program has not been
-deployed.
+boundaries. It builds with Anchor CLI 1.0.2 and Agave/Solana CLI 3.1.14. The Web app can derive
+the matching PDAs, associated token accounts, and USDC token units, but wallet signing and
+transaction submission are not wired yet. The program has not been deployed.
 
 ## Program ID
 
-Current placeholder program id:
+Current local program id:
 
 ```text
-FPAahm7kTaMhtQWM2DjYnUFkWaYviMVitJFxyh1nAWFQ
+H1cs7KqkmmPXMEppuTa7VrVC1apSaYtqUD5hJekwQqyC
 ```
 
-Before deployment, generate a real program keypair and update:
+Before devnet deployment, use the deployment keypair and keep these files in sync:
 
 - `Anchor.toml`
 - `programs/vesti-escrow/src/lib.rs`
@@ -65,9 +65,26 @@ lib/blockchain/solana-escrow-accounts.ts
 
 ## Local Commands
 
+Use WSL for the Rust/Solana toolchain on Windows. The current validated versions are:
+
+```bash
+anchor --version          # anchor-cli 1.0.2
+solana --version          # solana-cli 3.1.14
+cargo build-sbf --version # solana-cargo-build-sbf 3.1.14
+```
+
+Anchor CLI 1.0.2 can be installed with AVM when the host libc supports the prebuilt binary. On
+Ubuntu 22.04, build it from source instead:
+
+```bash
+cargo install --git https://github.com/solana-foundation/anchor --tag v1.0.2 anchor-cli --force
+```
+
 Anchor is required for program builds.
 
 ```bash
+cargo fmt --manifest-path programs/vesti-escrow/Cargo.toml
+cargo check --manifest-path programs/vesti-escrow/Cargo.toml
 anchor build
 anchor test
 ```

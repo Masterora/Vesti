@@ -69,7 +69,7 @@ Optional on-chain phase:
 - Solana Program
 - Anchor
 
-The Rust/Solana scaffold lives in [`programs/vesti-escrow`](programs/vesti-escrow). See [`docs/onchain.md`](docs/onchain.md) for the current on-chain status and next tasks.
+The Rust/Solana scaffold lives in [`programs/vesti-escrow`](programs/vesti-escrow). It is currently validated with Anchor CLI 1.0.2 and Agave/Solana CLI 3.1.14. See [`docs/onchain.md`](docs/onchain.md) for the current on-chain status and next tasks.
 
 ## Target Project Structure
 
@@ -161,7 +161,7 @@ NEXT_PUBLIC_SOLANA_NETWORK=devnet
 NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
 NEXT_PUBLIC_USDC_MINT=
 ESCROW_ADAPTER_MODE=mock
-ESCROW_PROGRAM_ID=FPAahm7kTaMhtQWM2DjYnUFkWaYviMVitJFxyh1nAWFQ
+ESCROW_PROGRAM_ID=H1cs7KqkmmPXMEppuTa7VrVC1apSaYtqUD5hJekwQqyC
 ```
 
 ## Quick Start
@@ -289,7 +289,7 @@ git commit -m "feat: add milestone revision workflow"
 
 ## Status
 
-This repository contains a runnable off-chain MVP with a mocked escrow adapter, plus the first Rust/Anchor on-chain escrow boundary. The Rust program now models escrow state, vault token accounts, and Token/Token-2022 compatible fund/release transfers. The Web adapter can derive escrow PDAs, vault PDAs, associated token accounts, and USDC token units, but wallet signing and transaction submission are not wired yet.
+This repository contains a runnable off-chain MVP with a mocked escrow adapter, plus the first Rust/Anchor on-chain escrow boundary. The Rust program builds with Anchor CLI 1.0.2 and Agave/Solana CLI 3.1.14, and it models escrow state, vault token accounts, and Token/Token-2022 compatible fund/release transfers. The Web adapter can derive escrow PDAs, vault PDAs, associated token accounts, and USDC token units, but wallet signing and transaction submission are not wired yet.
 
 ## Commit Checklist
 

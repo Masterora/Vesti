@@ -1,12 +1,11 @@
+[toolchain]
+
 [features]
-seeds = false
+resolution = true
 skip-lint = false
 
 [programs.localnet]
-vesti_escrow = "FPAahm7kTaMhtQWM2DjYnUFkWaYviMVitJFxyh1nAWFQ"
-
-[registry]
-url = "https://api.apr.dev"
+vesti_escrow = "H1cs7KqkmmPXMEppuTa7VrVC1apSaYtqUD5hJekwQqyC"
 
 [provider]
 cluster = "localnet"
@@ -14,3 +13,5 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "echo \"Add Anchor tests in a later on-chain iteration\""
+
+[hooks]
