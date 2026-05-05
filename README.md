@@ -69,6 +69,8 @@ Optional on-chain phase:
 - Solana Program
 - Anchor
 
+The Rust/Solana scaffold lives in [`programs/vesti-escrow`](programs/vesti-escrow). See [`docs/onchain.md`](docs/onchain.md) for the current on-chain status and next tasks.
+
 ## Target Project Structure
 
 ```text
@@ -159,7 +161,7 @@ NEXT_PUBLIC_SOLANA_NETWORK=devnet
 NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
 NEXT_PUBLIC_USDC_MINT=
 ESCROW_ADAPTER_MODE=mock
-ESCROW_PROGRAM_ID=
+ESCROW_PROGRAM_ID=FPAahm7kTaMhtQWM2DjYnUFkWaYviMVitJFxyh1nAWFQ
 ```
 
 ## Quick Start

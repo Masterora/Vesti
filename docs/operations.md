@@ -102,3 +102,9 @@ corepack pnpm prisma validate
 corepack pnpm lint
 corepack pnpm build
 ```
+
+## On-chain Program
+
+The Rust/Anchor scaffold is in `programs/vesti-escrow`.
+
+Anchor is not required for the off-chain MVP. Install Anchor when starting real Solana program work, then see `docs/onchain.md`.

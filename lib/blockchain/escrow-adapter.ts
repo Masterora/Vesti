@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { mockedEscrowAdapter } from "./mocked-escrow-adapter";
+import { solanaEscrowAdapter } from "./solana-escrow-adapter";
 
 export type FundContractParams = {
   contractId: string;
@@ -29,9 +30,13 @@ export type EscrowAdapter = {
 export function getEscrowAdapter(): EscrowAdapter {
   const mode = process.env.ESCROW_ADAPTER_MODE ?? "mock";
 
-  if (mode !== "mock") {
-    throw new Error(`Unsupported ESCROW_ADAPTER_MODE: ${mode}`);
+  if (mode === "mock") {
+    return mockedEscrowAdapter;
   }
 
-  return mockedEscrowAdapter;
+  if (mode === "onchain") {
+    return solanaEscrowAdapter;
+  }
+
+  throw new Error(`Unsupported ESCROW_ADAPTER_MODE: ${mode}`);
 }
