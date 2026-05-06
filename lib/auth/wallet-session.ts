@@ -150,6 +150,21 @@ export function createWalletSessionCookie(walletAddress: string, now = new Date(
   };
 }
 
+export function createClearWalletSessionCookie() {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+
+  return [
+    `${walletSessionCookieName}=`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Lax",
+    "Max-Age=0",
+    secure
+  ]
+    .filter(Boolean)
+    .join("; ");
+}
+
 export function isDemoWalletAuthFallbackEnabled() {
   return process.env.DEMO_WALLET_AUTH_ENABLED !== "false";
 }

@@ -1,6 +1,7 @@
 export async function postJson<T>(url: string, body: unknown): Promise<T> {
   const response = await fetch(url, {
     method: "POST",
+    credentials: "same-origin",
     headers: {
       "Content-Type": "application/json"
     },
