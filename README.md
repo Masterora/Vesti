@@ -162,7 +162,12 @@ NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
 NEXT_PUBLIC_USDC_MINT=
 ESCROW_ADAPTER_MODE=mock
 ESCROW_PROGRAM_ID=H1cs7KqkmmPXMEppuTa7VrVC1apSaYtqUD5hJekwQqyC
+AUTH_SECRET=replace-with-a-long-random-secret
+DEMO_WALLET_AUTH_ENABLED=true
 ```
+
+`DEMO_WALLET_AUTH_ENABLED=true` keeps the demo wallet switcher working before real wallet UI is
+wired. Set it to `false` outside demo environments so API routes require a signed wallet session.
 
 ## Quick Start
 

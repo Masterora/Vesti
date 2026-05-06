@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { postJson } from "@/lib/api/client";
+import { amountIsPositive, safeAmountsEqual, sumAmountStrings } from "@/lib/domain/amount";
 import { formatUsdc } from "@/lib/utils";
 import type { SerializedContract } from "@/types/contract";
 
@@ -47,11 +48,17 @@ export function NewContractForm() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const milestoneTotal = useMemo(
-    () => milestones.reduce((sum, milestone) => sum + Number(milestone.amount || 0), 0),
-    [milestones]
-  );
-  const totalMatches = Number(totalAmount || 0) === milestoneTotal;
+  const milestoneTotal = useMemo((): string | null => {
+    try {
+      return sumAmountStrings(milestones.map((milestone) => milestone.amount || "0"));
+    } catch {
+      return null;
+    }
+  }, [milestones]);
+  const totalMatches =
+    milestoneTotal !== null &&
+    amountIsPositive(totalAmount || "0") &&
+    safeAmountsEqual(totalAmount || "0", milestoneTotal);
 
   const updateMilestone = (index: number, patch: Partial<MilestoneDraft>) => {
     setMilestones((current) =>
@@ -222,7 +229,7 @@ export function NewContractForm() {
             <div className="rounded-lg bg-muted p-4">
               <div className="flex justify-between gap-3 text-sm">
                 <span className="text-muted-foreground">Milestone total</span>
-                <span className="font-semibold">{formatUsdc(milestoneTotal)}</span>
+                <span className="font-semibold">{formatUsdc(milestoneTotal ?? "0")}</span>
               </div>
               <div className="mt-2 flex justify-between gap-3 text-sm">
                 <span className="text-muted-foreground">Contract total</span>

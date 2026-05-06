@@ -25,15 +25,13 @@ export async function getContractById(input: GetContractInput) {
     "Contract not found"
   );
 
-  if (input.walletAddress) {
-    const role = getContractRole({
-      walletAddress: input.walletAddress,
-      creatorWallet: contract.creatorWallet,
-      workerWallet: contract.workerWallet
-    });
+  const role = getContractRole({
+    walletAddress: input.walletAddress,
+    creatorWallet: contract.creatorWallet,
+    workerWallet: contract.workerWallet
+  });
 
-    assertAllowed(role !== "viewer", "Only the Creator or Worker can view this contract");
-  }
+  assertAllowed(role !== "viewer", "Only the Creator or Worker can view this contract");
 
   return serializeContract(contract);
 }

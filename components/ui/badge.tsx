@@ -2,7 +2,6 @@ import { cn } from "@/lib/utils";
 
 const toneByStatus: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
-  funded: "bg-amber-100 text-amber-800",
   active: "bg-teal-100 text-teal-800",
   completed: "bg-emerald-100 text-emerald-800",
   cancelled: "bg-zinc-200 text-zinc-700",

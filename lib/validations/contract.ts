@@ -23,7 +23,7 @@ export const listContractsSchema = z.object({
 
 export const getContractSchema = z.object({
   contractId: z.string().trim().min(1),
-  walletAddress: walletAddressSchema.optional()
+  walletAddress: walletAddressSchema
 });
 
 export const fundContractSchema = z.object({

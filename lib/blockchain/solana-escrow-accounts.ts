@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import { PublicKey } from "@solana/web3.js";
+import { amountToUnits } from "@/lib/domain/amount";
 
 export const USDC_DECIMALS = 6;
 export const MAX_ESCROW_CONTRACT_ID_BYTES = 32;
@@ -119,25 +120,5 @@ export function deriveSolanaEscrowAccounts({
 }
 
 export function decimalToTokenUnits(amount: DecimalLike | string, decimals = USDC_DECIMALS) {
-  if (!Number.isInteger(decimals) || decimals < 0) {
-    throw new Error("Token decimals must be a non-negative integer");
-  }
-
-  const rawAmount = typeof amount === "string" ? amount : amount.toString();
-
-  if (!/^\d+(\.\d+)?$/.test(rawAmount)) {
-    throw new Error("Amount must be a positive decimal string");
-  }
-
-  const [wholePart, fractionPart = ""] = rawAmount.split(".");
-
-  if (fractionPart.length > decimals) {
-    throw new Error(`Amount cannot have more than ${decimals} decimal places`);
-  }
-
-  const multiplier = BigInt(10) ** BigInt(decimals);
-  const wholeUnits = BigInt(wholePart) * multiplier;
-  const fractionUnits = BigInt(fractionPart.padEnd(decimals, "0") || "0");
-
-  return wholeUnits + fractionUnits;
+  return amountToUnits(typeof amount === "string" ? amount : amount.toString(), decimals);
 }
