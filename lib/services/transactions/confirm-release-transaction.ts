@@ -1,12 +1,27 @@
 import { db } from "@/lib/db";
-import { getEscrowAdapter } from "@/lib/blockchain/escrow-adapter";
+import { getEscrowAdapterMode } from "@/lib/blockchain/escrow-adapter";
+import { confirmSolanaSignature } from "@/lib/blockchain/solana-confirmation";
 import { applyMilestoneRelease } from "@/lib/services/milestones/apply-milestone-release";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
 import { serializeContract } from "@/lib/services/serialize";
-import type { ReleaseMilestoneInput } from "@/lib/validations/proof-submission";
+import type { ConfirmReleaseTransactionInput } from "@/lib/validations/transaction";
 
-export async function releaseMilestonePayment(input: ReleaseMilestoneInput) {
-  const adapter = getEscrowAdapter();
+export async function confirmReleaseTransaction(input: ConfirmReleaseTransactionInput) {
+  const mode = getEscrowAdapterMode();
+
+  if (mode === "mock") {
+    return {
+      mode,
+      action: "release_milestone" as const,
+      contractId: input.contractId,
+      milestoneId: input.milestoneId,
+      confirmed: false,
+      canUseDirectAction: true,
+      message: "Mock escrow mode does not confirm wallet-signed transactions."
+    };
+  }
+
+  const confirmation = await confirmSolanaSignature(input.txSig);
 
   return db.$transaction(async (tx) => {
     const contract = assertFound(
@@ -15,7 +30,6 @@ export async function releaseMilestonePayment(input: ReleaseMilestoneInput) {
       }),
       "Contract not found"
     );
-
     const milestone = assertFound(
       await tx.milestone.findFirst({
         where: {
@@ -28,7 +42,7 @@ export async function releaseMilestonePayment(input: ReleaseMilestoneInput) {
 
     assertAllowed(
       input.walletAddress === contract.creatorWallet,
-      "Only the Creator can release payments"
+      "Only the Creator can confirm payment release"
     );
     assertState(contract.status === "active", "Contract must be active before release");
     assertState(milestone.status === "approved", "Only approved milestones can be released");
@@ -39,19 +53,11 @@ export async function releaseMilestonePayment(input: ReleaseMilestoneInput) {
       "Released amount cannot exceed funded amount"
     );
 
-    const release = await adapter.releaseMilestonePayment({
-      contractId: contract.id,
-      milestoneId: milestone.id,
-      creatorWallet: contract.creatorWallet,
-      workerWallet: contract.workerWallet,
-      amount: milestone.amount
-    });
-
     await applyMilestoneRelease(tx, {
       contract,
       milestone,
       actorWallet: input.walletAddress,
-      txSig: release.txSig
+      txSig: input.txSig
     });
 
     const updated = await tx.contract.findUniqueOrThrow({
@@ -71,6 +77,12 @@ export async function releaseMilestonePayment(input: ReleaseMilestoneInput) {
       }
     });
 
-    return serializeContract(updated);
+    return {
+      mode,
+      action: "release_milestone" as const,
+      confirmed: true,
+      confirmation,
+      contract: serializeContract(updated)
+    };
   });
 }

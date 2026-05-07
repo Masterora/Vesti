@@ -27,8 +27,20 @@ export type EscrowAdapter = {
   }>;
 };
 
-export function getEscrowAdapter(): EscrowAdapter {
+export type EscrowAdapterMode = "mock" | "onchain";
+
+export function getEscrowAdapterMode(): EscrowAdapterMode {
   const mode = process.env.ESCROW_ADAPTER_MODE ?? "mock";
+
+  if (mode === "mock" || mode === "onchain") {
+    return mode;
+  }
+
+  throw new Error(`Unsupported ESCROW_ADAPTER_MODE: ${mode}`);
+}
+
+export function getEscrowAdapter(): EscrowAdapter {
+  const mode = getEscrowAdapterMode();
 
   if (mode === "mock") {
     return mockedEscrowAdapter;

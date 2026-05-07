@@ -138,6 +138,10 @@ POST /api/milestones/request-revision
 POST /api/milestones/dispute
 POST /api/milestones/approve
 POST /api/milestones/release
+POST /api/transactions/prepare-fund
+POST /api/transactions/confirm-fund
+POST /api/transactions/prepare-release
+POST /api/transactions/confirm-release
 ```
 
 Example request body:
@@ -244,6 +248,26 @@ Demo path:
 7. Either party can open a dispute before payment is released.
 8. Release the milestone payment after approval.
 9. Confirm status, amount progress, proof history, and Event Timeline.
+
+## On-chain Transaction Flow
+
+The direct fund/release endpoints still support the mock demo flow. For real wallet-signed escrow,
+use the transaction endpoints:
+
+```text
+POST /api/transactions/prepare-fund
+  -> wallet signs and submits the returned base64 Solana transaction
+  -> POST /api/transactions/confirm-fund with txSig
+
+POST /api/transactions/prepare-release
+  -> wallet signs and submits the returned base64 Solana transaction
+  -> POST /api/transactions/confirm-release with txSig
+```
+
+In `ESCROW_ADAPTER_MODE=mock`, prepare/confirm endpoints return mock-mode guidance and keep the
+existing direct action buttons usable. In `ESCROW_ADAPTER_MODE=onchain`, prepare endpoints build
+Anchor-compatible transactions and confirm endpoints verify the Solana signature status before
+advancing local contract state.
 
 ## Commands
 
