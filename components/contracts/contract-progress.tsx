@@ -1,3 +1,4 @@
+import { amountRatioPercent } from "@/lib/domain/amount";
 import { formatUsdc } from "@/lib/utils";
 
 type ContractProgressProps = {
@@ -11,11 +12,8 @@ export function ContractProgress({
   fundedAmount,
   releasedAmount
 }: ContractProgressProps) {
-  const total = Number(totalAmount);
-  const funded = Number(fundedAmount);
-  const released = Number(releasedAmount);
-  const fundedPercent = total > 0 ? Math.min((funded / total) * 100, 100) : 0;
-  const releasedPercent = total > 0 ? Math.min((released / total) * 100, 100) : 0;
+  const fundedPercent = amountRatioPercent(fundedAmount, totalAmount);
+  const releasedPercent = amountRatioPercent(releasedAmount, totalAmount);
 
   return (
     <div className="space-y-3">

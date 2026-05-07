@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { getEscrowAdapter } from "@/lib/blockchain/escrow-adapter";
-import { recordEvent } from "@/lib/services/events/record-event";
+import { applyMilestoneRelease } from "@/lib/services/milestones/apply-milestone-release";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
 import { serializeContract } from "@/lib/services/serialize";
 import type { ReleaseMilestoneInput } from "@/lib/validations/proof-submission";
@@ -47,54 +47,12 @@ export async function releaseMilestonePayment(input: ReleaseMilestoneInput) {
       amount: milestone.amount
     });
 
-    await tx.milestone.update({
-      where: { id: milestone.id },
-      data: {
-        status: "released",
-        releasedAt: new Date()
-      }
-    });
-
-    const remainingMilestones = await tx.milestone.count({
-      where: {
-        contractId: contract.id,
-        NOT: { status: "released" }
-      }
-    });
-
-    const contractStatus = remainingMilestones === 0 ? "completed" : "active";
-
-    await tx.contract.update({
-      where: { id: contract.id },
-      data: {
-        releasedAmount: nextReleasedAmount,
-        status: contractStatus
-      }
-    });
-
-    await recordEvent(tx, {
-      contractId: contract.id,
-      milestoneId: milestone.id,
+    await applyMilestoneRelease(tx, {
+      contract,
+      milestone,
       actorWallet: input.walletAddress,
-      eventType: "milestone_released",
-      payload: {
-        title: milestone.title,
-        amount: milestone.amount.toString()
-      },
       txSig: release.txSig
     });
-
-    if (contractStatus === "completed") {
-      await recordEvent(tx, {
-        contractId: contract.id,
-        actorWallet: input.walletAddress,
-        eventType: "contract_completed",
-        payload: {
-          releasedAmount: nextReleasedAmount.toString()
-        },
-        txSig: release.txSig
-      });
-    }
 
     const updated = await tx.contract.findUniqueOrThrow({
       where: { id: contract.id },

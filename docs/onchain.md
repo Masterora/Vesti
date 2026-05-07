@@ -12,8 +12,9 @@ programs/vesti-escrow/
 
 The scaffold defines escrow state, vault token accounts, and Token/Token-2022 compatible transfer
 boundaries. It builds with Anchor CLI 1.0.2 and Agave/Solana CLI 3.1.14. The Web app can derive
-the matching PDAs, associated token accounts, and USDC token units, but wallet signing and
-transaction submission are not wired yet. The program has not been deployed.
+the matching PDAs, associated token accounts, USDC token units, and base64 unsigned transactions
+for funding and release. Wallet-side transaction signing/submission is not wired into the UI yet.
+The program has not been deployed.
 
 ## Program ID
 
@@ -56,12 +57,20 @@ The Web-side derivation helpers live in:
 lib/blockchain/solana-escrow-accounts.ts
 ```
 
+Web-side Anchor instruction and transaction builders live in:
+
+```text
+lib/blockchain/anchor-encoding.ts
+lib/blockchain/solana-escrow-instructions.ts
+lib/blockchain/solana-escrow-transactions.ts
+```
+
 ## Next On-chain Tasks
 
 - Add Anchor tests for initialize, fund, release, and dispute.
-- Wire `lib/blockchain/solana-escrow-adapter.ts` to wallet signing and transaction submission.
+- Wire the frontend to deserialize, sign, and submit prepared Solana transactions.
 - Generate and deploy a real program keypair on localnet/devnet.
-- Build Anchor instruction serialization in the Web adapter.
+- Reconcile confirmed signatures with on-chain escrow account state before advancing local state.
 
 ## Local Commands
 
