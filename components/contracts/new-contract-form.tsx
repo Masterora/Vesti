@@ -21,6 +21,15 @@ type MilestoneDraft = {
   dueAt: string;
 };
 
+function createEmptyMilestone(): MilestoneDraft {
+  return {
+    title: "",
+    description: "",
+    amount: "",
+    dueAt: ""
+  };
+}
+
 function normalizeDueAt(value: string) {
   const trimmed = value.trim();
 
@@ -59,34 +68,17 @@ function normalizeDueAt(value: string) {
   return trimmed;
 }
 
-function buildInitialMilestones(copy: {
-  defaults: {
-    milestones: ReadonlyArray<{
-      amount: string;
-      description: string;
-      title: string;
-    }>;
-  };
-}) {
-  return copy.defaults.milestones.map((milestone) => ({
-    ...milestone,
-    dueAt: ""
-  }));
-}
-
 export function NewContractForm() {
   const router = useRouter();
   const { locale, messages } = useLocale();
-  const { walletAddress, defaultWallets, isAuthenticated, demoWalletsEnabled } = useWallet();
+  const { walletAddress, isAuthenticated, demoWalletsEnabled } = useWallet();
   const contractCopy = messages.newContract;
-  const [title, setTitle] = useState<string>(contractCopy.defaults.title);
-  const [description, setDescription] = useState<string>(contractCopy.defaults.description);
+  const [title, setTitle] = useState<string>("");
+  const [description, setDescription] = useState<string>("");
   const [isPublic, setIsPublic] = useState(false);
-  const [workerWallet, setWorkerWallet] = useState<string>(
-    demoWalletsEnabled ? defaultWallets.worker : ""
-  );
-  const [totalAmount, setTotalAmount] = useState<string>("1000");
-  const [milestones, setMilestones] = useState<MilestoneDraft[]>(() => buildInitialMilestones(contractCopy));
+  const [workerWallet, setWorkerWallet] = useState<string>("");
+  const [totalAmount, setTotalAmount] = useState<string>("");
+  const [milestones, setMilestones] = useState<MilestoneDraft[]>(() => [createEmptyMilestone()]);
   const [error, setError] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -112,15 +104,7 @@ export function NewContractForm() {
   };
 
   const addMilestone = () => {
-    setMilestones((current) => [
-      ...current,
-      {
-        title: "",
-        description: "",
-        amount: "",
-        dueAt: ""
-      }
-    ]);
+    setMilestones((current) => [...current, createEmptyMilestone()]);
   };
 
   const removeMilestone = (index: number) => {
