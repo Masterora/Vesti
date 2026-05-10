@@ -1,29 +1,25 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { useLocale } from "./locale-provider";
 
 export function LanguageToggle() {
-  const { locale, messages, setLocale } = useLocale();
+  const { locale, setLocale } = useLocale();
 
   return (
-    <div className="flex items-center gap-1 rounded-md border border-border bg-white p-1">
-      <Button
-        type="button"
-        variant={locale === "en" ? "primary" : "ghost"}
-        className="h-8 px-3"
-        onClick={() => setLocale("en")}
+    <div className="rounded-md border border-border bg-white px-2">
+      <label htmlFor="language-select" className="sr-only">
+        Language
+      </label>
+      <select
+        id="language-select"
+        aria-label="Language"
+        className="h-8 bg-transparent pr-6 text-sm outline-none"
+        value={locale}
+        onChange={(event) => setLocale(event.target.value as "en" | "zh")}
       >
-        {messages.language.english}
-      </Button>
-      <Button
-        type="button"
-        variant={locale === "zh" ? "primary" : "ghost"}
-        className="h-8 px-3"
-        onClick={() => setLocale("zh")}
-      >
-        {messages.language.chinese}
-      </Button>
+        <option value="en">English</option>
+        <option value="zh">Chinese</option>
+      </select>
     </div>
   );
 }

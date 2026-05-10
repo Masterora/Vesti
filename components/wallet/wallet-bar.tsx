@@ -34,6 +34,7 @@ export function WalletBar() {
               aria-label={messages.wallet.walletAddress}
               className="h-7 w-52 border-0 px-1 focus:ring-0"
               value={walletAddress}
+              placeholder={messages.wallet.walletAddress}
               onChange={(event) => setWalletAddress(event.target.value)}
               readOnly={isAuthenticated}
               title={

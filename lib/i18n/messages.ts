@@ -115,24 +115,7 @@ export const messages = {
       submit: "Create contract",
       submitting: "Creating...",
       connectNotice:
-        "Connect and sign in with your wallet before creating an on-chain contract.",
-      defaults: {
-        title: "Vesti MVP build",
-        description:
-          "Build a working milestone escrow MVP with dashboard, proof submission, approval, and release flow.",
-        milestones: [
-          {
-            title: "Discovery and specification",
-            description: "Confirm scope and deliver implementation plan.",
-            amount: "250"
-          },
-          {
-            title: "MVP delivery",
-            description: "Deliver working MVP and proof package.",
-            amount: "750"
-          }
-        ]
-      }
+        "Connect and sign in with your wallet before creating an on-chain contract."
     },
     contractDetail: {
       missingIdTitle: "Contract id is required",
@@ -357,23 +340,7 @@ export const messages = {
       mismatchError: "所有里程碑金额之和必须等于合同总额。",
       submit: "创建合同",
       submitting: "创建中...",
-      connectNotice: "请先连接钱包并完成签名登录，再创建链上合同。",
-      defaults: {
-        title: "Vesti 最小可用版开发",
-        description: "开发一个可用的里程碑托管最小可用版本，包含看板、证明提交、审批和放款流程。",
-        milestones: [
-          {
-            title: "需求确认与方案整理",
-            description: "确认范围并给出可执行的实现方案。",
-            amount: "250"
-          },
-          {
-            title: "最小可用版交付",
-            description: "交付可运行的最小可用版本和证明材料。",
-            amount: "750"
-          }
-        ]
-      }
+      connectNotice: "请先连接钱包并完成签名登录，再创建链上合同。"
     },
     contractDetail: {
       missingIdTitle: "缺少合同编号",

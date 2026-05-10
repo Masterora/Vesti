@@ -82,7 +82,7 @@ type AuthSession = {
 };
 
 function getDefaultWalletAddress() {
-  return demoWalletsEnabled ? defaultWallets.creator : "";
+  return "";
 }
 
 function getWalletSnapshot() {

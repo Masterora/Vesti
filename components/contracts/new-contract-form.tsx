@@ -94,6 +94,8 @@ export function NewContractForm() {
     milestoneTotal !== null &&
     amountIsPositive(totalAmount || "0") &&
     safeAmountsEqual(totalAmount || "0", milestoneTotal);
+  const hasAmountInput =
+    totalAmount.trim() !== "" || milestones.some((milestone) => milestone.amount.trim() !== "");
 
   const updateMilestone = (index: number, patch: Partial<MilestoneDraft>) => {
     setMilestones((current) =>
@@ -306,7 +308,7 @@ export function NewContractForm() {
                 {contractCopy.connectNotice}
               </p>
             ) : null}
-            {!totalMatches ? (
+            {!totalMatches && hasAmountInput ? (
               <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-800">
                 {contractCopy.mismatchError}
               </p>
