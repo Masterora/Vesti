@@ -44,16 +44,14 @@ export function WalletBar() {
               }
             />
           </div>
-        ) : (
+        ) : isAuthenticated && sessionWalletAddress ? (
           <div className="hidden min-w-0 items-center gap-2 rounded-md border border-border bg-white px-3 py-1.5 md:flex">
             <UserRound className="size-4 text-muted-foreground" aria-hidden="true" />
             <span className="max-w-52 truncate text-sm text-muted-foreground" title={sessionWalletAddress ?? undefined}>
-              {isAuthenticated && sessionWalletAddress
-                ? shortenWallet(sessionWalletAddress)
-                : messages.wallet.notConnected}
+              {shortenWallet(sessionWalletAddress)}
             </span>
           </div>
-        )}
+        ) : null}
         {isAuthenticated ? (
           <Button
             type="button"
@@ -100,13 +98,15 @@ export function WalletBar() {
             </Button>
           </div>
         ) : null}
-        <span className="hidden text-xs text-muted-foreground lg:inline">
-          {isAuthenticated
-            ? `${messages.wallet.signed} ${shortenWallet(sessionWalletAddress ?? walletAddress)}`
-            : demoWalletsEnabled && walletAddress
-              ? `${messages.wallet.demo} ${shortenWallet(walletAddress)}`
-              : messages.wallet.notConnected}
-        </span>
+        {isAuthenticated ? (
+          <span className="hidden text-xs text-muted-foreground lg:inline">
+            {messages.wallet.signed} {shortenWallet(sessionWalletAddress ?? walletAddress)}
+          </span>
+        ) : demoWalletsEnabled && walletAddress ? (
+          <span className="hidden text-xs text-muted-foreground lg:inline">
+            {messages.wallet.demo} {shortenWallet(walletAddress)}
+          </span>
+        ) : null}
       </div>
       {authError ? <p className="max-w-sm text-right text-xs text-danger">{authError}</p> : null}
     </div>

@@ -4,8 +4,6 @@ Vesti is a USDC milestone escrow MVP for remote work collaboration.
 
 Creators create contracts and fund escrow. Workers submit proof for each milestone. Creators review the submission and release the corresponding payment.
 
-The first version focuses on a complete off-chain MVP with a mocked escrow adapter. Real Solana escrow integration can be added later through the same adapter interface.
-
 ## Scope
 
 Vesti focuses on:
@@ -20,17 +18,6 @@ Vesti focuses on:
 - Milestone payment release
 - Dashboard and contract detail views
 - Event timeline and status tracking
-
-Vesti does not include:
-
-- Talent marketplace
-- Chat
-- KYC
-- Legal contracts
-- Fiat payments
-- AI features
-- Multi-chain support
-- Public profiles or reputation
 
 ## Roles
 
@@ -62,14 +49,11 @@ Create contract
 - PostgreSQL
 - Prisma
 - Zod
-
-Optional on-chain phase:
-
 - Rust
 - Solana Program
 - Anchor
 
-The Rust/Solana scaffold lives in [`programs/vesti-escrow`](programs/vesti-escrow). It is currently validated with Anchor CLI 1.0.2 and Agave/Solana CLI 3.1.14. See [`docs/onchain.md`](docs/onchain.md) for the current on-chain status and next tasks.
+The Solana program lives in [`programs/vesti-escrow`](programs/vesti-escrow). It is currently validated with Anchor CLI 1.0.2 and Agave/Solana CLI 3.1.14. See [`docs/onchain.md`](docs/onchain.md) for deployment and operational details.
 
 ## Target Project Structure
 
@@ -165,14 +149,13 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_SOLANA_NETWORK=devnet
 NEXT_PUBLIC_SOLANA_RPC_URL=https://api.devnet.solana.com
 NEXT_PUBLIC_USDC_MINT=
-ESCROW_ADAPTER_MODE=mock
+ESCROW_ADAPTER_MODE=onchain
 ESCROW_PROGRAM_ID=H1cs7KqkmmPXMEppuTa7VrVC1apSaYtqUD5hJekwQqyC
 AUTH_SECRET=replace-with-a-long-random-secret
 DEMO_WALLET_AUTH_ENABLED=false
 ```
 
-Set `ESCROW_ADAPTER_MODE=onchain` for devnet wallet-signed escrow flows. Leave it as `mock` only
-for the off-chain demo path.
+Set `ESCROW_ADAPTER_MODE=onchain` for devnet wallet-signed escrow flows.
 
 `DEMO_WALLET_AUTH_ENABLED=false` is the secure default. Set it to `true` only when you explicitly
 want the demo wallet switcher to bypass signed wallet sessions in a local demo environment.
@@ -232,32 +215,9 @@ To remove local database data:
 docker compose down -v
 ```
 
-## Demo Operation
-
-The app still includes a demo wallet switcher, but real wallet-signed devnet flows are now
-available when `ESCROW_ADAPTER_MODE=onchain` and `DEMO_WALLET_AUTH_ENABLED=false`.
-
-```text
-Creator: creator_demo_wallet_8pQ7n2
-Worker:  worker_demo_wallet_5kL9s1
-```
-
-Demo path:
-
-1. Open `/dashboard`.
-2. Create a contract or run `corepack pnpm seed`.
-3. As Creator, fund the contract, or cancel it while it is still a draft.
-4. Switch to Worker and submit proof for a ready milestone.
-5. Switch back to Creator and request revision or approve the milestone.
-6. If revision is requested, switch to Worker and submit a new proof version.
-7. Either party can open a dispute before payment is released.
-8. Release the milestone payment after approval.
-9. Confirm status, amount progress, proof history, and Event Timeline.
-
 ## On-chain Transaction Flow
 
-The direct fund/release endpoints still support the mock demo flow. For real wallet-signed escrow,
-use the transaction endpoints:
+For wallet-signed escrow, use the transaction endpoints:
 
 ```text
 POST /api/transactions/prepare-fund
@@ -269,10 +229,9 @@ POST /api/transactions/prepare-release
   -> POST /api/transactions/confirm-release with txSig
 ```
 
-In `ESCROW_ADAPTER_MODE=mock`, prepare/confirm endpoints return mock-mode guidance and keep the
-existing direct action buttons usable. In `ESCROW_ADAPTER_MODE=onchain`, prepare endpoints build
-Anchor-compatible transactions and confirm endpoints reconcile both the committed instruction
-payload and resulting escrow account state before advancing local contract state.
+In `ESCROW_ADAPTER_MODE=onchain`, prepare endpoints build Anchor-compatible transactions and
+confirm endpoints reconcile both the committed instruction payload and resulting escrow account
+state before advancing local contract state.
 
 ## Commands
 
@@ -323,12 +282,12 @@ git commit -m "feat: add milestone revision workflow"
 
 ## Status
 
-This repository contains a runnable off-chain MVP with a mocked escrow adapter, plus a wallet-signed
-devnet path for funding and release. The Rust program builds with Anchor CLI 1.0.2 and Agave/Solana
-CLI 3.1.14, and it models escrow state, vault token accounts, and Token/Token-2022 compatible
-fund/release transfers. The web app now prepares transactions, asks the connected wallet to sign
-them, submits them to Solana, and reconciles the committed transaction against the expected escrow
-instructions and resulting escrow account state before local contract state advances.
+This repository contains a runnable wallet-signed devnet escrow flow. The Rust program builds with
+Anchor CLI 1.0.2 and Agave/Solana CLI 3.1.14, and it models escrow state, vault token accounts,
+and Token/Token-2022 compatible fund/release transfers. The web app prepares transactions, asks
+the connected wallet to sign them, submits them to Solana, and reconciles the committed transaction
+against the expected escrow instructions and resulting escrow account state before local contract
+state advances.
 
 ## Commit Checklist
 
