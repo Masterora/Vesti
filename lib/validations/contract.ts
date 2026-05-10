@@ -10,7 +10,7 @@ export const milestoneInputSchema = z.object({
 
 export const createContractSchema = z.object({
   creatorWallet: walletAddressSchema,
-  workerWallet: walletAddressSchema,
+  workerWallet: walletAddressSchema.optional(),
   title: z.string().trim().min(1, "Contract title is required"),
   description: z.string().trim().optional(),
   isPublic: z.boolean().optional(),
@@ -19,7 +19,7 @@ export const createContractSchema = z.object({
 });
 
 export const listContractsSchema = z.object({
-  walletAddress: walletAddressSchema
+  walletAddress: walletAddressSchema.optional()
 });
 
 export const getContractSchema = z.object({
@@ -44,9 +44,21 @@ export const updateContractVisibilitySchema = z.object({
   isPublic: z.boolean()
 });
 
+export const claimContractSchema = z.object({
+  contractId: z.string().trim().min(1),
+  walletAddress: walletAddressSchema
+});
+
+export const acceptContractClaimSchema = z.object({
+  contractId: z.string().trim().min(1),
+  walletAddress: walletAddressSchema
+});
+
 export type CreateContractInput = z.infer<typeof createContractSchema>;
 export type ListContractsInput = z.infer<typeof listContractsSchema>;
 export type GetContractInput = z.infer<typeof getContractSchema>;
 export type FundContractInput = z.infer<typeof fundContractSchema>;
 export type CancelContractInput = z.infer<typeof cancelContractSchema>;
 export type UpdateContractVisibilityInput = z.infer<typeof updateContractVisibilitySchema>;
+export type ClaimContractInput = z.infer<typeof claimContractSchema>;
+export type AcceptContractClaimInput = z.infer<typeof acceptContractClaimSchema>;

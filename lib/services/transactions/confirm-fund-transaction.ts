@@ -37,12 +37,13 @@ export async function confirmFundTransaction(input: ConfirmFundTransactionInput)
     "Only the Creator can confirm funding"
   );
   assertState(contract.status === "draft", "Only draft contracts can be funded");
+  assertState(Boolean(contract.workerWallet), "Assigned Worker wallet is required before funding");
 
   const reconciliation = await reconcileFundEscrowTransaction({
     txSig: input.txSig,
     contractId: contract.id,
     creatorWallet: contract.creatorWallet,
-    workerWallet: contract.workerWallet,
+    workerWallet: contract.workerWallet!,
     totalAmount: contract.totalAmount
   });
 

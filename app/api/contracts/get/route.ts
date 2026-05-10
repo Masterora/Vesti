@@ -9,10 +9,11 @@ export async function POST(request: Request) {
     return getContractById(
       getContractSchema.parse({
         ...body,
-        walletAddress: resolveOptionalRequestWallet(
-          request,
-          typeof body.walletAddress === "string" ? body.walletAddress : undefined
-        )
+        walletAddress:
+          resolveOptionalRequestWallet(
+            request,
+            typeof body.walletAddress === "string" ? body.walletAddress : undefined
+          ) ?? undefined
       })
     );
   });

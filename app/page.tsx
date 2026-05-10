@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, CircleDollarSign, FileCheck2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, CircleDollarSign, FileCheck2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getMessages } from "@/lib/i18n/messages";
 import { getServerLocale } from "@/lib/i18n/server-locale";
 
-const stepIcons = [FileCheck2, CircleDollarSign, CheckCircle2] as const;
+const stepIcons = [FileCheck2, Wallet, CircleDollarSign, CheckCircle2] as const;
 
 export default async function HomePage() {
   const locale = await getServerLocale();

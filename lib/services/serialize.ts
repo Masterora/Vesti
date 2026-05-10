@@ -41,6 +41,8 @@ export function serializeContract(contract: ContractWithRelations) {
   return {
     ...contract,
     isPublic: contract.isPublic,
+    workerWallet: contract.workerWallet,
+    requestedWorkerWallet: contract.requestedWorkerWallet,
     totalAmount: contract.totalAmount.toString(),
     fundedAmount: contract.fundedAmount.toString(),
     releasedAmount: contract.releasedAmount.toString(),

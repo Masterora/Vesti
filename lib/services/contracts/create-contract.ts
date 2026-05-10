@@ -11,9 +11,10 @@ function decimal(value: string) {
 
 export async function createContract(input: CreateContractInput) {
   const creatorWallet = input.creatorWallet.trim();
-  const workerWallet = input.workerWallet.trim();
+  const workerWallet = input.workerWallet?.trim() || null;
+  const hasAssignedWorker = Boolean(workerWallet);
 
-  if (creatorWallet === workerWallet) {
+  if (workerWallet && creatorWallet === workerWallet) {
     throw new ServiceError("Creator and Worker wallets must be different");
   }
 
@@ -34,11 +35,13 @@ export async function createContract(input: CreateContractInput) {
       create: { walletAddress: creatorWallet }
     });
 
-    await tx.user.upsert({
-      where: { walletAddress: workerWallet },
-      update: {},
-      create: { walletAddress: workerWallet }
-    });
+    if (workerWallet) {
+      await tx.user.upsert({
+        where: { walletAddress: workerWallet },
+        update: {},
+        create: { walletAddress: workerWallet }
+      });
+    }
 
     const contract = await tx.contract.create({
       data: {
@@ -46,8 +49,9 @@ export async function createContract(input: CreateContractInput) {
         workerWallet,
         title: input.title,
         description: input.description || null,
-        isPublic: input.isPublic ?? false,
+        isPublic: input.isPublic ?? !hasAssignedWorker,
         totalAmount,
+        status: hasAssignedWorker ? "draft" : "open",
         milestones: {
           create: input.milestones.map((milestone, index) => ({
             index: index + 1,
@@ -73,7 +77,8 @@ export async function createContract(input: CreateContractInput) {
         title: contract.title,
         totalAmount: contract.totalAmount.toString(),
         milestoneCount: contract.milestones.length,
-        isPublic: contract.isPublic
+        isPublic: contract.isPublic,
+        status: contract.status
       }
     });
 

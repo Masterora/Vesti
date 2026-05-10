@@ -5,6 +5,8 @@ import { getBadgeLabel } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
 const toneByStatus: Record<string, string> = {
+  open: "bg-sky-100 text-sky-800",
+  claimed: "bg-amber-100 text-amber-800",
   draft: "bg-muted text-muted-foreground",
   active: "bg-teal-100 text-teal-800",
   completed: "bg-emerald-100 text-emerald-800",

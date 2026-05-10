@@ -2,9 +2,9 @@ import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
 import { serializeContract } from "@/lib/services/serialize";
-import type { CancelContractInput } from "@/lib/validations/contract";
+import type { AcceptContractClaimInput } from "@/lib/validations/contract";
 
-export async function cancelContract(input: CancelContractInput) {
+export async function acceptContractClaim(input: AcceptContractClaimInput) {
   return db.$transaction(async (tx) => {
     const contract = assertFound(
       await tx.contract.findUnique({
@@ -15,26 +15,29 @@ export async function cancelContract(input: CancelContractInput) {
 
     assertAllowed(
       input.walletAddress === contract.creatorWallet,
-      "Only the Creator can cancel this contract"
+      "Only the Creator can accept a worker claim"
     );
+    assertState(contract.status === "claimed", "Only claimed contracts can accept a worker");
     assertState(
-      ["open", "claimed", "draft"].includes(contract.status),
-      "Only open, claimed, or draft contracts can be cancelled"
+      Boolean(contract.requestedWorkerWallet),
+      "This contract does not have a pending worker claim"
     );
 
     await tx.contract.update({
       where: { id: contract.id },
       data: {
-        status: "cancelled"
+        workerWallet: contract.requestedWorkerWallet,
+        requestedWorkerWallet: null,
+        status: "draft"
       }
     });
 
     await recordEvent(tx, {
       contractId: contract.id,
       actorWallet: input.walletAddress,
-      eventType: "contract_cancelled",
+      eventType: "contract_claim_accepted",
       payload: {
-        reason: input.reason || null
+        workerWallet: contract.requestedWorkerWallet
       }
     });
 

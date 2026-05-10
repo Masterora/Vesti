@@ -38,7 +38,8 @@ export type SerializedEvent = {
 export type SerializedContract = {
   id: string;
   creatorWallet: string;
-  workerWallet: string;
+  workerWallet: string | null;
+  requestedWorkerWallet: string | null;
   title: string;
   description: string | null;
   isPublic: boolean;

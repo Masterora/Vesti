@@ -8,6 +8,8 @@ datasource db {
 }
 
 enum ContractStatus {
+  open
+  claimed
   draft
   active
   completed
@@ -27,6 +29,8 @@ enum MilestoneStatus {
 
 enum EventType {
   contract_created
+  contract_claim_requested
+  contract_claim_accepted
   contract_funded
   contract_activated
   milestone_ready
@@ -62,7 +66,8 @@ model WalletAuthChallenge {
 model Contract {
   id             String         @id @default(cuid())
   creatorWallet  String
-  workerWallet   String
+  workerWallet   String?
+  requestedWorkerWallet String?
   title          String
   description    String?
   isPublic       Boolean        @default(false)
@@ -79,6 +84,7 @@ model Contract {
 
   @@index([creatorWallet])
   @@index([workerWallet])
+  @@index([requestedWorkerWallet])
   @@index([status])
 }
 

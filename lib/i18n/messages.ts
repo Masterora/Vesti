@@ -35,54 +35,61 @@ export const messages = {
     },
     landing: {
       eyebrow: "USDC milestone escrow",
-      title: "Remote work payments with milestone-level control.",
+      title: "Public project hiring with milestone-level escrow.",
       description:
-        "Vesti lets a Creator fund a contract, a Worker submit proof, and both sides track approvals, releases, and audit events in a clean escrow workflow.",
+        "Vesti lets a Creator publish a project, a Worker claim it with a wallet, and both sides move through funding, proof, approvals, and release in one clean escrow workflow.",
       openDashboard: "Open dashboard",
       createContract: "Create contract",
       flowTitle: "Workflow",
       steps: [
         {
           title: "Create",
-          text: "Creator defines the contract, Worker wallet, and milestone split."
+          text: "Creator publishes the project scope, price, and milestone split."
+        },
+        {
+          title: "Claim",
+          text: "A Worker claims the project and the Creator accepts the match."
         },
         {
           title: "Fund",
           text: "Creator signs a Solana funding transaction so escrow is locked on devnet."
         },
         {
-          title: "Release",
+          title: "Deliver",
           text: "Worker submits proof, Creator approves, and the milestone payout is released."
         }
       ]
     },
     dashboard: {
       eyebrow: "Dashboard",
-      title: "Milestone escrow",
-      description: "Review contracts linked to the current wallet and continue the escrow flow.",
+      title: "Public project escrow",
+      description: "Browse open projects, review claimed work, and continue the escrow flow.",
       refresh: "Refresh",
       newContract: "New contract",
       loading: "Loading contracts...",
       connectTitle: "Connect your wallet",
       connectDescription:
-        "Sign in with Phantom to view your contracts and continue the on-chain workflow."
+        "Sign in with Phantom to claim projects, fund matched contracts, and continue the on-chain workflow."
     },
     contractList: {
       emptyTitle: "No contracts yet",
       emptyDescription:
-        "Create a contract as Creator, then switch to the Worker wallet to submit proof.",
+        "Publish a project as Creator or connect a Worker wallet to claim an open project.",
       creator: "Creator",
       worker: "Worker",
+      applicant: "Applicant",
       viewer: "Viewer",
       public: "Public",
       private: "Private",
+      unassigned: "Unassigned",
+      pendingClaim: "Pending claim",
       noDescription: "No description",
       milestones: "milestones"
     },
     newContractPage: {
       eyebrow: "Create",
-      title: "New escrow contract",
-      description: "Define the Worker wallet, total USDC amount, and milestone split before funding."
+      title: "Publish project",
+      description: "Define the scope, total USDC amount, and milestone split before a Worker claims the project."
     },
     newContract: {
       sectionContract: "Contract",
@@ -96,9 +103,9 @@ export const messages = {
       creatorWalletPlaceholder: "Connect your wallet to autofill this field",
       workerWalletLabel: "Worker wallet",
       workerWalletPlaceholder: "Paste the assigned Worker wallet address",
-      publicTitle: "Public read-only detail page",
+      publicTitle: "Visible in public project list",
       publicDescription:
-        "Anyone with the link can view the contract, milestones, and timeline.",
+        "Anyone can discover and review this project before claiming it.",
       addMilestone: "Add",
       removeMilestone: "Remove milestone",
       milestoneTitleLabel: "Title",
@@ -112,10 +119,10 @@ export const messages = {
       contractTotalLabel: "Contract total",
       milestoneTotalLabel: "Milestone total",
       mismatchError: "Milestone amounts must equal the contract total.",
-      submit: "Create contract",
-      submitting: "Creating...",
+      submit: "Publish project",
+      submitting: "Publishing...",
       connectNotice:
-        "Connect and sign in with your wallet before creating an on-chain contract."
+        "Connect and sign in with your wallet before publishing an on-chain project."
     },
     contractDetail: {
       missingIdTitle: "Contract id is required",
@@ -130,9 +137,15 @@ export const messages = {
       notFunded: "Not funded",
       publicNotice:
         "This contract is public. Non-participants can view the detail page in read-only mode.",
+      openNotice: "This project is public and open for Worker claims.",
+      claimedNotice: "A Worker has claimed this project. Creator review is required before funding.",
+      matchedNotice: "A Worker has been accepted. Fund the contract to start milestone work.",
       creator: "Creator",
       worker: "Worker",
+      applicant: "Applicant",
       viewer: "Viewer",
+      unassignedWorker: "Open for claim",
+      pendingWorker: "Pending acceptance",
       escrow: "Escrow",
       saveVisibility: "Saving...",
       makePublic: "Make public",
@@ -141,7 +154,11 @@ export const messages = {
       cancelReasonPlaceholder: "Optional note for the event timeline.",
       fundContract: "Fund contract",
       funding: "Funding...",
-      cancelDraft: "Cancel draft",
+      claimProject: "Claim project",
+      claimingProject: "Claiming...",
+      acceptClaim: "Accept claim",
+      acceptingClaim: "Accepting...",
+      cancelDraft: "Cancel project",
       cancelling: "Cancelling...",
       milestones: "Milestones",
       milestoneItem: "Milestone",
@@ -179,6 +196,8 @@ export const messages = {
       transaction: "Transaction"
     },
     badges: {
+      open: "Open",
+      claimed: "Claimed",
       draft: "Draft",
       active: "Active",
       completed: "Completed",
@@ -191,6 +210,8 @@ export const messages = {
       approved: "Approved",
       released: "Released",
       contract_created: "Contract created",
+      contract_claim_requested: "Worker claim requested",
+      contract_claim_accepted: "Worker claim accepted",
       contract_funded: "Contract funded",
       contract_activated: "Contract activated",
       milestone_ready: "Milestone ready",
@@ -210,6 +231,8 @@ export const messages = {
       failedToLoadContracts: "Failed to load contracts",
       actionFailed: "Action failed",
       failedToCreateContract: "Failed to create contract",
+      failedToClaimContract: "Failed to claim project",
+      failedToAcceptClaim: "Failed to accept worker claim",
       preparedTransactionMissing: "Prepared Solana transaction is missing",
       confirmedTransactionMissingContract:
         "Confirmed transaction did not return an updated contract",
@@ -264,52 +287,59 @@ export const messages = {
     },
     landing: {
       eyebrow: "稳定币里程碑托管",
-      title: "让远程协作按里程碑收付款。",
+      title: "把公开接单和里程碑托管放到一条链路里。",
       description:
-        "Vesti 让甲方为合同注资，让乙方提交交付证明，并把审批、放款和审计事件收拢到一条清晰的托管流程里。",
+        "Vesti 让甲方先发布公开项目，让乙方用钱包认领，再把注资、证明提交、审批和放款收拢到一条清晰的托管流程里。",
       openDashboard: "打开看板",
       createContract: "创建合同",
       flowTitle: "流程概览",
       steps: [
         {
           title: "创建合同",
-          text: "甲方定义合同内容、乙方钱包地址和里程碑拆分。"
+          text: "甲方发布项目范围、总价和里程碑拆分。"
+        },
+        {
+          title: "认领项目",
+          text: "乙方用钱包认领项目，甲方确认接单关系。"
         },
         {
           title: "注资托管",
           text: "甲方签署链上注资交易，把资金锁定到测试网络托管账户。"
         },
         {
-          title: "审批放款",
+          title: "验收放款",
           text: "乙方提交证明，甲方审批后按里程碑释放付款。"
         }
       ]
     },
     dashboard: {
       eyebrow: "看板",
-      title: "里程碑托管",
-      description: "查看当前钱包关联的合同，并继续后续托管流程。",
+      title: "公开项目托管",
+      description: "浏览待认领项目、查看已连接合同，并继续后续托管流程。",
       refresh: "刷新",
       newContract: "新建合同",
       loading: "正在加载合同...",
       connectTitle: "先连接钱包",
-      connectDescription: "请先完成钱包登录，查看你的合同并继续链上流程。"
+      connectDescription: "请先完成钱包登录，认领项目、查看你的合同并继续链上流程。"
     },
     contractList: {
       emptyTitle: "还没有合同",
-      emptyDescription: "先以甲方身份创建合同，再切换到乙方钱包提交证明。",
+      emptyDescription: "先以甲方身份发布项目，或连接乙方钱包认领公开项目。",
       creator: "甲方",
       worker: "乙方",
+      applicant: "认领方",
       viewer: "访客",
       public: "公开",
       private: "私密",
+      unassigned: "待认领",
+      pendingClaim: "待确认认领",
       noDescription: "暂无描述",
       milestones: "个里程碑"
     },
     newContractPage: {
       eyebrow: "创建合同",
-      title: "新建托管合同",
-      description: "在注资前先定义乙方钱包、总金额，以及里程碑拆分。"
+      title: "发布项目",
+      description: "先定义项目范围、总金额和里程碑拆分，再等待乙方认领。"
     },
     newContract: {
       sectionContract: "合同信息",
@@ -323,8 +353,8 @@ export const messages = {
       creatorWalletPlaceholder: "连接钱包后会自动填入",
       workerWalletLabel: "乙方钱包",
       workerWalletPlaceholder: "粘贴乙方的钱包地址",
-      publicTitle: "公开只读详情页",
-      publicDescription: "任何拿到链接的人都可以只读查看合同、里程碑和时间线。",
+      publicTitle: "显示在公开项目列表中",
+      publicDescription: "任何人都可以发现并查看这个项目，再决定是否认领。",
       addMilestone: "新增",
       removeMilestone: "删除里程碑",
       milestoneTitleLabel: "标题",
@@ -338,9 +368,9 @@ export const messages = {
       contractTotalLabel: "合同总额",
       milestoneTotalLabel: "里程碑合计",
       mismatchError: "所有里程碑金额之和必须等于合同总额。",
-      submit: "创建合同",
-      submitting: "创建中...",
-      connectNotice: "请先连接钱包并完成签名登录，再创建链上合同。"
+      submit: "发布项目",
+      submitting: "发布中...",
+      connectNotice: "请先连接钱包并完成签名登录，再发布链上项目。"
     },
     contractDetail: {
       missingIdTitle: "缺少合同编号",
@@ -354,9 +384,15 @@ export const messages = {
       noDescription: "暂无描述",
       notFunded: "尚未注资",
       publicNotice: "当前合同已公开。非参与方也可以只读查看详情页。",
+      openNotice: "当前项目已公开，乙方可以直接认领。",
+      claimedNotice: "已有乙方认领该项目，等待甲方确认后再注资。",
+      matchedNotice: "甲方已确认乙方，接下来可以为合同注资。",
       creator: "甲方",
       worker: "乙方",
+      applicant: "认领方",
       viewer: "访客",
+      unassignedWorker: "待认领",
+      pendingWorker: "待甲方确认",
       escrow: "托管账户",
       saveVisibility: "保存中...",
       makePublic: "设为公开",
@@ -365,7 +401,11 @@ export const messages = {
       cancelReasonPlaceholder: "可选，会记录到时间线里。",
       fundContract: "注资合同",
       funding: "注资中...",
-      cancelDraft: "取消草稿",
+      claimProject: "认领项目",
+      claimingProject: "认领中...",
+      acceptClaim: "确认认领",
+      acceptingClaim: "确认中...",
+      cancelDraft: "取消项目",
       cancelling: "取消中...",
       milestones: "里程碑",
       milestoneItem: "里程碑",
@@ -403,6 +443,8 @@ export const messages = {
       transaction: "交易"
     },
     badges: {
+      open: "待认领",
+      claimed: "已认领",
       draft: "草稿",
       active: "进行中",
       completed: "已完成",
@@ -415,6 +457,8 @@ export const messages = {
       approved: "已批准",
       released: "已放款",
       contract_created: "合同已创建",
+      contract_claim_requested: "已发起认领",
+      contract_claim_accepted: "已确认认领",
       contract_funded: "合同已注资",
       contract_activated: "合同已激活",
       milestone_ready: "里程碑已就绪",
@@ -434,6 +478,8 @@ export const messages = {
       failedToLoadContracts: "加载合同列表失败",
       actionFailed: "操作失败",
       failedToCreateContract: "创建合同失败",
+      failedToClaimContract: "认领项目失败",
+      failedToAcceptClaim: "确认认领失败",
       preparedTransactionMissing: "缺少预构建的链上交易",
       confirmedTransactionMissingContract: "交易确认后没有返回更新后的合同数据",
       escrowActionFailed: "托管操作失败",

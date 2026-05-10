@@ -40,11 +40,18 @@ export function ContractList({
             ? messages.contractList.creator
             : walletAddress === contract.workerWallet
               ? messages.contractList.worker
+              : walletAddress === contract.requestedWorkerWallet
+                ? messages.contractList.applicant
               : messages.contractList.viewer;
         const milestoneCount =
           locale === "zh"
             ? `${contract.milestones.length}${messages.contractList.milestones}`
             : `${contract.milestones.length} ${messages.contractList.milestones}`;
+        const workerLabel = contract.workerWallet
+          ? shortenWallet(contract.workerWallet)
+          : contract.requestedWorkerWallet
+            ? `${messages.contractList.pendingClaim} ${shortenWallet(contract.requestedWorkerWallet)}`
+            : messages.contractList.unassigned;
 
         return (
           <Link key={contract.id} href={`/contracts/detail?id=${contract.id}`}>
@@ -66,7 +73,7 @@ export function ContractList({
                   </p>
                   <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
                     <span>{messages.contractList.creator} {shortenWallet(contract.creatorWallet)}</span>
-                    <span>{messages.contractList.worker} {shortenWallet(contract.workerWallet)}</span>
+                    <span>{messages.contractList.worker} {workerLabel}</span>
                     <span>{milestoneCount}</span>
                   </div>
                 </div>

@@ -42,6 +42,7 @@ export async function confirmReleaseTransaction(input: ConfirmReleaseTransaction
     "Only the Creator can confirm payment release"
   );
   assertState(contract.status === "active", "Contract must be active before release");
+  assertState(Boolean(contract.workerWallet), "Assigned Worker wallet is required before release");
   assertState(milestone.status === "approved", "Only approved milestones can be released");
 
   const nextReleasedAmount = contract.releasedAmount.plus(milestone.amount);
@@ -55,7 +56,7 @@ export async function confirmReleaseTransaction(input: ConfirmReleaseTransaction
     contractId: contract.id,
     milestoneId: milestone.id,
     creatorWallet: contract.creatorWallet,
-    workerWallet: contract.workerWallet,
+    workerWallet: contract.workerWallet!,
     fundedAmount: contract.fundedAmount,
     releasedAmountBefore: contract.releasedAmount,
     milestoneAmount: milestone.amount

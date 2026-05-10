@@ -26,6 +26,7 @@ export async function prepareReleaseTransaction(input: PrepareReleaseTransaction
     "Only the Creator can prepare payment release"
   );
   assertState(contract.status === "active", "Contract must be active before release");
+  assertState(Boolean(contract.workerWallet), "Assigned Worker wallet is required before release");
   assertState(milestone.status === "approved", "Only approved milestones can be released");
 
   const mode = getEscrowAdapterMode();
@@ -46,7 +47,7 @@ export async function prepareReleaseTransaction(input: PrepareReleaseTransaction
     contractId: contract.id,
     milestoneId: milestone.id,
     creatorWallet: contract.creatorWallet,
-    workerWallet: contract.workerWallet,
+    workerWallet: contract.workerWallet!,
     amount: milestone.amount
   });
 

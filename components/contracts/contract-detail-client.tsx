@@ -70,7 +70,7 @@ type EscrowActionInput = {
 async function fetchContract(contractId: string, walletAddress: string) {
   return postJson<SerializedContract>("/api/contracts/get", {
     contractId,
-    walletAddress
+    walletAddress: walletAddress.trim() ? walletAddress : undefined
   });
 }
 
@@ -98,6 +98,10 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
 
     if (walletAddress === contract.workerWallet) {
       return "worker";
+    }
+
+    if (walletAddress === contract.requestedWorkerWallet) {
+      return "applicant";
     }
 
     return "viewer";
@@ -310,7 +314,13 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
               <div className="flex flex-wrap items-center gap-2">
                 <Badge value={contract.status} />
                 <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-                  {role === "creator" ? copy.creator : role === "worker" ? copy.worker : copy.viewer}
+                  {role === "creator"
+                    ? copy.creator
+                    : role === "worker"
+                      ? copy.worker
+                      : role === "applicant"
+                        ? copy.applicant
+                        : copy.viewer}
                 </span>
                 <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
                   {contract.isPublic ? copy.public : copy.private}
@@ -321,12 +331,33 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                   {copy.publicNotice}
                 </p>
               ) : null}
+              {contract.status === "open" ? (
+                <p className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
+                  {copy.openNotice}
+                </p>
+              ) : null}
+              {contract.status === "claimed" ? (
+                <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  {copy.claimedNotice}
+                </p>
+              ) : null}
+              {contract.status === "draft" ? (
+                <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                  {copy.matchedNotice}
+                </p>
+              ) : null}
               <p className="mt-4 text-sm leading-6 text-muted-foreground">
                 {contract.description || copy.noDescription}
               </p>
               <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
                 <WalletLine label={copy.creator} wallet={contract.creatorWallet} />
-                <WalletLine label={copy.worker} wallet={contract.workerWallet} />
+                <WalletLine
+                  label={contract.workerWallet ? copy.worker : contract.requestedWorkerWallet ? copy.applicant : copy.worker}
+                  wallet={contract.workerWallet ?? contract.requestedWorkerWallet}
+                  emptyLabel={
+                    contract.requestedWorkerWallet ? copy.pendingWorker : copy.unassignedWorker
+                  }
+                />
                 <WalletLine label={copy.escrow} wallet={contract.escrowAccount || copy.notFunded} />
               </div>
               <div className="mt-6">
@@ -357,7 +388,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                   </Button>
                 </div>
               ) : null}
-              {role === "creator" && contract.status === "draft" ? (
+              {role === "creator" && ["open", "claimed", "draft"].includes(contract.status) ? (
                 <div className="mt-6 rounded-lg bg-muted p-4">
                   <div className="grid gap-3">
                     <div className="grid gap-2">
@@ -369,33 +400,50 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                       />
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        onClick={() =>
-                          runEscrowAction({
-                            actionKey: "fund",
-                            prepareUrl: "/api/transactions/prepare-fund",
-                            prepareBody: {
+                      {contract.status === "claimed" ? (
+                        <Button
+                          type="button"
+                          onClick={() =>
+                            runAction("accept-claim", "/api/contracts/accept-claim", {
                               contractId: contract.id,
                               walletAddress
-                            },
-                            directUrl: "/api/contracts/fund",
-                            directBody: {
-                              contractId: contract.id,
-                              walletAddress
-                            },
-                            confirmUrl: "/api/transactions/confirm-fund",
-                            confirmBody: {
-                              contractId: contract.id,
-                              walletAddress
-                            }
-                          })
-                        }
-                        disabled={activeAction === "fund"}
-                      >
-                        <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
-                        {activeAction === "fund" ? copy.funding : copy.fundContract}
-                      </Button>
+                            })
+                          }
+                          disabled={activeAction === "accept-claim"}
+                        >
+                          <Check className="mr-2 size-4" aria-hidden="true" />
+                          {activeAction === "accept-claim" ? copy.acceptingClaim : copy.acceptClaim}
+                        </Button>
+                      ) : null}
+                      {contract.status === "draft" ? (
+                        <Button
+                          type="button"
+                          onClick={() =>
+                            runEscrowAction({
+                              actionKey: "fund",
+                              prepareUrl: "/api/transactions/prepare-fund",
+                              prepareBody: {
+                                contractId: contract.id,
+                                walletAddress
+                              },
+                              directUrl: "/api/contracts/fund",
+                              directBody: {
+                                contractId: contract.id,
+                                walletAddress
+                              },
+                              confirmUrl: "/api/transactions/confirm-fund",
+                              confirmBody: {
+                                contractId: contract.id,
+                                walletAddress
+                              }
+                            })
+                          }
+                          disabled={activeAction === "fund"}
+                        >
+                          <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
+                          {activeAction === "fund" ? copy.funding : copy.fundContract}
+                        </Button>
+                      ) : null}
                       <Button
                         type="button"
                         variant="danger"
@@ -412,6 +460,25 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                         {activeAction === "cancel" ? copy.cancelling : copy.cancelDraft}
                       </Button>
                     </div>
+                  </div>
+                </div>
+              ) : null}
+              {role !== "creator" && role !== "worker" && contract.status === "open" ? (
+                <div className="mt-6 rounded-lg bg-muted p-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        runAction("claim", "/api/contracts/claim", {
+                          contractId: contract.id,
+                          walletAddress
+                        })
+                      }
+                      disabled={!walletAddress || activeAction === "claim"}
+                    >
+                      <Wallet className="mr-2 size-4" aria-hidden="true" />
+                      {activeAction === "claim" ? copy.claimingProject : copy.claimProject}
+                    </Button>
                   </div>
                 </div>
               ) : null}
@@ -519,14 +586,22 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
   );
 }
 
-function WalletLine({ label, wallet }: { label: string; wallet: string }) {
+function WalletLine({
+  label,
+  wallet,
+  emptyLabel
+}: {
+  label: string;
+  wallet?: string | null;
+  emptyLabel?: string;
+}) {
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-lg bg-muted p-3">
       <Wallet className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className="truncate font-medium" title={wallet}>
-          {shortenWallet(wallet)}
+        <p className="truncate font-medium" title={wallet ?? emptyLabel}>
+          {wallet ? shortenWallet(wallet) : emptyLabel}
         </p>
       </div>
     </div>

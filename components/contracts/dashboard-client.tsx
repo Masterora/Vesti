@@ -10,28 +10,20 @@ import { useWallet } from "@/components/wallet/wallet-provider";
 import { postJson } from "@/lib/api/client";
 import type { SerializedContract } from "@/types/contract";
 
-async function fetchContracts(walletAddress: string) {
+async function fetchContracts(walletAddress?: string) {
   return postJson<SerializedContract[]>("/api/contracts/list", {
-    walletAddress
+    walletAddress: walletAddress?.trim() ? walletAddress : undefined
   });
 }
 
 export function DashboardClient() {
   const { messages } = useLocale();
-  const { walletAddress, isAuthenticated, demoWalletsEnabled } = useWallet();
-  const requiresWalletConnection = !isAuthenticated && !demoWalletsEnabled;
+  const { walletAddress } = useWallet();
   const [contracts, setContracts] = useState<SerializedContract[]>([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   const loadContracts = useCallback(async () => {
-    if (requiresWalletConnection) {
-      setContracts([]);
-      setError("");
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     setError("");
 
@@ -44,16 +36,10 @@ export function DashboardClient() {
     } finally {
       setIsLoading(false);
     }
-  }, [messages.errors.failedToLoadContracts, requiresWalletConnection, walletAddress]);
+  }, [messages.errors.failedToLoadContracts, walletAddress]);
 
   useEffect(() => {
     let isCurrent = true;
-
-    if (requiresWalletConnection) {
-      return () => {
-        isCurrent = false;
-      };
-    }
 
     const loadInitialContracts = async () => {
       try {
@@ -79,7 +65,7 @@ export function DashboardClient() {
     return () => {
       isCurrent = false;
     };
-  }, [messages.errors.failedToLoadContracts, requiresWalletConnection, walletAddress]);
+  }, [messages.errors.failedToLoadContracts, walletAddress]);
 
   return (
     <div className="page-shell py-10">
@@ -101,12 +87,7 @@ export function DashboardClient() {
       </div>
 
       {error ? <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
-      {requiresWalletConnection ? (
-        <div className="rounded-lg border border-border bg-white p-8 text-sm text-muted-foreground">
-          <p className="font-semibold text-foreground">{messages.dashboard.connectTitle}</p>
-          <p className="mt-2">{messages.dashboard.connectDescription}</p>
-        </div>
-      ) : isLoading ? (
+      {isLoading ? (
         <div className="rounded-lg border border-border bg-white p-8 text-sm text-muted-foreground">
           {messages.dashboard.loading}
         </div>

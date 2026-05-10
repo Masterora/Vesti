@@ -26,11 +26,12 @@ export async function fundContract(input: FundContractInput) {
       "Only the Creator can fund this contract"
     );
     assertState(contract.status === "draft", "Only draft contracts can be funded");
+    assertState(Boolean(contract.workerWallet), "Assigned Worker wallet is required before funding");
 
     const escrow = await adapter.fundContract({
       contractId: contract.id,
       creatorWallet: contract.creatorWallet,
-      workerWallet: contract.workerWallet,
+      workerWallet: contract.workerWallet!,
       amount: contract.totalAmount
     });
 

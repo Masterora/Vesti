@@ -75,8 +75,7 @@ export function NewContractForm() {
   const contractCopy = messages.newContract;
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
-  const [isPublic, setIsPublic] = useState(false);
-  const [workerWallet, setWorkerWallet] = useState<string>("");
+  const [isPublic, setIsPublic] = useState(true);
   const [totalAmount, setTotalAmount] = useState<string>("");
   const [milestones, setMilestones] = useState<MilestoneDraft[]>(() => [createEmptyMilestone()]);
   const [error, setError] = useState<string>("");
@@ -121,7 +120,6 @@ export function NewContractForm() {
     try {
       const contract = await postJson<SerializedContract>("/api/contracts/create", {
         creatorWallet: walletAddress,
-        workerWallet,
         title,
         description,
         isPublic,
@@ -167,25 +165,14 @@ export function NewContractForm() {
                 onChange={(event) => setDescription(event.target.value)}
               />
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="creator">{contractCopy.creatorWalletLabel}</Label>
-                <Input
-                  id="creator"
-                  value={walletAddress}
-                  placeholder={contractCopy.creatorWalletPlaceholder}
-                  readOnly
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="worker">{contractCopy.workerWalletLabel}</Label>
-                <Input
-                  id="worker"
-                  value={workerWallet}
-                  placeholder={contractCopy.workerWalletPlaceholder}
-                  onChange={(event) => setWorkerWallet(event.target.value)}
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="creator">{contractCopy.creatorWalletLabel}</Label>
+              <Input
+                id="creator"
+                value={walletAddress}
+                placeholder={contractCopy.creatorWalletPlaceholder}
+                readOnly
+              />
             </div>
             <label className="flex items-start gap-3 rounded-lg border border-border p-3">
               <input
