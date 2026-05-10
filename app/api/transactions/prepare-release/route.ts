@@ -4,7 +4,7 @@ import { prepareReleaseTransaction } from "@/lib/services/transactions/prepare-r
 import { prepareReleaseTransactionSchema } from "@/lib/validations/transaction";
 
 export async function POST(request: Request) {
-  return handleRoute(async () => {
+  return handleRoute(request, async () => {
     const body = await parseJsonBody(request);
     return prepareReleaseTransaction(
       prepareReleaseTransactionSchema.parse(withAuthenticatedWallet(request, body))

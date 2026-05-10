@@ -72,7 +72,7 @@ docker compose down -v
 
 ## Demo Wallets
 
-The MVP uses a demo wallet switcher before real Solana Wallet Adapter wiring.
+The app still includes a demo wallet switcher for local mock-mode demos.
 
 ```text
 Creator: creator_demo_wallet_8pQ7n2
@@ -108,7 +108,9 @@ Stop the dev server before running `corepack pnpm build`, then restart it afterw
 ## On-chain Program
 
 The Rust/Anchor program is in `programs/vesti-escrow`. It currently defines escrow state,
-vault token accounts, and Token/Token-2022 compatible fund/release transfers.
+vault token accounts, and Token/Token-2022 compatible fund/release transfers. In
+`ESCROW_ADAPTER_MODE=onchain`, the web app prepares transactions, submits wallet-signed Solana
+transactions, and reconciles the resulting escrow state before local contract state advances.
 
 Anchor is not required for the off-chain MVP. When starting real Solana program work, use the
 latest validated stack for this repo instead of downgrading dependencies:

@@ -4,7 +4,7 @@ import { confirmFundTransaction } from "@/lib/services/transactions/confirm-fund
 import { confirmFundTransactionSchema } from "@/lib/validations/transaction";
 
 export async function POST(request: Request) {
-  return handleRoute(async () => {
+  return handleRoute(request, async () => {
     const body = await parseJsonBody(request);
     return confirmFundTransaction(
       confirmFundTransactionSchema.parse(withAuthenticatedWallet(request, body))

@@ -5,10 +5,13 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-vesti_escrow = "H1cs7KqkmmPXMEppuTa7VrVC1apSaYtqUD5hJekwQqyC"
+vesti_escrow = "ErFsmiKY7WxjD9ArYmpqjCCUKnTcfzLm6tFpmWdFU9ck"
+
+[programs.devnet]
+vesti_escrow = "ErFsmiKY7WxjD9ArYmpqjCCUKnTcfzLm6tFpmWdFU9ck"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

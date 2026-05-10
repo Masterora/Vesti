@@ -46,6 +46,7 @@ export async function createContract(input: CreateContractInput) {
         workerWallet,
         title: input.title,
         description: input.description || null,
+        isPublic: input.isPublic ?? false,
         totalAmount,
         milestones: {
           create: input.milestones.map((milestone, index) => ({
@@ -71,7 +72,8 @@ export async function createContract(input: CreateContractInput) {
       payload: {
         title: contract.title,
         totalAmount: contract.totalAmount.toString(),
-        milestoneCount: contract.milestones.length
+        milestoneCount: contract.milestones.length,
+        isPublic: contract.isPublic
       }
     });
 

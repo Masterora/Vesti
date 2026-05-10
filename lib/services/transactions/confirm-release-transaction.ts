@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { getEscrowAdapterMode } from "@/lib/blockchain/escrow-adapter";
-import { confirmSolanaSignature } from "@/lib/blockchain/solana-confirmation";
+import { reconcileReleaseEscrowTransaction } from "@/lib/blockchain/solana-escrow-reconciliation";
 import { applyMilestoneRelease } from "@/lib/services/milestones/apply-milestone-release";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
 import { serializeContract } from "@/lib/services/serialize";
@@ -21,41 +21,73 @@ export async function confirmReleaseTransaction(input: ConfirmReleaseTransaction
     };
   }
 
-  const confirmation = await confirmSolanaSignature(input.txSig);
+  const contract = assertFound(
+    await db.contract.findUnique({
+      where: { id: input.contractId }
+    }),
+    "Contract not found"
+  );
+  const milestone = assertFound(
+    await db.milestone.findFirst({
+      where: {
+        id: input.milestoneId,
+        contractId: contract.id
+      }
+    }),
+    "Milestone not found"
+  );
+
+  assertAllowed(
+    input.walletAddress === contract.creatorWallet,
+    "Only the Creator can confirm payment release"
+  );
+  assertState(contract.status === "active", "Contract must be active before release");
+  assertState(milestone.status === "approved", "Only approved milestones can be released");
+
+  const nextReleasedAmount = contract.releasedAmount.plus(milestone.amount);
+  assertState(
+    nextReleasedAmount.lessThanOrEqualTo(contract.fundedAmount),
+    "Released amount cannot exceed funded amount"
+  );
+
+  const reconciliation = await reconcileReleaseEscrowTransaction({
+    txSig: input.txSig,
+    contractId: contract.id,
+    milestoneId: milestone.id,
+    creatorWallet: contract.creatorWallet,
+    workerWallet: contract.workerWallet,
+    fundedAmount: contract.fundedAmount,
+    releasedAmountBefore: contract.releasedAmount,
+    milestoneAmount: milestone.amount
+  });
 
   return db.$transaction(async (tx) => {
-    const contract = assertFound(
+    const currentContract = assertFound(
       await tx.contract.findUnique({
-        where: { id: input.contractId }
+        where: { id: contract.id }
       }),
       "Contract not found"
     );
-    const milestone = assertFound(
+    const currentMilestone = assertFound(
       await tx.milestone.findFirst({
         where: {
-          id: input.milestoneId,
+          id: milestone.id,
           contractId: contract.id
         }
       }),
       "Milestone not found"
     );
 
-    assertAllowed(
-      input.walletAddress === contract.creatorWallet,
-      "Only the Creator can confirm payment release"
-    );
-    assertState(contract.status === "active", "Contract must be active before release");
-    assertState(milestone.status === "approved", "Only approved milestones can be released");
-
-    const nextReleasedAmount = contract.releasedAmount.plus(milestone.amount);
+    assertState(currentContract.status === "active", "Contract must be active before release");
+    assertState(currentMilestone.status === "approved", "Only approved milestones can be released");
     assertState(
-      nextReleasedAmount.lessThanOrEqualTo(contract.fundedAmount),
+      currentContract.releasedAmount.plus(currentMilestone.amount).lessThanOrEqualTo(currentContract.fundedAmount),
       "Released amount cannot exceed funded amount"
     );
 
     await applyMilestoneRelease(tx, {
-      contract,
-      milestone,
+      contract: currentContract,
+      milestone: currentMilestone,
       actorWallet: input.walletAddress,
       txSig: input.txSig
     });
@@ -81,7 +113,7 @@ export async function confirmReleaseTransaction(input: ConfirmReleaseTransaction
       mode,
       action: "release_milestone" as const,
       confirmed: true,
-      confirmation,
+      confirmation: reconciliation.confirmation,
       contract: serializeContract(updated)
     };
   });

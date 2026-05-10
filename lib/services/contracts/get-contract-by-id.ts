@@ -31,7 +31,10 @@ export async function getContractById(input: GetContractInput) {
     workerWallet: contract.workerWallet
   });
 
-  assertAllowed(role !== "viewer", "Only the Creator or Worker can view this contract");
+  assertAllowed(
+    contract.isPublic || role !== "viewer",
+    "Only the Creator or Worker can view this contract"
+  );
 
   return serializeContract(contract);
 }

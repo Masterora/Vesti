@@ -4,7 +4,7 @@ import { listContractsForWallet } from "@/lib/services/contracts/list-contracts-
 import { listContractsSchema } from "@/lib/validations/contract";
 
 export async function POST(request: Request) {
-  return handleRoute(async () => {
+  return handleRoute(request, async () => {
     const body = await parseJsonBody(request);
     return listContractsForWallet(listContractsSchema.parse(withAuthenticatedWallet(request, body)));
   });

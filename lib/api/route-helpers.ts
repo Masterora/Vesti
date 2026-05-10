@@ -1,6 +1,8 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { translateErrorMessage } from "@/lib/i18n/error-messages";
+import { getRequestLocale } from "@/lib/i18n/locale";
 import { ServiceError } from "@/lib/services/errors";
 
 export async function parseJsonBody(request: Request) {
@@ -11,36 +13,48 @@ export async function parseJsonBody(request: Request) {
   }
 }
 
-export async function handleRoute<T>(handler: () => Promise<T>) {
+export function createRouteErrorResponse(request: Request, error: unknown) {
+  const locale = getRequestLocale(request);
+
+  if (error instanceof ServiceError) {
+    return NextResponse.json(
+      { error: translateErrorMessage(locale, error.message) },
+      { status: error.status }
+    );
+  }
+
+  if (error instanceof ZodError) {
+    return NextResponse.json(
+      {
+        error: translateErrorMessage(locale, "Invalid request body"),
+        details: error.flatten()
+      },
+      { status: 400 }
+    );
+  }
+
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    return NextResponse.json(
+      {
+        error: translateErrorMessage(locale, "Database is unavailable"),
+        details: translateErrorMessage(locale, "Check DATABASE_URL and make sure PostgreSQL is running.")
+      },
+      { status: 503 }
+    );
+  }
+
+  console.error(error);
+  return NextResponse.json(
+    { error: translateErrorMessage(locale, "Internal server error") },
+    { status: 500 }
+  );
+}
+
+export async function handleRoute<T>(request: Request, handler: () => Promise<T>) {
   try {
     const data = await handler();
     return NextResponse.json({ data });
   } catch (error) {
-    if (error instanceof ServiceError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-
-    if (error instanceof ZodError) {
-      return NextResponse.json(
-        {
-          error: "Invalid request body",
-          details: error.flatten()
-        },
-        { status: 400 }
-      );
-    }
-
-    if (error instanceof Prisma.PrismaClientInitializationError) {
-      return NextResponse.json(
-        {
-          error: "Database is unavailable",
-          details: "Check DATABASE_URL and make sure PostgreSQL is running."
-        },
-        { status: 503 }
-      );
-    }
-
-    console.error(error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return createRouteErrorResponse(request, error);
   }
 }

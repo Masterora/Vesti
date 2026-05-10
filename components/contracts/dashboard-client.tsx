@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { ContractList } from "@/components/contracts/contract-list";
 import { useWallet } from "@/components/wallet/wallet-provider";
@@ -16,12 +17,21 @@ async function fetchContracts(walletAddress: string) {
 }
 
 export function DashboardClient() {
-  const { walletAddress } = useWallet();
+  const { messages } = useLocale();
+  const { walletAddress, isAuthenticated, demoWalletsEnabled } = useWallet();
+  const requiresWalletConnection = !isAuthenticated && !demoWalletsEnabled;
   const [contracts, setContracts] = useState<SerializedContract[]>([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   const loadContracts = useCallback(async () => {
+    if (requiresWalletConnection) {
+      setContracts([]);
+      setError("");
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError("");
 
@@ -30,14 +40,20 @@ export function DashboardClient() {
       setContracts(data);
       setError("");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Failed to load contracts");
+      setError(caught instanceof Error ? caught.message : messages.errors.failedToLoadContracts);
     } finally {
       setIsLoading(false);
     }
-  }, [walletAddress]);
+  }, [messages.errors.failedToLoadContracts, requiresWalletConnection, walletAddress]);
 
   useEffect(() => {
     let isCurrent = true;
+
+    if (requiresWalletConnection) {
+      return () => {
+        isCurrent = false;
+      };
+    }
 
     const loadInitialContracts = async () => {
       try {
@@ -49,7 +65,7 @@ export function DashboardClient() {
         }
       } catch (caught) {
         if (isCurrent) {
-          setError(caught instanceof Error ? caught.message : "Failed to load contracts");
+          setError(caught instanceof Error ? caught.message : messages.errors.failedToLoadContracts);
         }
       } finally {
         if (isCurrent) {
@@ -63,33 +79,36 @@ export function DashboardClient() {
     return () => {
       isCurrent = false;
     };
-  }, [walletAddress]);
+  }, [messages.errors.failedToLoadContracts, requiresWalletConnection, walletAddress]);
 
   return (
     <div className="page-shell py-10">
       <div className="mb-7 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">Dashboard</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">Milestone escrow</h1>
-          <p className="mt-3 max-w-2xl text-muted-foreground">
-            Review contracts linked to the current wallet and continue the escrow flow.
-          </p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-primary">{messages.dashboard.eyebrow}</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">{messages.dashboard.title}</h1>
+          <p className="mt-3 max-w-2xl text-muted-foreground">{messages.dashboard.description}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" onClick={loadContracts} disabled={isLoading}>
             <RefreshCw className="mr-2 size-4" aria-hidden="true" />
-            Refresh
+            {messages.dashboard.refresh}
           </Button>
           <Link href="/contracts/new">
-            <Button type="button">New contract</Button>
+            <Button type="button">{messages.dashboard.newContract}</Button>
           </Link>
         </div>
       </div>
 
       {error ? <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
-      {isLoading ? (
+      {requiresWalletConnection ? (
         <div className="rounded-lg border border-border bg-white p-8 text-sm text-muted-foreground">
-          Loading contracts...
+          <p className="font-semibold text-foreground">{messages.dashboard.connectTitle}</p>
+          <p className="mt-2">{messages.dashboard.connectDescription}</p>
+        </div>
+      ) : isLoading ? (
+        <div className="rounded-lg border border-border bg-white p-8 text-sm text-muted-foreground">
+          {messages.dashboard.loading}
         </div>
       ) : (
         <ContractList contracts={contracts} walletAddress={walletAddress} />

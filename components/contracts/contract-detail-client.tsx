@@ -6,6 +6,8 @@ import {
   Check,
   CircleDollarSign,
   Ban,
+  Eye,
+  EyeOff,
   ExternalLink,
   RefreshCw,
   RotateCcw,
@@ -13,6 +15,7 @@ import {
   Wallet
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,7 +24,7 @@ import { ContractProgress } from "@/components/contracts/contract-progress";
 import { EventTimeline } from "@/components/timeline/event-timeline";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { postJson } from "@/lib/api/client";
-import { formatDate, formatUsdc, shortenWallet } from "@/lib/utils";
+import { formatDate, formatDateTime, formatUsdc, shortenWallet } from "@/lib/utils";
 import type { SerializedContract, SerializedMilestone } from "@/types/contract";
 
 type ContractDetailClientProps = {
@@ -33,6 +36,37 @@ type ProofDraft = {
   proofUrl: string;
 };
 
+type PreparedEscrowTransaction = {
+  mode: string;
+  action: "fund_contract" | "release_milestone";
+  contractId: string;
+  milestoneId?: string;
+  transaction: string | null;
+  canUseDirectAction: boolean;
+  message?: string;
+};
+
+type ConfirmedEscrowTransaction = {
+  mode: string;
+  action: "fund_contract" | "release_milestone";
+  contractId: string;
+  milestoneId?: string;
+  confirmed: boolean;
+  contract?: SerializedContract;
+  canUseDirectAction?: boolean;
+  message?: string;
+};
+
+type EscrowActionInput = {
+  actionKey: string;
+  prepareUrl: string;
+  prepareBody: Record<string, unknown>;
+  directUrl: string;
+  directBody: Record<string, unknown>;
+  confirmUrl: string;
+  confirmBody: Record<string, unknown>;
+};
+
 async function fetchContract(contractId: string, walletAddress: string) {
   return postJson<SerializedContract>("/api/contracts/get", {
     contractId,
@@ -41,7 +75,9 @@ async function fetchContract(contractId: string, walletAddress: string) {
 }
 
 export function ContractDetailClient({ contractId }: ContractDetailClientProps) {
-  const { walletAddress } = useWallet();
+  const { locale, messages } = useLocale();
+  const { walletAddress, signAndSendPreparedTransaction } = useWallet();
+  const copy = messages.contractDetail;
   const [contract, setContract] = useState<SerializedContract | null>(null);
   const [proofDrafts, setProofDrafts] = useState<Record<string, ProofDraft>>({});
   const [revisionDrafts, setRevisionDrafts] = useState<Record<string, string>>({});
@@ -80,11 +116,11 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       setContract(data);
       setError("");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Failed to load contract");
+      setError(caught instanceof Error ? caught.message : messages.errors.failedToLoadContract);
     } finally {
       setIsLoading(false);
     }
-  }, [contractId, walletAddress]);
+  }, [contractId, messages.errors.failedToLoadContract, walletAddress]);
 
   useEffect(() => {
     if (!contractId) {
@@ -103,7 +139,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
         }
       } catch (caught) {
         if (isCurrent) {
-          setError(caught instanceof Error ? caught.message : "Failed to load contract");
+          setError(caught instanceof Error ? caught.message : messages.errors.failedToLoadContract);
         }
       } finally {
         if (isCurrent) {
@@ -117,7 +153,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
     return () => {
       isCurrent = false;
     };
-  }, [contractId, walletAddress]);
+  }, [contractId, messages.errors.failedToLoadContract, walletAddress]);
 
   const runAction = async (actionKey: string, url: string, body: unknown) => {
     setActiveAction(actionKey);
@@ -127,11 +163,62 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       const data = await postJson<SerializedContract>(url, body);
       setContract(data);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Action failed");
+      setError(caught instanceof Error ? caught.message : messages.errors.actionFailed);
     } finally {
       setActiveAction("");
     }
   };
+
+  const runEscrowAction = useCallback(
+    async ({
+      actionKey,
+      prepareUrl,
+      prepareBody,
+      directUrl,
+      directBody,
+      confirmUrl,
+      confirmBody
+    }: EscrowActionInput) => {
+      setActiveAction(actionKey);
+      setError("");
+
+      try {
+        const prepared = await postJson<PreparedEscrowTransaction>(prepareUrl, prepareBody);
+
+        if (prepared.canUseDirectAction) {
+          const data = await postJson<SerializedContract>(directUrl, directBody);
+          setContract(data);
+          return;
+        }
+
+        if (!prepared.transaction) {
+          throw new Error(messages.errors.preparedTransactionMissing);
+        }
+
+        const txSig = await signAndSendPreparedTransaction(prepared.transaction);
+        const confirmed = await postJson<ConfirmedEscrowTransaction>(confirmUrl, {
+          ...confirmBody,
+          txSig
+        });
+
+        if (!confirmed.contract) {
+          throw new Error(messages.errors.confirmedTransactionMissingContract);
+        }
+
+        setContract(confirmed.contract);
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : messages.errors.escrowActionFailed);
+      } finally {
+        setActiveAction("");
+      }
+    },
+    [
+      messages.errors.confirmedTransactionMissingContract,
+      messages.errors.escrowActionFailed,
+      messages.errors.preparedTransactionMissing,
+      signAndSendPreparedTransaction
+    ]
+  );
 
   const submitProof = async (milestone: SerializedMilestone) => {
     const draft = proofDrafts[milestone.id] ?? {
@@ -173,14 +260,20 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
     }));
   };
 
+  const toggleVisibility = async (isPublic: boolean) => {
+    await runAction("visibility", "/api/contracts/visibility", {
+      contractId,
+      walletAddress,
+      isPublic
+    });
+  };
+
   if (!contractId) {
     return (
       <div className="page-shell py-10">
         <Card>
-          <h1 className="text-xl font-semibold">Contract id is required</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Open a contract from the dashboard or use `/contracts/detail?id=...`.
-          </p>
+          <h1 className="text-xl font-semibold">{copy.missingIdTitle}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{copy.missingIdDescription}</p>
         </Card>
       </div>
     );
@@ -190,20 +283,18 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
     <div className="page-shell py-10">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">Contract detail</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-primary">{copy.eyebrow}</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
-            {contract?.title ?? "Loading contract"}
+            {contract?.title ?? copy.loadingTitle}
           </h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" onClick={loadContract} disabled={isLoading}>
             <RefreshCw className="mr-2 size-4" aria-hidden="true" />
-            Refresh
+            {copy.refresh}
           </Button>
           <Link href="/dashboard">
-            <Button type="button" variant="secondary">
-              Dashboard
-            </Button>
+            <Button type="button" variant="secondary">{copy.dashboard}</Button>
           </Link>
         </div>
       </div>
@@ -211,7 +302,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       {error ? <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
 
       {isLoading || !contract ? (
-        <Card>Loading contract...</Card>
+        <Card>{copy.loadingTitle}...</Card>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
           <div className="space-y-6">
@@ -219,16 +310,24 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
               <div className="flex flex-wrap items-center gap-2">
                 <Badge value={contract.status} />
                 <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-                  {role}
+                  {role === "creator" ? copy.creator : role === "worker" ? copy.worker : copy.viewer}
+                </span>
+                <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
+                  {contract.isPublic ? copy.public : copy.private}
                 </span>
               </div>
+              {contract.isPublic ? (
+                <p className="mt-4 rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-800">
+                  {copy.publicNotice}
+                </p>
+              ) : null}
               <p className="mt-4 text-sm leading-6 text-muted-foreground">
-                {contract.description || "No description"}
+                {contract.description || copy.noDescription}
               </p>
               <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
-                <WalletLine label="Creator" wallet={contract.creatorWallet} />
-                <WalletLine label="Worker" wallet={contract.workerWallet} />
-                <WalletLine label="Escrow" wallet={contract.escrowAccount || "Not funded"} />
+                <WalletLine label={copy.creator} wallet={contract.creatorWallet} />
+                <WalletLine label={copy.worker} wallet={contract.workerWallet} />
+                <WalletLine label={copy.escrow} wallet={contract.escrowAccount || copy.notFunded} />
               </div>
               <div className="mt-6">
                 <ContractProgress
@@ -237,30 +336,65 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                   releasedAmount={contract.releasedAmount}
                 />
               </div>
+              {role === "creator" ? (
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => toggleVisibility(!contract.isPublic)}
+                    disabled={activeAction === "visibility"}
+                  >
+                    {contract.isPublic ? (
+                      <EyeOff className="mr-2 size-4" aria-hidden="true" />
+                    ) : (
+                      <Eye className="mr-2 size-4" aria-hidden="true" />
+                    )}
+                    {activeAction === "visibility"
+                      ? copy.saveVisibility
+                      : contract.isPublic
+                        ? copy.makePrivate
+                        : copy.makePublic}
+                  </Button>
+                </div>
+              ) : null}
               {role === "creator" && contract.status === "draft" ? (
                 <div className="mt-6 rounded-lg bg-muted p-4">
                   <div className="grid gap-3">
                     <div className="grid gap-2">
-                      <Label>Cancel reason</Label>
+                      <Label>{copy.cancelReason}</Label>
                       <Textarea
                         value={cancelReason}
                         onChange={(event) => setCancelReason(event.target.value)}
-                        placeholder="Optional note for the event timeline."
+                        placeholder={copy.cancelReasonPlaceholder}
                       />
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
                         onClick={() =>
-                          runAction("fund", "/api/contracts/fund", {
-                            contractId: contract.id,
-                            walletAddress
+                          runEscrowAction({
+                            actionKey: "fund",
+                            prepareUrl: "/api/transactions/prepare-fund",
+                            prepareBody: {
+                              contractId: contract.id,
+                              walletAddress
+                            },
+                            directUrl: "/api/contracts/fund",
+                            directBody: {
+                              contractId: contract.id,
+                              walletAddress
+                            },
+                            confirmUrl: "/api/transactions/confirm-fund",
+                            confirmBody: {
+                              contractId: contract.id,
+                              walletAddress
+                            }
                           })
                         }
                         disabled={activeAction === "fund"}
                       >
                         <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
-                        {activeAction === "fund" ? "Funding..." : "Fund contract"}
+                        {activeAction === "fund" ? copy.funding : copy.fundContract}
                       </Button>
                       <Button
                         type="button"
@@ -275,7 +409,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                         disabled={activeAction === "cancel"}
                       >
                         <Ban className="mr-2 size-4" aria-hidden="true" />
-                        {activeAction === "cancel" ? "Cancelling..." : "Cancel draft"}
+                        {activeAction === "cancel" ? copy.cancelling : copy.cancelDraft}
                       </Button>
                     </div>
                   </div>
@@ -284,7 +418,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
             </Card>
 
             <section className="space-y-4">
-              <h2 className="text-xl font-semibold">Milestones</h2>
+              <h2 className="text-xl font-semibold">{copy.milestones}</h2>
               {contract.milestones.map((milestone) => (
                 <Card key={milestone.id}>
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -296,12 +430,14 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                         <Badge value={milestone.status} />
                       </div>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        {milestone.description || "No description"}
+                        {milestone.description || copy.noDescription}
                       </p>
                     </div>
                     <div className="shrink-0 text-left md:text-right">
-                      <p className="font-semibold">{formatUsdc(milestone.amount)}</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(milestone.dueAt)}</p>
+                      <p className="font-semibold">{formatUsdc(milestone.amount, locale)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(milestone.dueAt, locale, messages.dates.noDueDate)}
+                      </p>
                     </div>
                   </div>
 
@@ -343,10 +479,26 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                       })
                     }
                     onRelease={() =>
-                      runAction(`release-${milestone.id}`, "/api/milestones/release", {
-                        contractId: contract.id,
-                        milestoneId: milestone.id,
-                        walletAddress
+                      runEscrowAction({
+                        actionKey: `release-${milestone.id}`,
+                        prepareUrl: "/api/transactions/prepare-release",
+                        prepareBody: {
+                          contractId: contract.id,
+                          milestoneId: milestone.id,
+                          walletAddress
+                        },
+                        directUrl: "/api/milestones/release",
+                        directBody: {
+                          contractId: contract.id,
+                          milestoneId: milestone.id,
+                          walletAddress
+                        },
+                        confirmUrl: "/api/transactions/confirm-release",
+                        confirmBody: {
+                          contractId: contract.id,
+                          milestoneId: milestone.id,
+                          walletAddress
+                        }
                       })
                     }
                   />
@@ -357,7 +509,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
 
           <aside className="space-y-6 lg:sticky lg:top-24 lg:h-max">
             <Card>
-              <h2 className="mb-4 text-lg font-semibold">Timeline</h2>
+              <h2 className="mb-4 text-lg font-semibold">{copy.timeline}</h2>
               <EventTimeline events={contract.events} />
             </Card>
           </aside>
@@ -382,10 +534,11 @@ function WalletLine({ label, wallet }: { label: string; wallet: string }) {
 }
 
 function ProofHistory({ milestone }: { milestone: SerializedMilestone }) {
+  const { locale, messages } = useLocale();
   const proofs = milestone.proofSubmissions ?? [];
 
   if (proofs.length === 0) {
-    return <p className="mt-4 text-sm text-muted-foreground">No proof submitted yet.</p>;
+    return <p className="mt-4 text-sm text-muted-foreground">{messages.contractDetail.noProof}</p>;
   }
 
   return (
@@ -393,8 +546,10 @@ function ProofHistory({ milestone }: { milestone: SerializedMilestone }) {
       {proofs.map((proof) => (
         <div key={proof.id} className="border-b border-border p-3 last:border-b-0">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold">Proof v{proof.version}</p>
-            <p className="text-xs text-muted-foreground">{new Date(proof.createdAt).toLocaleString()}</p>
+            <p className="text-sm font-semibold">
+              {messages.contractDetail.proof} v{proof.version}
+            </p>
+            <p className="text-xs text-muted-foreground">{formatDateTime(proof.createdAt, locale)}</p>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">{proof.note}</p>
           {proof.proofUrl ? (
@@ -404,7 +559,7 @@ function ProofHistory({ milestone }: { milestone: SerializedMilestone }) {
               rel="noreferrer"
               className="mt-2 inline-flex items-center text-sm font-semibold text-primary"
             >
-              Open proof
+              {messages.contractDetail.openProof}
               <ExternalLink className="ml-1 size-3" aria-hidden="true" />
             </a>
           ) : null}
@@ -447,6 +602,8 @@ function MilestoneActions({
   onDispute: () => void;
   onRelease: () => void;
 }) {
+  const { messages } = useLocale();
+  const copy = messages.contractDetail;
   const canDispute =
     contractStatus === "active" &&
     ["creator", "worker"].includes(role) &&
@@ -455,11 +612,11 @@ function MilestoneActions({
     <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
       <div className="grid gap-3">
         <div className="grid gap-2">
-          <Label>Dispute reason</Label>
+          <Label>{copy.disputeReason}</Label>
           <Textarea
             value={disputeReason}
             onChange={(event) => onDisputeReasonChange(event.target.value)}
-            placeholder="Explain why this milestone needs to enter dispute."
+            placeholder={copy.disputePlaceholder}
           />
         </div>
         <Button
@@ -470,7 +627,7 @@ function MilestoneActions({
           disabled={!disputeReason || activeAction === `dispute-${milestone.id}`}
         >
           <AlertTriangle className="mr-2 size-4" aria-hidden="true" />
-          {activeAction === `dispute-${milestone.id}` ? "Opening..." : "Open dispute"}
+          {activeAction === `dispute-${milestone.id}` ? copy.openingDispute : copy.openDispute}
         </Button>
       </div>
     </div>
@@ -482,19 +639,19 @@ function MilestoneActions({
         <div className="mt-5 rounded-lg bg-muted p-4">
           <div className="grid gap-3">
             <div className="grid gap-2">
-              <Label>Proof note</Label>
+              <Label>{copy.proofNote}</Label>
               <Textarea
                 value={draft.note}
                 onChange={(event) => onDraftChange({ note: event.target.value })}
-                placeholder="Summarize what was delivered."
+                placeholder={copy.proofNotePlaceholder}
               />
             </div>
             <div className="grid gap-2">
-              <Label>Proof URL</Label>
+              <Label>{copy.proofUrl}</Label>
               <Input
                 value={draft.proofUrl}
                 onChange={(event) => onDraftChange({ proofUrl: event.target.value })}
-                placeholder="https://..."
+                placeholder={copy.proofUrlPlaceholder}
               />
             </div>
             <Button
@@ -504,7 +661,7 @@ function MilestoneActions({
               disabled={!draft.note || activeAction === `submit-${milestone.id}`}
             >
               <Send className="mr-2 size-4" aria-hidden="true" />
-              {activeAction === `submit-${milestone.id}` ? "Submitting..." : "Submit proof"}
+              {activeAction === `submit-${milestone.id}` ? copy.submittingProof : copy.submitProof}
             </Button>
           </div>
         </div>
@@ -519,11 +676,11 @@ function MilestoneActions({
         <div className="mt-5 rounded-lg bg-muted p-4">
           <div className="grid gap-3">
             <div className="grid gap-2">
-              <Label>Revision note</Label>
+              <Label>{copy.revisionNote}</Label>
               <Textarea
                 value={revisionNote}
                 onChange={(event) => onRevisionNoteChange(event.target.value)}
-                placeholder="Describe what needs to be changed before approval."
+                placeholder={copy.revisionPlaceholder}
               />
             </div>
             <div className="flex flex-wrap gap-2">
@@ -533,7 +690,7 @@ function MilestoneActions({
                 disabled={activeAction === `approve-${milestone.id}`}
               >
                 <Check className="mr-2 size-4" aria-hidden="true" />
-                {activeAction === `approve-${milestone.id}` ? "Approving..." : "Approve milestone"}
+                {activeAction === `approve-${milestone.id}` ? copy.approvingMilestone : copy.approveMilestone}
               </Button>
               <Button
                 type="button"
@@ -542,7 +699,7 @@ function MilestoneActions({
                 disabled={!revisionNote || activeAction === `revision-${milestone.id}`}
               >
                 <RotateCcw className="mr-2 size-4" aria-hidden="true" />
-                {activeAction === `revision-${milestone.id}` ? "Requesting..." : "Request revision"}
+                {activeAction === `revision-${milestone.id}` ? copy.requestingRevision : copy.requestRevision}
               </Button>
             </div>
           </div>
@@ -562,7 +719,7 @@ function MilestoneActions({
             disabled={activeAction === `release-${milestone.id}`}
           >
             <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
-            {activeAction === `release-${milestone.id}` ? "Releasing..." : "Release payment"}
+            {activeAction === `release-${milestone.id}` ? copy.releasingPayment : copy.releasePayment}
           </Button>
         </div>
         {disputeControl}

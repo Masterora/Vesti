@@ -6,6 +6,7 @@ import {
   createWalletSessionCookie,
   decodeWalletSession,
   encodeWalletSession,
+  resolveOptionalRequestWallet,
   resolveRequestWallet,
   verifySolanaMessageSignature,
   type WalletSession
@@ -80,5 +81,16 @@ describe("wallet sessions", () => {
     const request = new Request("http://localhost/api/contracts/list");
 
     expect(() => resolveRequestWallet(request, "body_wallet")).toThrow("Wallet session is required");
+  });
+
+  it("requires an explicit true flag before using the demo wallet fallback", () => {
+    delete process.env.DEMO_WALLET_AUTH_ENABLED;
+    const request = new Request("http://localhost/api/contracts/list");
+
+    expect(resolveOptionalRequestWallet(request, "body_wallet")).toBeNull();
+
+    process.env.DEMO_WALLET_AUTH_ENABLED = "true";
+
+    expect(resolveOptionalRequestWallet(request, "body_wallet")).toBe("body_wallet");
   });
 });

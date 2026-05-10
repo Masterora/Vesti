@@ -4,7 +4,7 @@ import { submitMilestoneProof } from "@/lib/services/milestones/submit-milestone
 import { submitProofSchema } from "@/lib/validations/proof-submission";
 
 export async function POST(request: Request) {
-  return handleRoute(async () => {
+  return handleRoute(request, async () => {
     const body = await parseJsonBody(request);
     return submitMilestoneProof(submitProofSchema.parse(withAuthenticatedWallet(request, body)));
   });

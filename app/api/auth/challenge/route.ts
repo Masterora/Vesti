@@ -3,7 +3,7 @@ import { createWalletAuthChallenge } from "@/lib/services/auth/create-wallet-aut
 import { createAuthChallengeSchema } from "@/lib/validations/auth";
 
 export async function POST(request: Request) {
-  return handleRoute(async () => {
+  return handleRoute(request, async () => {
     const body = await parseJsonBody(request);
     return createWalletAuthChallenge(createAuthChallengeSchema.parse(body));
   });
