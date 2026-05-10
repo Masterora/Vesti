@@ -1,3 +1,7 @@
+"use client";
+
+import { useLocale } from "@/components/i18n/locale-provider";
+import { getBadgeLabel } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
 const toneByStatus: Record<string, string> = {
@@ -15,6 +19,8 @@ const toneByStatus: Record<string, string> = {
 };
 
 export function Badge({ value, className }: { value: string; className?: string }) {
+  const { locale } = useLocale();
+
   return (
     <span
       className={cn(
@@ -23,7 +29,7 @@ export function Badge({ value, className }: { value: string; className?: string 
         className
       )}
     >
-      {value.replaceAll("_", " ")}
+      {getBadgeLabel(locale, value)}
     </span>
   );
 }

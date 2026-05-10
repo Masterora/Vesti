@@ -1,10 +1,16 @@
+"use client";
+
+import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { shortenWallet } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import type { SerializedEvent } from "@/types/contract";
 
 export function EventTimeline({ events = [] }: { events?: SerializedEvent[] }) {
+  const { locale, messages } = useLocale();
+
   if (events.length === 0) {
-    return <p className="text-sm text-muted-foreground">No events recorded yet.</p>;
+    return <p className="text-sm text-muted-foreground">{messages.timeline.noEvents}</p>;
   }
 
   return (
@@ -15,12 +21,12 @@ export function EventTimeline({ events = [] }: { events?: SerializedEvent[] }) {
           <div className="flex flex-wrap items-center gap-2">
             <Badge value={event.eventType} />
             <span className="text-xs text-muted-foreground">
-              {new Date(event.createdAt).toLocaleString()}
+              {formatDateTime(event.createdAt, locale)}
             </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Actor {shortenWallet(event.actorWallet)}
-            {event.txSig ? ` | ${shortenWallet(event.txSig)}` : ""}
+            {messages.timeline.actor} {shortenWallet(event.actorWallet)}
+            {event.txSig ? ` | ${messages.timeline.transaction} ${shortenWallet(event.txSig)}` : ""}
           </p>
         </li>
       ))}

@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token_interface::{self, Mint, TokenAccount, TokenInterface, TransferChecked};
 
-declare_id!("H1cs7KqkmmPXMEppuTa7VrVC1apSaYtqUD5hJekwQqyC");
+declare_id!("ErFsmiKY7WxjD9ArYmpqjCCUKnTcfzLm6tFpmWdFU9ck");
 
 pub const STATUS_INITIALIZED: u8 = 0;
 pub const STATUS_FUNDED: u8 = 1;

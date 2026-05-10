@@ -1,13 +1,13 @@
 import { withAuthenticatedWallet } from "@/lib/api/authenticated-wallet";
 import { handleRoute, parseJsonBody } from "@/lib/api/route-helpers";
-import { prepareFundTransaction } from "@/lib/services/transactions/prepare-fund-transaction";
-import { prepareFundTransactionSchema } from "@/lib/validations/transaction";
+import { updateContractVisibility } from "@/lib/services/contracts/update-contract-visibility";
+import { updateContractVisibilitySchema } from "@/lib/validations/contract";
 
 export async function POST(request: Request) {
   return handleRoute(request, async () => {
     const body = await parseJsonBody(request);
-    return prepareFundTransaction(
-      prepareFundTransactionSchema.parse(withAuthenticatedWallet(request, body))
+    return updateContractVisibility(
+      updateContractVisibilitySchema.parse(withAuthenticatedWallet(request, body))
     );
   });
 }

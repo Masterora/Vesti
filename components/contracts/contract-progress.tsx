@@ -1,3 +1,6 @@
+"use client";
+
+import { useLocale } from "@/components/i18n/locale-provider";
 import { amountRatioPercent } from "@/lib/domain/amount";
 import { formatUsdc } from "@/lib/utils";
 
@@ -12,15 +15,16 @@ export function ContractProgress({
   fundedAmount,
   releasedAmount
 }: ContractProgressProps) {
+  const { locale, messages } = useLocale();
   const fundedPercent = amountRatioPercent(fundedAmount, totalAmount);
   const releasedPercent = amountRatioPercent(releasedAmount, totalAmount);
 
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-3">
-        <AmountStat label="Total" value={formatUsdc(totalAmount)} />
-        <AmountStat label="Funded" value={formatUsdc(fundedAmount)} />
-        <AmountStat label="Released" value={formatUsdc(releasedAmount)} />
+        <AmountStat label={messages.contractProgress.total} value={formatUsdc(totalAmount, locale)} />
+        <AmountStat label={messages.contractProgress.funded} value={formatUsdc(fundedAmount, locale)} />
+        <AmountStat label={messages.contractProgress.released} value={formatUsdc(releasedAmount, locale)} />
       </div>
       <div className="h-3 overflow-hidden rounded-full bg-muted">
         <div className="relative h-full" style={{ width: `${fundedPercent}%` }}>

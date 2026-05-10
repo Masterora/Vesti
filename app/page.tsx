@@ -2,61 +2,45 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, CircleDollarSign, FileCheck2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getMessages } from "@/lib/i18n/messages";
+import { getServerLocale } from "@/lib/i18n/server-locale";
 
-const steps = [
-  {
-    title: "Create",
-    text: "Creator defines a contract, Worker wallet, and milestone amounts.",
-    icon: FileCheck2
-  },
-  {
-    title: "Fund",
-    text: "Escrow is funded in mock mode so the full product flow can be demonstrated.",
-    icon: CircleDollarSign
-  },
-  {
-    title: "Release",
-    text: "Worker submits proof, Creator approves, and milestone payment is released.",
-    icon: CheckCircle2
-  }
-];
+const stepIcons = [FileCheck2, CircleDollarSign, CheckCircle2] as const;
 
-export default function HomePage() {
+export default async function HomePage() {
+  const locale = await getServerLocale();
+  const copy = getMessages(locale).landing;
+
   return (
     <div className="page-shell py-10 md:py-16">
       <section className="grid gap-10 lg:grid-cols-[1fr_420px] lg:items-center">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">
-            USDC milestone escrow
-          </p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-primary">{copy.eyebrow}</p>
           <h1 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight md:text-6xl">
-            Remote work payments with milestone-level control.
+            {copy.title}
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-muted-foreground">
-            Vesti helps a Creator fund a contract, lets a Worker submit proof, and tracks approval,
-            release, and audit events through a simple escrow workflow.
+            {copy.description}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/dashboard">
               <Button type="button">
-                Open dashboard
+                {copy.openDashboard}
                 <ArrowRight className="ml-2 size-4" aria-hidden="true" />
               </Button>
             </Link>
             <Link href="/contracts/new">
-              <Button type="button" variant="secondary">
-                Create contract
-              </Button>
+              <Button type="button" variant="secondary">{copy.createContract}</Button>
             </Link>
           </div>
         </div>
         <Card className="p-0">
           <div className="border-b border-border p-5">
-            <p className="text-sm font-semibold text-muted-foreground">Demo flow</p>
+            <p className="text-sm font-semibold text-muted-foreground">{copy.flowTitle}</p>
           </div>
           <div className="divide-y divide-border">
-            {steps.map((step) => {
-              const Icon = step.icon;
+            {copy.steps.map((step, index) => {
+              const Icon = stepIcons[index];
 
               return (
                 <div key={step.title} className="flex gap-4 p-5">

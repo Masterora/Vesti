@@ -4,7 +4,7 @@ import { releaseMilestonePayment } from "@/lib/services/milestones/release-miles
 import { releaseMilestoneSchema } from "@/lib/validations/proof-submission";
 
 export async function POST(request: Request) {
-  return handleRoute(async () => {
+  return handleRoute(request, async () => {
     const body = await parseJsonBody(request);
     return releaseMilestonePayment(releaseMilestoneSchema.parse(withAuthenticatedWallet(request, body)));
   });

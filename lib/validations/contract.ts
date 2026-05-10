@@ -13,6 +13,7 @@ export const createContractSchema = z.object({
   workerWallet: walletAddressSchema,
   title: z.string().trim().min(1, "Contract title is required"),
   description: z.string().trim().optional(),
+  isPublic: z.boolean().optional(),
   totalAmount: amountSchema,
   milestones: z.array(milestoneInputSchema).min(1, "At least one milestone is required")
 });
@@ -23,7 +24,7 @@ export const listContractsSchema = z.object({
 
 export const getContractSchema = z.object({
   contractId: z.string().trim().min(1),
-  walletAddress: walletAddressSchema
+  walletAddress: walletAddressSchema.optional()
 });
 
 export const fundContractSchema = z.object({
@@ -37,8 +38,15 @@ export const cancelContractSchema = z.object({
   reason: z.string().trim().max(500).optional()
 });
 
+export const updateContractVisibilitySchema = z.object({
+  contractId: z.string().trim().min(1),
+  walletAddress: walletAddressSchema,
+  isPublic: z.boolean()
+});
+
 export type CreateContractInput = z.infer<typeof createContractSchema>;
 export type ListContractsInput = z.infer<typeof listContractsSchema>;
 export type GetContractInput = z.infer<typeof getContractSchema>;
 export type FundContractInput = z.infer<typeof fundContractSchema>;
 export type CancelContractInput = z.infer<typeof cancelContractSchema>;
+export type UpdateContractVisibilityInput = z.infer<typeof updateContractVisibilitySchema>;

@@ -41,6 +41,7 @@ export type SerializedContract = {
   workerWallet: string;
   title: string;
   description: string | null;
+  isPublic: boolean;
   totalAmount: string;
   fundedAmount: string;
   releasedAmount: string;

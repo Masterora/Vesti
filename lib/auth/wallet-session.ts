@@ -166,10 +166,10 @@ export function createClearWalletSessionCookie() {
 }
 
 export function isDemoWalletAuthFallbackEnabled() {
-  return process.env.DEMO_WALLET_AUTH_ENABLED !== "false";
+  return process.env.DEMO_WALLET_AUTH_ENABLED === "true";
 }
 
-export function resolveRequestWallet(request: Request, fallbackWalletAddress?: string | null) {
+export function resolveOptionalRequestWallet(request: Request, fallbackWalletAddress?: string | null) {
   const session = getWalletSession(request);
 
   if (session) {
@@ -178,6 +178,16 @@ export function resolveRequestWallet(request: Request, fallbackWalletAddress?: s
 
   if (isDemoWalletAuthFallbackEnabled() && fallbackWalletAddress?.trim()) {
     return fallbackWalletAddress.trim();
+  }
+
+  return null;
+}
+
+export function resolveRequestWallet(request: Request, fallbackWalletAddress?: string | null) {
+  const walletAddress = resolveOptionalRequestWallet(request, fallbackWalletAddress);
+
+  if (walletAddress) {
+    return walletAddress;
   }
 
   throw new ServiceError("Wallet session is required", 401);

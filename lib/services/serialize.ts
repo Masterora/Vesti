@@ -40,6 +40,7 @@ export function serializeEvent(event: Event) {
 export function serializeContract(contract: ContractWithRelations) {
   return {
     ...contract,
+    isPublic: contract.isPublic,
     totalAmount: contract.totalAmount.toString(),
     fundedAmount: contract.fundedAmount.toString(),
     releasedAmount: contract.releasedAmount.toString(),

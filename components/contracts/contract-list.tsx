@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FileText } from "lucide-react";
+import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ContractProgress } from "@/components/contracts/contract-progress";
@@ -15,14 +16,16 @@ export function ContractList({
   contracts: SerializedContract[];
   walletAddress: string;
 }) {
+  const { locale, messages } = useLocale();
+
   if (contracts.length === 0) {
     return (
       <Card className="flex min-h-64 items-center justify-center text-center">
         <div>
           <FileText className="mx-auto size-10 text-muted-foreground" aria-hidden="true" />
-          <h2 className="mt-4 text-xl font-semibold">No contracts yet</h2>
+          <h2 className="mt-4 text-xl font-semibold">{messages.contractList.emptyTitle}</h2>
           <p className="mt-2 max-w-md text-sm text-muted-foreground">
-            Create a contract as Creator, then switch to the Worker wallet to submit proof.
+            {messages.contractList.emptyDescription}
           </p>
         </div>
       </Card>
@@ -32,7 +35,16 @@ export function ContractList({
   return (
     <div className="grid gap-4">
       {contracts.map((contract) => {
-        const role = walletAddress === contract.creatorWallet ? "Creator" : "Worker";
+        const role =
+          walletAddress === contract.creatorWallet
+            ? messages.contractList.creator
+            : walletAddress === contract.workerWallet
+              ? messages.contractList.worker
+              : messages.contractList.viewer;
+        const milestoneCount =
+          locale === "zh"
+            ? `${contract.milestones.length}${messages.contractList.milestones}`
+            : `${contract.milestones.length} ${messages.contractList.milestones}`;
 
         return (
           <Link key={contract.id} href={`/contracts/detail?id=${contract.id}`}>
@@ -45,14 +57,17 @@ export function ContractList({
                     <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
                       {role}
                     </span>
+                    <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
+                      {contract.isPublic ? messages.contractList.public : messages.contractList.private}
+                    </span>
                   </div>
                   <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                    {contract.description || "No description"}
+                    {contract.description || messages.contractList.noDescription}
                   </p>
                   <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                    <span>Creator {shortenWallet(contract.creatorWallet)}</span>
-                    <span>Worker {shortenWallet(contract.workerWallet)}</span>
-                    <span>{contract.milestones.length} milestones</span>
+                    <span>{messages.contractList.creator} {shortenWallet(contract.creatorWallet)}</span>
+                    <span>{messages.contractList.worker} {shortenWallet(contract.workerWallet)}</span>
+                    <span>{milestoneCount}</span>
                   </div>
                 </div>
                 <div className="w-full lg:w-80">
