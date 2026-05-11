@@ -108,7 +108,7 @@ export function DashboardClient() {
           {messages.dashboard.loading}
         </div>
       ) : (
-        <ContractList contracts={contracts} />
+        <ContractList contracts={contracts} walletAddress={walletAddress} />
       )}
     </div>
   );

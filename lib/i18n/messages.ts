@@ -85,6 +85,10 @@ export const messages = {
       private: "Private",
       unassigned: "Unassigned",
       pendingClaim: "Pending claim",
+      creatorClaimHint: "Open this project to accept the Worker claim before funding.",
+      creatorFundHint: "Open this project to fund escrow and start milestone work.",
+      applicantPendingHint: "Waiting for the Creator to accept your claim.",
+      viewerClaimHint: "Open this project to claim it with your wallet.",
       noDescription: "No description",
       milestones: "milestones"
     },
@@ -345,6 +349,10 @@ export const messages = {
       private: "私密",
       unassigned: "待认领",
       pendingClaim: "待确认认领",
+      creatorClaimHint: "打开项目详情，先确认乙方认领，再继续注资。",
+      creatorFundHint: "打开项目详情，继续为托管合同注资。",
+      applicantPendingHint: "等待甲方确认你的认领请求。",
+      viewerClaimHint: "打开项目详情后可用钱包认领。",
       noDescription: "暂无描述",
       milestones: "个里程碑"
     },

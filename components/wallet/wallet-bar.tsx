@@ -29,11 +29,11 @@ export function WalletBar() {
     <div className="flex min-w-0 flex-col items-end gap-1">
       <div className="flex min-w-0 items-center gap-2">
         {demoWalletsEnabled ? (
-          <div className="hidden min-w-0 items-center gap-2 rounded-md border border-border bg-white px-2 py-1.5 md:flex">
+          <div className="flex min-w-0 max-w-[11rem] items-center gap-2 rounded-md border border-border bg-white px-2 py-1.5 sm:max-w-none">
             <UserRound className="size-4 text-muted-foreground" aria-hidden="true" />
             <Input
               aria-label={messages.wallet.walletAddress}
-              className="h-7 w-52 border-0 px-1 focus:ring-0"
+              className="h-7 w-28 border-0 px-1 focus:ring-0 sm:w-52"
               value={walletAddress}
               placeholder={messages.wallet.walletAddress}
               onChange={(event) => setWalletAddress(event.target.value)}
@@ -46,11 +46,11 @@ export function WalletBar() {
             />
           </div>
         ) : isAuthenticated && sessionWalletAddress ? (
-          <div className="hidden min-w-0 items-center gap-2 rounded-md border border-border bg-white px-3 py-1.5 md:flex">
+          <div className="flex min-w-0 max-w-[11rem] items-center gap-2 rounded-md border border-border bg-white px-3 py-1.5 sm:max-w-none">
             <UserRound className="size-4 text-muted-foreground" aria-hidden="true" />
             <Badge value="connected" label={messages.wallet.connectedWallet} />
             <span
-              className="max-w-52 truncate text-sm font-medium text-foreground"
+              className="max-w-20 truncate text-sm font-medium text-foreground sm:max-w-52"
               title={sessionWalletAddress ?? undefined}
             >
               {shortenWallet(sessionWalletAddress)}

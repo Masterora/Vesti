@@ -10,9 +10,11 @@ import { shortenWallet } from "@/lib/utils";
 import type { SerializedContract } from "@/types/contract";
 
 export function ContractList({
-  contracts
+  contracts,
+  walletAddress
 }: {
   contracts: SerializedContract[];
+  walletAddress: string;
 }) {
   const { locale, messages } = useLocale();
 
@@ -34,6 +36,14 @@ export function ContractList({
     <div className="grid gap-4">
       {contracts.map((contract) => {
         const tags = contract.tags ?? [];
+        const relation =
+          walletAddress === contract.creatorWallet
+            ? "creator"
+            : walletAddress === contract.workerWallet
+              ? "worker"
+              : walletAddress === contract.requestedWorkerWallet
+                ? "applicant"
+                : "viewer";
         const milestoneCount =
           locale === "zh"
             ? `${contract.milestones.length}${messages.contractList.milestones}`
@@ -43,6 +53,16 @@ export function ContractList({
           : contract.requestedWorkerWallet
             ? `${messages.contractList.pendingClaim} ${shortenWallet(contract.requestedWorkerWallet)}`
             : messages.contractList.unassigned;
+        const nextStepHint =
+          relation === "creator" && contract.status === "claimed"
+            ? messages.contractList.creatorClaimHint
+            : relation === "creator" && contract.status === "draft"
+              ? messages.contractList.creatorFundHint
+              : relation === "applicant" && contract.status === "claimed"
+                ? messages.contractList.applicantPendingHint
+                : relation === "viewer" && contract.status === "open"
+                  ? messages.contractList.viewerClaimHint
+                  : null;
 
         return (
           <Link key={contract.id} href={`/contracts/detail?id=${contract.id}`}>
@@ -60,6 +80,9 @@ export function ContractList({
                   <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
                     {contract.description || messages.contractList.noDescription}
                   </p>
+                  {nextStepHint ? (
+                    <p className="mt-3 text-sm font-medium text-primary">{nextStepHint}</p>
+                  ) : null}
                   {tags.length > 0 ? (
                     <div className="mt-3 flex flex-wrap gap-2">
                       {tags.map((tag) => (
