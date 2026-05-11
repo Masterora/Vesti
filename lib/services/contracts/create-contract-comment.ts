@@ -2,7 +2,8 @@ import { db } from "@/lib/db";
 import { getContractRole } from "@/lib/auth/wallet-role";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { assertAllowed, assertFound } from "@/lib/services/errors";
-import { serializeContractWithProfiles } from "@/lib/services/serialize";
+import { serializeContractComment } from "@/lib/services/serialize";
+import { serializePublicUserProfile } from "@/lib/services/user-profiles";
 import type { CreateContractCommentInput } from "@/lib/validations/contract";
 
 export async function createContractComment(input: CreateContractCommentInput) {
@@ -38,7 +39,7 @@ export async function createContractComment(input: CreateContractCommentInput) {
       create: { walletAddress: input.walletAddress }
     });
 
-    await tx.contractComment.create({
+    const comment = await tx.contractComment.create({
       data: {
         contractId: contract.id,
         authorWallet: input.walletAddress,
@@ -46,29 +47,18 @@ export async function createContractComment(input: CreateContractCommentInput) {
       }
     });
 
-    const updated = await tx.contract.findUniqueOrThrow({
-      where: { id: contract.id },
-      include: {
-        milestones: {
-          orderBy: { index: "asc" },
-          include: {
-            proofSubmissions: {
-              orderBy: { version: "desc" }
-            }
-          }
-        },
-        events: {
-          orderBy: { createdAt: "desc" }
-        },
-        comments: {
-          orderBy: { createdAt: "asc" }
-        },
-        applications: {
-          orderBy: { createdAt: "asc" }
-        }
+    const author = await tx.user.findUniqueOrThrow({
+      where: { walletAddress: input.walletAddress },
+      select: {
+        walletAddress: true,
+        displayName: true,
+        avatarUpdatedAt: true
       }
     });
 
-    return serializeContractWithProfiles(updated);
+    return {
+      comment: serializeContractComment(comment),
+      authorProfile: serializePublicUserProfile(author)
+    };
   });
 }

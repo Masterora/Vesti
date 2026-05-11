@@ -1,16 +1,16 @@
 import type { ContractStatus, Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractListItem } from "@/lib/services/serialize";
 import { getPublicUserProfilesByWallets } from "@/lib/services/user-profiles";
-import { parseContractDisplayId } from "@/lib/utils";
+import { normalizeContractDisplayIdQuery } from "@/lib/utils";
 import type { ListContractsInput } from "@/lib/validations/contract";
 
 export async function listContractsForWallet(input: ListContractsInput) {
   const walletAddress = input.walletAddress?.trim();
   const query = input.query?.trim();
   const status = input.status;
-  const displayIdQuery = query ? parseContractDisplayId(query) : null;
+  const displayIdQuery = query ? normalizeContractDisplayIdQuery(query) : null;
   const publicStatuses: ContractStatus[] = ["open", "claimed"];
   const visibilityWhere: Prisma.ContractWhereInput = {
     OR: [
@@ -39,6 +39,18 @@ export async function listContractsForWallet(input: ListContractsInput) {
   const queryTerms = query
     ? Array.from(new Set(query.toLowerCase().split(/[,\s]+/).map((term) => term.trim()).filter(Boolean)))
     : [];
+  const displayIdWhere = displayIdQuery
+    ? {
+        displayId:
+          displayIdQuery.length === 16
+            ? {
+                equals: displayIdQuery
+              }
+            : {
+                startsWith: displayIdQuery
+              }
+      }
+    : null;
   const searchWhere: Prisma.ContractWhereInput | null = query
     ? {
         OR: [
@@ -48,15 +60,7 @@ export async function listContractsForWallet(input: ListContractsInput) {
               mode: "insensitive"
             }
           },
-          ...(displayIdQuery
-            ? [
-                {
-                  id: {
-                    startsWith: displayIdQuery
-                  }
-                }
-              ]
-            : []),
+          ...(displayIdWhere ? [displayIdWhere] : []),
           ...queryTerms.map((term) => ({
             tags: {
               has: term
@@ -77,12 +81,33 @@ export async function listContractsForWallet(input: ListContractsInput) {
     : where;
   const contracts = await db.contract.findMany({
     where: filteredWhere,
-    include: {
-      milestones: {
-        orderBy: { index: "asc" }
-      },
+    select: {
+      id: true,
+      displayId: true,
+      creatorWallet: true,
+      workerWallet: true,
+      requestedWorkerWallet: true,
+      title: true,
+      description: true,
+      tags: true,
+      isPublic: true,
+      totalAmount: true,
+      fundedAmount: true,
+      releasedAmount: true,
+      status: true,
+      escrowAccount: true,
+      createdAt: true,
+      updatedAt: true,
       applications: {
-        orderBy: { createdAt: "asc" }
+        orderBy: { createdAt: "asc" },
+        select: {
+          applicantWallet: true
+        }
+      },
+      _count: {
+        select: {
+          milestones: true
+        }
       }
     },
     orderBy: { updatedAt: "desc" }
@@ -98,5 +123,5 @@ export async function listContractsForWallet(input: ListContractsInput) {
     wallets.filter((wallet): wallet is string => Boolean(wallet?.trim()))
   );
 
-  return contracts.map((contract) => serializeContract(contract, profilesByWallet));
+  return contracts.map((contract) => serializeContractListItem(contract, profilesByWallet));
 }

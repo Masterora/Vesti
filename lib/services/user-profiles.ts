@@ -1,14 +1,19 @@
 import { db } from "@/lib/db";
+import { buildStoredProfileAvatarUrl } from "@/lib/avatar";
 import { ServiceError } from "@/lib/services/errors";
 import type { SerializedPublicUserProfile, SerializedSessionUserProfile } from "@/types/profile";
 
 export function serializePublicUserProfile(profile: {
   walletAddress: string;
   displayName: string | null;
+  avatarUpdatedAt: Date | null;
 }): SerializedPublicUserProfile {
   return {
     walletAddress: profile.walletAddress,
-    displayName: profile.displayName?.trim() || null
+    displayName: profile.displayName?.trim() || null,
+    avatarImage: profile.avatarUpdatedAt
+      ? buildStoredProfileAvatarUrl(profile.walletAddress, profile.avatarUpdatedAt.toISOString())
+      : null
   };
 }
 
@@ -17,6 +22,7 @@ export function serializeSessionUserProfile(profile: {
   displayName: string | null;
   email: string | null;
   bio: string | null;
+  avatarImage: string | null;
   createdAt: Date;
   _count: {
     createdContracts: number;
@@ -26,6 +32,7 @@ export function serializeSessionUserProfile(profile: {
   return {
     walletAddress: profile.walletAddress,
     displayName: profile.displayName?.trim() || null,
+    avatarImage: profile.avatarImage || null,
     email: profile.email?.trim() || null,
     bio: profile.bio?.trim() || null,
     completedContractsCount: profile._count.createdContracts + profile._count.workedContracts,
@@ -48,7 +55,8 @@ export async function getPublicUserProfilesByWallets(walletAddresses: string[]) 
     },
     select: {
       walletAddress: true,
-      displayName: true
+      displayName: true,
+      avatarUpdatedAt: true
     }
   });
 
@@ -63,6 +71,7 @@ export async function getSessionUserProfile(walletAddress: string) {
       displayName: true,
       email: true,
       bio: true,
+      avatarImage: true,
       createdAt: true,
       _count: {
         select: {
@@ -89,8 +98,17 @@ export async function updateSessionUserProfile(input: {
   displayName?: string;
   email?: string;
   bio?: string;
+  avatarImage?: string;
 }) {
   const email = input.email?.trim().toLowerCase() || null;
+  const avatarImage = input.avatarImage?.trim() || null;
+  const avatarUpdate =
+    input.avatarImage === undefined
+      ? {}
+      : {
+          avatarImage,
+          avatarUpdatedAt: avatarImage ? new Date() : null
+        };
 
   if (email) {
     const existing = await db.user.findUnique({
@@ -110,19 +128,23 @@ export async function updateSessionUserProfile(input: {
     update: {
       displayName: input.displayName?.trim() || null,
       email,
-      bio: input.bio?.trim() || null
+      bio: input.bio?.trim() || null,
+      ...avatarUpdate
     },
     create: {
       walletAddress: input.walletAddress,
       displayName: input.displayName?.trim() || null,
       email,
-      bio: input.bio?.trim() || null
+      bio: input.bio?.trim() || null,
+      avatarImage,
+      avatarUpdatedAt: avatarImage ? new Date() : null
     },
     select: {
       walletAddress: true,
       displayName: true,
       email: true,
       bio: true,
+      avatarImage: true,
       createdAt: true,
       _count: {
         select: {

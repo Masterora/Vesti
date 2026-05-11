@@ -16,10 +16,22 @@ const optionalEmail = z
   .optional()
   .or(z.literal("").transform(() => undefined));
 
+const optionalAvatarImage = z
+  .string()
+  .trim()
+  .max(200_000, "Avatar image is too large")
+  .refine(
+    (value) => !value || /^data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=\s]+$/.test(value),
+    "Avatar image must be a valid image data URL"
+  )
+  .optional()
+  .transform((value) => (value ? value : undefined));
+
 export const updateProfileSchema = z.object({
   displayName: optionalString(40, "Display name is too long"),
   email: optionalEmail,
-  bio: optionalString(280, "Bio is too long")
+  bio: optionalString(280, "Bio is too long"),
+  avatarImage: optionalAvatarImage
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

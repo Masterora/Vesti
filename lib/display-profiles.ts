@@ -19,6 +19,13 @@ export function getWalletDisplayName(
   return findProfile(profiles, walletAddress)?.displayName?.trim() || null;
 }
 
+export function getWalletAvatarImage(
+  profiles: SerializedPublicUserProfile[] | undefined,
+  walletAddress: string | null | undefined
+) {
+  return findProfile(profiles, walletAddress)?.avatarImage || null;
+}
+
 export function getWalletDisplayLabel(
   profiles: SerializedPublicUserProfile[] | undefined,
   walletAddress: string | null | undefined

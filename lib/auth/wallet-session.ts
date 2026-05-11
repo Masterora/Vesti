@@ -166,6 +166,10 @@ export function createClearWalletSessionCookie() {
 }
 
 export function isDemoWalletAuthFallbackEnabled() {
+  if (process.env.NODE_ENV === "production") {
+    return false;
+  }
+
   return process.env.DEMO_WALLET_AUTH_ENABLED === "true";
 }
 

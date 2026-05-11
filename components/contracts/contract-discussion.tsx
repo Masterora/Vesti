@@ -6,12 +6,18 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getWalletDisplayLabel, getWalletDisplayName } from "@/lib/display-profiles";
+import { ProfileAvatar } from "@/components/ui/profile-avatar";
+import { getWalletAvatarImage, getWalletDisplayLabel, getWalletDisplayName } from "@/lib/display-profiles";
 import { Label, Textarea } from "@/components/ui/input";
 import { postJson } from "@/lib/api/client";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { formatDateTime, shortenWallet } from "@/lib/utils";
-import type { SerializedContract, SerializedContractComment } from "@/types/contract";
+import type {
+  SerializedContract,
+  SerializedContractComment,
+  SerializedCreateContractCommentResult
+} from "@/types/contract";
+import type { SerializedPublicUserProfile } from "@/types/profile";
 
 type ContractDiscussionProps = {
   contract: SerializedContract;
@@ -81,13 +87,17 @@ export function ContractDiscussion({
     setError("");
 
     try {
-      const updated = await postJson<SerializedContract>("/api/contracts/comments/create", {
+      const created = await postJson<SerializedCreateContractCommentResult>("/api/contracts/comments/create", {
         contractId: contract.id,
         walletAddress,
         body: draft.trim()
       });
 
-      onContractUpdate(updated);
+      onContractUpdate({
+        ...contract,
+        comments: [...comments, created.comment],
+        profiles: mergeProfiles(contract.profiles, created.authorProfile)
+      });
       onStatusMessage?.(copy.commentPosted);
       setDraft("");
     } catch (caught) {
@@ -148,6 +158,21 @@ export function ContractDiscussion({
   );
 }
 
+function mergeProfiles(
+  existingProfiles: SerializedPublicUserProfile[] | undefined,
+  nextProfile: SerializedPublicUserProfile | null
+) {
+  if (!nextProfile) {
+    return existingProfiles;
+  }
+
+  const otherProfiles = (existingProfiles ?? []).filter(
+    (profile) => profile.walletAddress !== nextProfile.walletAddress
+  );
+
+  return [...otherProfiles, nextProfile];
+}
+
 function DiscussionItem({
   comment,
   contract
@@ -159,16 +184,25 @@ function DiscussionItem({
   const role = getDiscussionRole(contract, comment.authorWallet);
   const textToneClass = getRoleTextClass(role);
   const displayName = getWalletDisplayName(contract.profiles, comment.authorWallet);
+  const avatarImage = getWalletAvatarImage(contract.profiles, comment.authorWallet);
 
   return (
     <div className="rounded-lg border border-border bg-muted/40 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <Badge value={role} />
+        <div className="flex min-w-0 items-center gap-3">
+          <ProfileAvatar
+            walletAddress={comment.authorWallet}
+            displayName={displayName}
+            avatarImage={avatarImage}
+            className="size-10 shrink-0 rounded-md"
+          />
           <div className="min-w-0">
-            <p className={`truncate text-sm font-semibold ${textToneClass}`} title={comment.authorWallet}>
-              {getWalletDisplayLabel(contract.profiles, comment.authorWallet)}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className={`truncate text-sm font-semibold ${textToneClass}`} title={comment.authorWallet}>
+                {getWalletDisplayLabel(contract.profiles, comment.authorWallet)}
+              </p>
+              <Badge value={role} />
+            </div>
             {displayName ? (
               <p className="truncate text-xs text-muted-foreground" title={comment.authorWallet}>
                 {shortenWallet(comment.authorWallet)}

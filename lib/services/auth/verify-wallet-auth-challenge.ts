@@ -51,6 +51,7 @@ export async function verifyWalletAuthChallenge(input: VerifyAuthChallengeInput)
         displayName: true,
         email: true,
         bio: true,
+        avatarImage: true,
         createdAt: true,
         _count: {
           select: {

@@ -1,13 +1,19 @@
 "use client";
 
 import { LogOut, PencilLine, UserRound, Wallet } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import type { ChangeEvent } from "react";
+import { createPortal } from "react-dom";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
+import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { useWallet } from "./wallet-provider";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
+import { convertImageFileToPixelAvatar } from "@/lib/avatar-client";
 import { formatDate, shortenWallet } from "@/lib/utils";
+
+const maxAvatarUploadBytes = 5 * 1024 * 1024;
 
 export function WalletBar() {
   const { locale, messages } = useLocale();
@@ -31,11 +37,58 @@ export function WalletBar() {
   const [profileDraft, setProfileDraft] = useState({
     displayName: "",
     email: "",
-    bio: ""
+    bio: "",
+    avatarImage: ""
   });
   const [profileStatus, setProfileStatus] = useState("");
   const [profileStatusTone, setProfileStatusTone] = useState<"success" | "error">("success");
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isPreparingAvatar, setIsPreparingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    setProfileStatus("");
+    setProfileStatusTone("success");
+
+    if (!file.type.startsWith("image/")) {
+      setProfileStatusTone("error");
+      setProfileStatus(messages.wallet.avatarInvalidType);
+      return;
+    }
+
+    if (file.size > maxAvatarUploadBytes) {
+      setProfileStatusTone("error");
+      setProfileStatus(messages.wallet.avatarTooLarge);
+      return;
+    }
+
+    setIsPreparingAvatar(true);
+
+    try {
+      const avatarImage = await convertImageFileToPixelAvatar(file);
+
+      setProfileDraft((current) => ({
+        ...current,
+        avatarImage
+      }));
+      setProfileStatus(messages.wallet.avatarReady);
+    } catch (caught) {
+      const error = caught as Error;
+
+      setProfileStatusTone("error");
+      setProfileStatus(error.message);
+    } finally {
+      setIsPreparingAvatar(false);
+    }
+  };
 
   const saveProfile = async () => {
     setIsSavingProfile(true);
@@ -47,10 +100,10 @@ export function WalletBar() {
       setProfileStatus(messages.wallet.profileSaved);
       setIsEditingProfile(false);
     } catch (caught) {
+      const error = caught as Error;
+
       setProfileStatusTone("error");
-      setProfileStatus(
-        caught instanceof Error ? caught.message : messages.errors.failedToUpdateProfile
-      );
+      setProfileStatus(error.message);
     } finally {
       setIsSavingProfile(false);
     }
@@ -78,9 +131,13 @@ export function WalletBar() {
           </div>
         ) : isAuthenticated && sessionWalletAddress ? (
           <div className="flex min-w-0 max-w-[14rem] items-center gap-2 rounded-md border border-border bg-white px-3 py-1.5 sm:max-w-none">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-              {getProfileInitial(sessionProfile?.displayName, sessionWalletAddress)}
-            </div>
+            <ProfileAvatar
+              walletAddress={sessionWalletAddress}
+              displayName={sessionProfile?.displayName}
+              avatarImage={sessionProfile?.avatarImage}
+              className="size-7 shrink-0 rounded-md"
+              loading="eager"
+            />
             <Badge value="connected" label={messages.wallet.connectedWallet} />
             <div className="min-w-0">
               <p
@@ -114,7 +171,8 @@ export function WalletBar() {
                   setProfileDraft({
                     displayName: sessionProfile?.displayName ?? "",
                     email: sessionProfile?.email ?? "",
-                    bio: sessionProfile?.bio ?? ""
+                    bio: sessionProfile?.bio ?? "",
+                    avatarImage: sessionProfile?.avatarImage ?? ""
                   });
                 }
 
@@ -174,89 +232,111 @@ export function WalletBar() {
           </div>
         ) : null}
       </div>
-      {isAuthenticated && isEditingProfile ? (
-        <div className="fixed right-4 top-20 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-border bg-white p-4 shadow-xl">
-          <div className="grid gap-3">
-            <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                {getProfileInitial(sessionProfile?.displayName, sessionWalletAddress)}
+      {isAuthenticated && isEditingProfile
+        ? createPortal(
+            <div className="pointer-events-none fixed inset-0 z-[90]">
+              <div className="pointer-events-auto absolute right-4 top-20 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-border bg-white p-4 shadow-2xl">
+                <div className="grid max-h-[calc(100vh-6rem)] gap-3 overflow-y-auto">
+                  <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+                    <button
+                      type="button"
+                      className="shrink-0 rounded-xl transition hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={isPreparingAvatar || isSavingProfile}
+                      title={messages.wallet.importAvatar}
+                      aria-label={messages.wallet.importAvatar}
+                    >
+                      <ProfileAvatar
+                        walletAddress={sessionWalletAddress}
+                        displayName={profileDraft.displayName}
+                        avatarImage={profileDraft.avatarImage}
+                        className="size-12 rounded-xl"
+                        loading="eager"
+                      />
+                    </button>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {profileDraft.displayName.trim() || shortenWallet(sessionWalletAddress ?? "")}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {shortenWallet(sessionWalletAddress ?? "")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {messages.wallet.joined}
+                      </p>
+                      <p className="mt-1 font-medium text-foreground">
+                        {formatDate(sessionProfile?.joinedAt, locale)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {messages.wallet.completedContracts}
+                      </p>
+                      <p className="mt-1 font-medium text-foreground">
+                        {sessionProfile?.completedContractsCount ?? 0}
+                      </p>
+                    </div>
+                  </div>
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="sr-only"
+                    onChange={(event) => void handleAvatarChange(event)}
+                  />
+                  <div className="grid gap-2">
+                    <Label>{messages.wallet.displayName}</Label>
+                    <Input
+                      value={profileDraft.displayName}
+                      onChange={(event) =>
+                        setProfileDraft((current) => ({
+                          ...current,
+                          displayName: event.target.value
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{messages.wallet.email}</Label>
+                    <Input
+                      type="email"
+                      value={profileDraft.email}
+                      onChange={(event) =>
+                        setProfileDraft((current) => ({
+                          ...current,
+                          email: event.target.value
+                        }))
+                      }
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>{messages.wallet.bio}</Label>
+                    <Textarea
+                      value={profileDraft.bio}
+                      onChange={(event) =>
+                        setProfileDraft((current) => ({
+                          ...current,
+                          bio: event.target.value
+                        }))
+                      }
+                      className="min-h-24"
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button type="button" onClick={() => void saveProfile()} disabled={isSavingProfile}>
+                      {isSavingProfile ? messages.wallet.savingProfile : messages.wallet.saveProfile}
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">
-                  {sessionProfile?.displayName || shortenWallet(sessionWalletAddress ?? "")}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {shortenWallet(sessionWalletAddress ?? "")}
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {messages.wallet.joined}
-                </p>
-                <p className="mt-1 font-medium text-foreground">
-                  {formatDate(sessionProfile?.joinedAt, locale)}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {messages.wallet.completedContracts}
-                </p>
-                <p className="mt-1 font-medium text-foreground">
-                  {sessionProfile?.completedContractsCount ?? 0}
-                </p>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>{messages.wallet.displayName}</Label>
-              <Input
-                value={profileDraft.displayName}
-                onChange={(event) =>
-                  setProfileDraft((current) => ({
-                    ...current,
-                    displayName: event.target.value
-                  }))
-                }
-                placeholder={messages.wallet.displayNamePlaceholder}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>{messages.wallet.email}</Label>
-              <Input
-                type="email"
-                value={profileDraft.email}
-                onChange={(event) =>
-                  setProfileDraft((current) => ({
-                    ...current,
-                    email: event.target.value
-                  }))
-                }
-                placeholder={messages.wallet.emailPlaceholder}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>{messages.wallet.bio}</Label>
-              <Textarea
-                value={profileDraft.bio}
-                onChange={(event) =>
-                  setProfileDraft((current) => ({
-                    ...current,
-                    bio: event.target.value
-                  }))
-                }
-                placeholder={messages.wallet.bioPlaceholder}
-                className="min-h-24"
-              />
-            </div>
-            <div className="flex justify-end">
-              <Button type="button" onClick={() => void saveProfile()} disabled={isSavingProfile}>
-                {isSavingProfile ? messages.wallet.savingProfile : messages.wallet.saveProfile}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+            </div>,
+            document.body
+          )
+        : null}
       {authError ? <p className="max-w-sm text-right text-xs text-danger">{authError}</p> : null}
       {!authError && profileStatus ? (
         <p
@@ -269,10 +349,4 @@ export function WalletBar() {
       ) : null}
     </div>
   );
-}
-
-function getProfileInitial(displayName: string | null | undefined, walletAddress: string | null) {
-  const source = displayName?.trim() || walletAddress || "?";
-
-  return source.charAt(0).toUpperCase();
 }

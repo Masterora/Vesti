@@ -1,6 +1,7 @@
 export type SerializedPublicUserProfile = {
   walletAddress: string;
   displayName: string | null;
+  avatarImage: string | null;
 };
 
 export type SerializedSessionUserProfile = SerializedPublicUserProfile & {

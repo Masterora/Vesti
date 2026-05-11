@@ -52,6 +52,7 @@ type WalletContextValue = {
     displayName?: string;
     email?: string;
     bio?: string;
+    avatarImage?: string;
   }) => Promise<SerializedSessionUserProfile>;
   demoWalletsEnabled: boolean;
 };
@@ -304,7 +305,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [locale, setWalletAddress]);
 
   const updateProfile = useCallback(
-    async (profile: { displayName?: string; email?: string; bio?: string }) => {
+    async (profile: { displayName?: string; email?: string; bio?: string; avatarImage?: string }) => {
       const updated = await postJson<SerializedSessionUserProfile>("/api/profile/update", profile);
       setSessionProfile(updated);
       return updated;

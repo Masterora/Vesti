@@ -53,6 +53,28 @@ export type SerializedContractApplication = {
   createdAt: string;
 };
 
+export type SerializedContractListItem = {
+  id: string;
+  displayId: string;
+  creatorWallet: string;
+  workerWallet: string | null;
+  requestedWorkerWallet: string | null;
+  title: string;
+  description: string | null;
+  tags: string[];
+  isPublic: boolean;
+  totalAmount: string;
+  fundedAmount: string;
+  releasedAmount: string;
+  status: string;
+  escrowAccount: string | null;
+  createdAt: string;
+  updatedAt: string;
+  milestoneCount: number;
+  pendingApplicantWallets: string[];
+  profiles?: SerializedPublicUserProfile[];
+};
+
 export type SerializedContract = {
   id: string;
   displayId: string;
@@ -75,4 +97,9 @@ export type SerializedContract = {
   comments?: SerializedContractComment[];
   applications?: SerializedContractApplication[];
   profiles?: SerializedPublicUserProfile[];
+};
+
+export type SerializedCreateContractCommentResult = {
+  comment: SerializedContractComment;
+  authorProfile: SerializedPublicUserProfile | null;
 };

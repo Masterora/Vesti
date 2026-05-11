@@ -25,25 +25,29 @@ export function shortenWallet(wallet: string) {
 }
 
 const contractDisplayIdPrefix = "VESTI-";
+const contractDisplayIdAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
-export function formatContractDisplayId(contractId: string) {
-  return `${contractDisplayIdPrefix}${contractId.slice(0, 8).toUpperCase()}`;
+export function generateContractDisplayId() {
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+
+  return Array.from(bytes, (byte) => contractDisplayIdAlphabet[byte % contractDisplayIdAlphabet.length]).join("");
 }
 
-export function parseContractDisplayId(query: string) {
+export function normalizeContractDisplayIdQuery(query: string) {
   const trimmed = query.trim();
 
   if (!trimmed) {
     return null;
   }
 
-  const normalized = trimmed.toUpperCase();
+  const normalized = trimmed.toUpperCase().replace(new RegExp(`^${contractDisplayIdPrefix}`), "");
 
-  if (normalized.startsWith(contractDisplayIdPrefix)) {
-    return normalized.slice(contractDisplayIdPrefix.length).toLowerCase();
+  if (!normalized || !/^[A-Z0-9]+$/.test(normalized)) {
+    return null;
   }
 
-  return null;
+  return normalized;
 }
 
 function pad2(value: number) {

@@ -7,6 +7,7 @@ import {
   Check,
   CircleDollarSign,
   Ban,
+  Copy,
   PencilLine,
   Eye,
   EyeOff,
@@ -23,12 +24,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/input";
+import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { ContractProgress } from "@/components/contracts/contract-progress";
 import { ContractDiscussion } from "@/components/contracts/contract-discussion";
 import { EventTimeline } from "@/components/timeline/event-timeline";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { postJson } from "@/lib/api/client";
-import { getWalletDisplayLabel, getWalletDisplayName } from "@/lib/display-profiles";
+import { getWalletAvatarImage, getWalletDisplayLabel, getWalletDisplayName } from "@/lib/display-profiles";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { formatDate, formatDateTime, formatUsdc, shortenWallet } from "@/lib/utils";
 import type { SerializedContract, SerializedMilestone } from "@/types/contract";
@@ -141,6 +143,25 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       setIsLoading(false);
     }
   }, [contractId, messages.errors.failedToLoadContract, walletAddress]);
+
+  const copyDisplayId = async () => {
+    if (!contract?.displayId) {
+      return;
+    }
+
+    try {
+      if (!navigator.clipboard) {
+        throw new Error(copy.idCopyFailed);
+      }
+
+      await navigator.clipboard.writeText(contract.displayId);
+      setError("");
+      setSuccessMessage(copy.idCopied);
+    } catch {
+      setSuccessMessage("");
+      setError(copy.idCopyFailed);
+    }
+  };
 
   useEffect(() => {
     if (!contractId) {
@@ -336,9 +357,22 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
             {contract?.title ?? copy.loadingTitle}
           </h1>
           {contract ? (
-            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {copy.idLabel} {contract.displayId}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span>
+                {copy.idLabel} {contract.displayId}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-7 px-2 text-[11px] font-semibold tracking-normal text-muted-foreground"
+                onClick={() => void copyDisplayId()}
+                title={copy.copyId}
+                aria-label={copy.copyId}
+              >
+                <Copy className="mr-1 size-3.5" aria-hidden="true" />
+                {copy.copyId}
+              </Button>
+            </div>
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -457,15 +491,23 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                         key={applicantWallet}
                         className="flex flex-col gap-2 rounded-md bg-muted p-3 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        <div className="min-w-0">
-                          <p className="truncate font-medium" title={applicantWallet}>
-                            {getWalletDisplayLabel(contract.profiles, applicantWallet)}
-                          </p>
-                          {getWalletDisplayName(contract.profiles, applicantWallet) ? (
-                            <p className="truncate text-xs text-muted-foreground" title={applicantWallet}>
-                              {shortenWallet(applicantWallet)}
+                        <div className="flex min-w-0 items-center gap-3">
+                          <ProfileAvatar
+                            walletAddress={applicantWallet}
+                            displayName={getWalletDisplayName(contract.profiles, applicantWallet)}
+                            avatarImage={getWalletAvatarImage(contract.profiles, applicantWallet)}
+                            className="size-10 shrink-0 rounded-md"
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate font-medium" title={applicantWallet}>
+                              {getWalletDisplayLabel(contract.profiles, applicantWallet)}
                             </p>
-                          ) : null}
+                            {getWalletDisplayName(contract.profiles, applicantWallet) ? (
+                              <p className="truncate text-xs text-muted-foreground" title={applicantWallet}>
+                                {shortenWallet(applicantWallet)}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
                         {role === "creator" && contract.status === "claimed" ? (
                           <Button
@@ -812,10 +854,21 @@ function WalletLine({
         : tone === "applicant"
           ? "text-amber-700"
           : "text-muted-foreground";
+  const displayName = wallet ? getWalletDisplayName(profiles, wallet) : null;
+  const avatarImage = wallet ? getWalletAvatarImage(profiles, wallet) : null;
 
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-lg bg-muted p-3">
-      <Wallet className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      {wallet && tone ? (
+        <ProfileAvatar
+          walletAddress={wallet}
+          displayName={displayName}
+          avatarImage={avatarImage}
+          className="size-10 shrink-0 rounded-md"
+        />
+      ) : (
+        <Wallet className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      )}
       <div className="min-w-0">
         <p className={`text-xs font-semibold uppercase tracking-wide ${labelToneClass}`}>{label}</p>
         {wallet ? (
@@ -823,7 +876,7 @@ function WalletLine({
             <p className="truncate font-medium" title={wallet}>
               {getWalletDisplayLabel(profiles, wallet)}
             </p>
-            {getWalletDisplayName(profiles, wallet) ? (
+            {displayName ? (
               <p className="truncate text-xs text-muted-foreground" title={wallet}>
                 {shortenWallet(wallet)}
               </p>

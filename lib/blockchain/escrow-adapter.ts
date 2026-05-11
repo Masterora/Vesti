@@ -30,7 +30,11 @@ export type EscrowAdapter = {
 export type EscrowAdapterMode = "mock" | "onchain";
 
 export function getEscrowAdapterMode(): EscrowAdapterMode {
-  const mode = process.env.ESCROW_ADAPTER_MODE ?? "mock";
+  const mode = process.env.ESCROW_ADAPTER_MODE?.trim().toLowerCase();
+
+  if (!mode) {
+    throw new Error("ESCROW_ADAPTER_MODE is required");
+  }
 
   if (mode === "mock" || mode === "onchain") {
     return mode;
@@ -46,9 +50,5 @@ export function getEscrowAdapter(): EscrowAdapter {
     return mockedEscrowAdapter;
   }
 
-  if (mode === "onchain") {
-    return solanaEscrowAdapter;
-  }
-
-  throw new Error(`Unsupported ESCROW_ADAPTER_MODE: ${mode}`);
+  return solanaEscrowAdapter;
 }

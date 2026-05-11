@@ -10,12 +10,12 @@ import { Input } from "@/components/ui/input";
 import { ContractList } from "@/components/contracts/contract-list";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { postJson } from "@/lib/api/client";
-import type { SerializedContract } from "@/types/contract";
+import type { SerializedContractListItem } from "@/types/contract";
 
 type DashboardStatusFilter = "all" | "open" | "claimed" | "active" | "completed";
 
 async function fetchContracts(walletAddress?: string, query?: string, status?: DashboardStatusFilter) {
-  return postJson<SerializedContract[]>("/api/contracts/list", {
+  return postJson<SerializedContractListItem[]>("/api/contracts/list", {
     walletAddress: walletAddress?.trim() ? walletAddress : undefined,
     query: query?.trim() ? query : undefined,
     status: status && status !== "all" ? status : undefined
@@ -26,7 +26,7 @@ export function DashboardClient() {
   const { messages } = useLocale();
   const searchParams = useSearchParams();
   const { walletAddress } = useWallet();
-  const [contracts, setContracts] = useState<SerializedContract[]>([]);
+  const [contracts, setContracts] = useState<SerializedContractListItem[]>([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -42,49 +42,29 @@ export function DashboardClient() {
     { value: "completed", label: messages.dashboard.filterCompleted }
   ];
 
-  const loadContracts = useCallback(async () => {
+  const loadContracts = useCallback(async (nextQuery: string, nextStatus: DashboardStatusFilter) => {
     setIsLoading(true);
     setError("");
 
     try {
-      const data = await fetchContracts(walletAddress, query, statusFilter);
+      const data = await fetchContracts(walletAddress, nextQuery, nextStatus);
       setContracts(data);
-      setError("");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : messages.errors.failedToLoadContracts);
+      setError((caught as Error).message);
     } finally {
       setIsLoading(false);
     }
-  }, [messages.errors.failedToLoadContracts, query, statusFilter, walletAddress]);
+  }, [walletAddress]);
 
   useEffect(() => {
-    let isCurrent = true;
-
-    const loadInitialContracts = async () => {
-      try {
-        const data = await fetchContracts(walletAddress, query, statusFilter);
-
-        if (isCurrent) {
-          setContracts(data);
-          setError("");
-        }
-      } catch (caught) {
-        if (isCurrent) {
-          setError(caught instanceof Error ? caught.message : messages.errors.failedToLoadContracts);
-        }
-      } finally {
-        if (isCurrent) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void loadInitialContracts();
+    const timeoutId = window.setTimeout(() => {
+      void loadContracts(query, statusFilter);
+    }, 250);
 
     return () => {
-      isCurrent = false;
+      window.clearTimeout(timeoutId);
     };
-  }, [messages.errors.failedToLoadContracts, query, statusFilter, walletAddress]);
+  }, [loadContracts, query, statusFilter]);
 
   return (
     <div className="page-shell py-10">
@@ -95,7 +75,12 @@ export function DashboardClient() {
           <p className="mt-3 max-w-2xl text-muted-foreground">{messages.dashboard.description}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" onClick={loadContracts} disabled={isLoading}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void loadContracts(query, statusFilter)}
+            disabled={isLoading}
+          >
             <RefreshCw className="mr-2 size-4" aria-hidden="true" />
             {messages.dashboard.refresh}
           </Button>

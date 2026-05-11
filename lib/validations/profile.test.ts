@@ -7,12 +7,14 @@ describe("profile validation", () => {
       updateProfileSchema.parse({
         displayName: "",
         email: "",
-        bio: "   "
+        bio: "   ",
+        avatarImage: ""
       })
     ).toEqual({
       displayName: undefined,
       email: undefined,
-      bio: undefined
+      bio: undefined,
+      avatarImage: undefined
     });
   });
 
@@ -21,12 +23,14 @@ describe("profile validation", () => {
       updateProfileSchema.parse({
         displayName: "  Ran  ",
         email: " Ran@example.com ",
-        bio: " Building Vesti "
+        bio: " Building Vesti ",
+        avatarImage: "data:image/png;base64,Zm9v"
       })
     ).toEqual({
       displayName: "Ran",
       email: "Ran@example.com",
-      bio: "Building Vesti"
+      bio: "Building Vesti",
+      avatarImage: "data:image/png;base64,Zm9v"
     });
   });
 
@@ -36,5 +40,13 @@ describe("profile validation", () => {
         email: "not-an-email"
       })
     ).toThrow("Email must be valid");
+  });
+
+  it("rejects invalid avatar payloads", () => {
+    expect(() =>
+      updateProfileSchema.parse({
+        avatarImage: "https://example.com/avatar.png"
+      })
+    ).toThrow("Avatar image must be a valid image data URL");
   });
 });

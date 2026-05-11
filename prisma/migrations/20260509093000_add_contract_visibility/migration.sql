@@ -1,2 +1,0 @@
-ALTER TABLE "Contract"
-ADD COLUMN "isPublic" BOOLEAN NOT NULL DEFAULT false;

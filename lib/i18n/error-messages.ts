@@ -93,6 +93,7 @@ const exactZhMessages: Record<string, string> = {
     "模拟托管模式下不会确认钱包签名交易。",
   "NEXT_PUBLIC_SOLANA_RPC_URL is required to submit Solana transactions":
     "提交链上交易前必须先配置网络连接地址。",
+  "ESCROW_ADAPTER_MODE is required": "必须显式配置 ESCROW_ADAPTER_MODE。",
   "Solana transaction was not found": "未找到这笔链上交易。",
   "Solana transaction failed": "链上交易执行失败，合同状态没有变化。",
   "Solana transaction is not confirmed yet": "这笔链上交易还没有确认。",
@@ -109,8 +110,8 @@ const regexZhMessages: Array<[RegExp, (match: RegExpMatchArray) => string]> = [
   [/^Token decimals must be a non-negative integer$/, () => "代币精度必须是非负整数。"],
   [/^Unsupported ESCROW_ADAPTER_MODE: (.+)$/, ([, mode]) => `不支持当前托管模式：${mode}。`],
   [/^(.+) must be a valid Solana public key in on-chain escrow mode$/, ([, label]) => `${label} 必须是合法的链上公钥。`],
-  [/^contractId is required for on-chain escrow mode$/, () => "链上托管模式下必须提供合同编号。"],
-  [/^contractId must be (\d+) bytes or less for Solana PDA seeds$/, ([, bytes]) => `合同编号作为链上种子时不能超过 ${bytes} 个字节。`],
+  [/^contractId is required for on-chain escrow mode$/, () => "链上托管模式下必须提供 Contract ID。"],
+  [/^contractId must be (\d+) bytes or less for Solana PDA seeds$/, ([, bytes]) => `Contract ID 作为链上种子时不能超过 ${bytes} 个字节。`],
   [
     /^Transaction confirmed on-chain, but (.+)\. Local state was not updated\.$/,
     ([, detail]) =>

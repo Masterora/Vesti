@@ -3,10 +3,31 @@ import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { ServiceError } from "@/lib/services/errors";
 import { serializeContractWithProfiles } from "@/lib/services/serialize";
+import { generateContractDisplayId } from "@/lib/utils";
 import type { CreateContractInput } from "@/lib/validations/contract";
 
 function decimal(value: string) {
   return new Prisma.Decimal(value);
+}
+
+async function generateUniqueContractDisplayId(tx: Prisma.TransactionClient) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const displayId = generateContractDisplayId();
+    const existing = await tx.contract.findUnique({
+      where: {
+        displayId
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!existing) {
+      return displayId;
+    }
+  }
+
+  throw new ServiceError("Failed to generate a unique contract ID");
 }
 
 export async function createContract(input: CreateContractInput) {
@@ -36,6 +57,8 @@ export async function createContract(input: CreateContractInput) {
   }
 
   return db.$transaction(async (tx) => {
+    const displayId = await generateUniqueContractDisplayId(tx);
+
     await tx.user.upsert({
       where: { walletAddress: creatorWallet },
       update: {},
@@ -52,6 +75,7 @@ export async function createContract(input: CreateContractInput) {
 
     const contract = await tx.contract.create({
       data: {
+        displayId,
         creatorWallet,
         workerWallet,
         title: input.title,
