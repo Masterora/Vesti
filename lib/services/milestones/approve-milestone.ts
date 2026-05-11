@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { ApproveMilestoneInput } from "@/lib/validations/proof-submission";
 
 export async function approveMilestone(input: ApproveMilestoneInput) {
@@ -66,6 +66,6 @@ export async function approveMilestone(input: ApproveMilestoneInput) {
       }
     });
 
-    return serializeContract(updated);
+    return serializeContractWithProfiles(updated);
   });
 }

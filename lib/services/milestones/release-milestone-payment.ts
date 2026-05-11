@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { getEscrowAdapter } from "@/lib/blockchain/escrow-adapter";
 import { applyMilestoneRelease } from "@/lib/services/milestones/apply-milestone-release";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { ReleaseMilestoneInput } from "@/lib/validations/proof-submission";
 
 export async function releaseMilestonePayment(input: ReleaseMilestoneInput) {
@@ -31,6 +31,7 @@ export async function releaseMilestonePayment(input: ReleaseMilestoneInput) {
       "Only the Creator can release payments"
     );
     assertState(contract.status === "active", "Contract must be active before release");
+    assertState(Boolean(contract.workerWallet), "Assigned Worker wallet is required before release");
     assertState(milestone.status === "approved", "Only approved milestones can be released");
 
     const nextReleasedAmount = contract.releasedAmount.plus(milestone.amount);
@@ -43,7 +44,7 @@ export async function releaseMilestonePayment(input: ReleaseMilestoneInput) {
       contractId: contract.id,
       milestoneId: milestone.id,
       creatorWallet: contract.creatorWallet,
-      workerWallet: contract.workerWallet,
+      workerWallet: contract.workerWallet!,
       amount: milestone.amount
     });
 
@@ -71,6 +72,6 @@ export async function releaseMilestonePayment(input: ReleaseMilestoneInput) {
       }
     });
 
-    return serializeContract(updated);
+    return serializeContractWithProfiles(updated);
   });
 }

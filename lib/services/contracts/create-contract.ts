@@ -2,18 +2,47 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { ServiceError } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
+import { generateContractDisplayId } from "@/lib/utils";
 import type { CreateContractInput } from "@/lib/validations/contract";
 
 function decimal(value: string) {
   return new Prisma.Decimal(value);
 }
 
+async function generateUniqueContractDisplayId(tx: Prisma.TransactionClient) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const displayId = generateContractDisplayId();
+    const existing = await tx.contract.findUnique({
+      where: {
+        displayId
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!existing) {
+      return displayId;
+    }
+  }
+
+  throw new ServiceError("Failed to generate a unique contract ID");
+}
+
 export async function createContract(input: CreateContractInput) {
   const creatorWallet = input.creatorWallet.trim();
-  const workerWallet = input.workerWallet.trim();
+  const workerWallet = input.workerWallet?.trim() || null;
+  const hasAssignedWorker = Boolean(workerWallet);
+  const tags = Array.from(
+    new Set(
+      (input.tags ?? [])
+        .map((tag) => tag.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
 
-  if (creatorWallet === workerWallet) {
+  if (workerWallet && creatorWallet === workerWallet) {
     throw new ServiceError("Creator and Worker wallets must be different");
   }
 
@@ -28,26 +57,33 @@ export async function createContract(input: CreateContractInput) {
   }
 
   return db.$transaction(async (tx) => {
+    const displayId = await generateUniqueContractDisplayId(tx);
+
     await tx.user.upsert({
       where: { walletAddress: creatorWallet },
       update: {},
       create: { walletAddress: creatorWallet }
     });
 
-    await tx.user.upsert({
-      where: { walletAddress: workerWallet },
-      update: {},
-      create: { walletAddress: workerWallet }
-    });
+    if (workerWallet) {
+      await tx.user.upsert({
+        where: { walletAddress: workerWallet },
+        update: {},
+        create: { walletAddress: workerWallet }
+      });
+    }
 
     const contract = await tx.contract.create({
       data: {
+        displayId,
         creatorWallet,
         workerWallet,
         title: input.title,
         description: input.description || null,
-        isPublic: input.isPublic ?? false,
+        tags,
+        isPublic: input.isPublic ?? !hasAssignedWorker,
         totalAmount,
+        status: hasAssignedWorker ? "draft" : "open",
         milestones: {
           create: input.milestones.map((milestone, index) => ({
             index: index + 1,
@@ -73,7 +109,9 @@ export async function createContract(input: CreateContractInput) {
         title: contract.title,
         totalAmount: contract.totalAmount.toString(),
         milestoneCount: contract.milestones.length,
-        isPublic: contract.isPublic
+        tags: contract.tags,
+        isPublic: contract.isPublic,
+        status: contract.status
       }
     });
 
@@ -89,6 +127,6 @@ export async function createContract(input: CreateContractInput) {
       }
     });
 
-    return serializeContract(created);
+    return serializeContractWithProfiles(created);
   });
 }

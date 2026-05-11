@@ -23,6 +23,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { postJson } from "@/lib/api/client";
 import { translateErrorMessage } from "@/lib/i18n/error-messages";
 import type { Locale } from "@/lib/i18n/messages";
+import type { SerializedSessionUserProfile } from "@/types/profile";
 
 const defaultWallets = {
   creator: "creator_demo_wallet_8pQ7n2",
@@ -46,6 +47,13 @@ type WalletContextValue = {
   isAuthenticated: boolean;
   isConnecting: boolean;
   sessionWalletAddress: string | null;
+  sessionProfile: SerializedSessionUserProfile | null;
+  updateProfile: (profile: {
+    displayName?: string;
+    email?: string;
+    bio?: string;
+    avatarImage?: string;
+  }) => Promise<SerializedSessionUserProfile>;
   demoWalletsEnabled: boolean;
 };
 
@@ -79,6 +87,7 @@ type AuthChallenge = {
 type AuthSession = {
   walletAddress: string | null;
   expiresAt: string | null;
+  profile: SerializedSessionUserProfile | null;
 };
 
 function getDefaultWalletAddress() {
@@ -148,6 +157,13 @@ function formatWalletActionError(error: unknown, locale: Locale) {
     return translateErrorMessage(locale, "You canceled the signature. Contract state did not change.");
   }
 
+  if (/insufficient funds/i.test(message)) {
+    return translateErrorMessage(
+      locale,
+      "The creator wallet does not have enough USDC balance to finish this transaction."
+    );
+  }
+
   if (error instanceof SendTransactionError) {
     return translateErrorMessage(locale, "The transaction failed on-chain. Contract state did not change.");
   }
@@ -170,6 +186,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [hasInjectedWallet, setHasInjectedWallet] = useState(false);
+  const [sessionProfile, setSessionProfile] = useState<SerializedSessionUserProfile | null>(null);
 
   const setWalletAddress = useCallback((wallet: string) => {
     window.localStorage.setItem(walletStorageKey, wallet);
@@ -193,6 +210,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
 
         setSessionWalletAddress(session.walletAddress);
+        setSessionProfile(session.profile);
 
         if (session.walletAddress) {
           setWalletAddress(session.walletAddress);
@@ -202,6 +220,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       } catch {
         if (isCurrent) {
           setSessionWalletAddress(null);
+          setSessionProfile(null);
         }
       }
     };
@@ -229,6 +248,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       );
     } finally {
       setSessionWalletAddress(null);
+      setSessionProfile(null);
       setWalletAddress(getDefaultWalletAddress());
     }
   }, [locale, setWalletAddress]);
@@ -271,6 +291,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       });
 
       setSessionWalletAddress(session.walletAddress);
+      setSessionProfile(session.profile);
       setWalletAddress(nextWalletAddress);
     } catch (caught) {
       setAuthError(
@@ -282,6 +303,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setIsConnecting(false);
     }
   }, [locale, setWalletAddress]);
+
+  const updateProfile = useCallback(
+    async (profile: { displayName?: string; email?: string; bio?: string; avatarImage?: string }) => {
+      const updated = await postJson<SerializedSessionUserProfile>("/api/profile/update", profile);
+      setSessionProfile(updated);
+      return updated;
+    },
+    []
+  );
 
   const signAndSendPreparedTransaction = useCallback(
     async (serializedTransaction: string) => {
@@ -352,6 +382,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(sessionWalletAddress),
       isConnecting,
       sessionWalletAddress,
+      sessionProfile,
+      updateProfile,
       demoWalletsEnabled
     }),
     [
@@ -362,8 +394,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       isConnecting,
       selectDemoWallet,
       sessionWalletAddress,
+      sessionProfile,
       setWalletAddress,
       signAndSendPreparedTransaction,
+      updateProfile,
       walletAddress
     ]
   );

@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { DisputeMilestoneInput } from "@/lib/validations/proof-submission";
 
 const disputableMilestoneStatuses = ["ready", "submitted", "revision_requested", "approved"];
@@ -77,6 +77,6 @@ export async function disputeMilestone(input: DisputeMilestoneInput) {
       }
     });
 
-    return serializeContract(updated);
+    return serializeContractWithProfiles(updated);
   });
 }

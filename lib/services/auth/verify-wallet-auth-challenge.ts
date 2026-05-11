@@ -4,6 +4,7 @@ import {
   verifySolanaMessageSignature
 } from "@/lib/auth/wallet-session";
 import { ServiceError } from "@/lib/services/errors";
+import { serializeSessionUserProfile } from "@/lib/services/user-profiles";
 import type { VerifyAuthChallengeInput } from "@/lib/validations/auth";
 
 export async function verifyWalletAuthChallenge(input: VerifyAuthChallengeInput) {
@@ -36,7 +37,7 @@ export async function verifyWalletAuthChallenge(input: VerifyAuthChallengeInput)
     throw new ServiceError("Wallet signature is invalid", 401);
   }
 
-  await db.$transaction([
+  const [, user] = await db.$transaction([
     db.walletAuthChallenge.update({
       where: { id: challenge.id },
       data: { consumedAt: new Date() }
@@ -44,11 +45,34 @@ export async function verifyWalletAuthChallenge(input: VerifyAuthChallengeInput)
     db.user.upsert({
       where: { walletAddress },
       update: {},
-      create: { walletAddress }
+      create: { walletAddress },
+      select: {
+        walletAddress: true,
+        displayName: true,
+        email: true,
+        bio: true,
+        avatarImage: true,
+        createdAt: true,
+        _count: {
+          select: {
+            createdContracts: {
+              where: {
+                status: "completed"
+              }
+            },
+            workedContracts: {
+              where: {
+                status: "completed"
+              }
+            }
+          }
+        }
+      }
     })
   ]);
 
   return {
-    walletAddress
+    walletAddress,
+    profile: serializeSessionUserProfile(user)
   };
 }

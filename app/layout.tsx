@@ -13,8 +13,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const locale = await getServerLocale();
 
   return (
-    <html lang={locale === "zh" ? "zh-CN" : "en"}>
-      <body>
+    <html lang={locale === "zh" ? "zh-CN" : "en"} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <Providers initialLocale={locale}>
           <AppHeader />
           <main>{children}</main>

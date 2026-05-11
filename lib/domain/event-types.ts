@@ -1,5 +1,7 @@
 export const eventTypes = [
   "contract_created",
+  "contract_claim_requested",
+  "contract_claim_accepted",
   "contract_funded",
   "contract_activated",
   "milestone_ready",

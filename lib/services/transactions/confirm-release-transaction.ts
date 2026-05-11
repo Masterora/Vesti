@@ -3,7 +3,7 @@ import { getEscrowAdapterMode } from "@/lib/blockchain/escrow-adapter";
 import { reconcileReleaseEscrowTransaction } from "@/lib/blockchain/solana-escrow-reconciliation";
 import { applyMilestoneRelease } from "@/lib/services/milestones/apply-milestone-release";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { ConfirmReleaseTransactionInput } from "@/lib/validations/transaction";
 
 export async function confirmReleaseTransaction(input: ConfirmReleaseTransactionInput) {
@@ -42,6 +42,7 @@ export async function confirmReleaseTransaction(input: ConfirmReleaseTransaction
     "Only the Creator can confirm payment release"
   );
   assertState(contract.status === "active", "Contract must be active before release");
+  assertState(Boolean(contract.workerWallet), "Assigned Worker wallet is required before release");
   assertState(milestone.status === "approved", "Only approved milestones can be released");
 
   const nextReleasedAmount = contract.releasedAmount.plus(milestone.amount);
@@ -55,7 +56,7 @@ export async function confirmReleaseTransaction(input: ConfirmReleaseTransaction
     contractId: contract.id,
     milestoneId: milestone.id,
     creatorWallet: contract.creatorWallet,
-    workerWallet: contract.workerWallet,
+    workerWallet: contract.workerWallet!,
     fundedAmount: contract.fundedAmount,
     releasedAmountBefore: contract.releasedAmount,
     milestoneAmount: milestone.amount
@@ -114,7 +115,7 @@ export async function confirmReleaseTransaction(input: ConfirmReleaseTransaction
       action: "release_milestone" as const,
       confirmed: true,
       confirmation: reconciliation.confirmation,
-      contract: serializeContract(updated)
+      contract: await serializeContractWithProfiles(updated)
     };
   });
 }

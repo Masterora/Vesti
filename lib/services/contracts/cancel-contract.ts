@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { CancelContractInput } from "@/lib/validations/contract";
 
 export async function cancelContract(input: CancelContractInput) {
@@ -17,7 +17,10 @@ export async function cancelContract(input: CancelContractInput) {
       input.walletAddress === contract.creatorWallet,
       "Only the Creator can cancel this contract"
     );
-    assertState(contract.status === "draft", "Only draft contracts can be cancelled");
+    assertState(
+      ["open", "claimed", "draft"].includes(contract.status),
+      "Only open, claimed, or draft contracts can be cancelled"
+    );
 
     await tx.contract.update({
       where: { id: contract.id },
@@ -48,10 +51,13 @@ export async function cancelContract(input: CancelContractInput) {
         },
         events: {
           orderBy: { createdAt: "desc" }
+        },
+        applications: {
+          orderBy: { createdAt: "asc" }
         }
       }
     });
 
-    return serializeContract(updated);
+    return serializeContractWithProfiles(updated);
   });
 }

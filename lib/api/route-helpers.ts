@@ -33,6 +33,23 @@ export function createRouteErrorResponse(request: Request, error: unknown) {
     );
   }
 
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    const target = Array.isArray(error.meta?.target)
+      ? error.meta.target
+      : typeof error.meta?.target === "string"
+        ? [error.meta.target]
+        : [];
+
+    if (error.code === "P2002" && target.includes("email")) {
+      return NextResponse.json(
+        {
+          error: translateErrorMessage(locale, "Email address is already in use")
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   if (error instanceof Prisma.PrismaClientInitializationError) {
     return NextResponse.json(
       {

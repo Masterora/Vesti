@@ -1,3 +1,5 @@
+import type { SerializedPublicUserProfile } from "@/types/profile";
+
 export type SerializedProofSubmission = {
   id: string;
   milestoneId: string;
@@ -35,12 +37,53 @@ export type SerializedEvent = {
   createdAt: string;
 };
 
-export type SerializedContract = {
+export type SerializedContractComment = {
   id: string;
+  contractId: string;
+  authorWallet: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SerializedContractApplication = {
+  id: string;
+  contractId: string;
+  applicantWallet: string;
+  createdAt: string;
+};
+
+export type SerializedContractListItem = {
+  id: string;
+  displayId: string;
   creatorWallet: string;
-  workerWallet: string;
+  workerWallet: string | null;
+  requestedWorkerWallet: string | null;
   title: string;
   description: string | null;
+  tags: string[];
+  isPublic: boolean;
+  totalAmount: string;
+  fundedAmount: string;
+  releasedAmount: string;
+  status: string;
+  escrowAccount: string | null;
+  createdAt: string;
+  updatedAt: string;
+  milestoneCount: number;
+  pendingApplicantWallets: string[];
+  profiles?: SerializedPublicUserProfile[];
+};
+
+export type SerializedContract = {
+  id: string;
+  displayId: string;
+  creatorWallet: string;
+  workerWallet: string | null;
+  requestedWorkerWallet: string | null;
+  title: string;
+  description: string | null;
+  tags: string[];
   isPublic: boolean;
   totalAmount: string;
   fundedAmount: string;
@@ -51,4 +94,12 @@ export type SerializedContract = {
   updatedAt: string;
   milestones: SerializedMilestone[];
   events?: SerializedEvent[];
+  comments?: SerializedContractComment[];
+  applications?: SerializedContractApplication[];
+  profiles?: SerializedPublicUserProfile[];
+};
+
+export type SerializedCreateContractCommentResult = {
+  comment: SerializedContractComment;
+  authorProfile: SerializedPublicUserProfile | null;
 };

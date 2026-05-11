@@ -17,6 +17,7 @@ export async function prepareFundTransaction(input: PrepareFundTransactionInput)
     "Only the Creator can prepare funding"
   );
   assertState(contract.status === "draft", "Only draft contracts can be funded");
+  assertState(Boolean(contract.workerWallet), "Assigned Worker wallet is required before funding");
 
   const mode = getEscrowAdapterMode();
 
@@ -34,7 +35,7 @@ export async function prepareFundTransaction(input: PrepareFundTransactionInput)
   const prepared = await prepareFundEscrowTransaction({
     contractId: contract.id,
     creatorWallet: contract.creatorWallet,
-    workerWallet: contract.workerWallet,
+    workerWallet: contract.workerWallet!,
     amount: contract.totalAmount
   });
 

@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { getEscrowAdapter } from "@/lib/blockchain/escrow-adapter";
 import { applyContractFunded } from "@/lib/services/contracts/apply-contract-funded";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { FundContractInput } from "@/lib/validations/contract";
 
 export async function fundContract(input: FundContractInput) {
@@ -26,11 +26,12 @@ export async function fundContract(input: FundContractInput) {
       "Only the Creator can fund this contract"
     );
     assertState(contract.status === "draft", "Only draft contracts can be funded");
+    assertState(Boolean(contract.workerWallet), "Assigned Worker wallet is required before funding");
 
     const escrow = await adapter.fundContract({
       contractId: contract.id,
       creatorWallet: contract.creatorWallet,
-      workerWallet: contract.workerWallet,
+      workerWallet: contract.workerWallet!,
       amount: contract.totalAmount
     });
 
@@ -58,6 +59,6 @@ export async function fundContract(input: FundContractInput) {
       }
     });
 
-    return serializeContract(updated);
+    return serializeContractWithProfiles(updated);
   });
 }

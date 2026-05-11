@@ -1,5 +1,5 @@
 import { generateKeyPairSync, sign } from "node:crypto";
-import { describe, expect, it, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import bs58 from "bs58";
 import {
   createAuthMessage,
@@ -30,12 +30,8 @@ function createSignedMessage() {
 }
 
 describe("wallet sessions", () => {
-  const originalAuthSecret = process.env.AUTH_SECRET;
-  const originalDemoFallback = process.env.DEMO_WALLET_AUTH_ENABLED;
-
   afterEach(() => {
-    process.env.AUTH_SECRET = originalAuthSecret;
-    process.env.DEMO_WALLET_AUTH_ENABLED = originalDemoFallback;
+    vi.unstubAllEnvs();
   });
 
   it("verifies Solana ed25519 message signatures", () => {
@@ -51,7 +47,7 @@ describe("wallet sessions", () => {
   });
 
   it("encodes and decodes signed session cookies", () => {
-    process.env.AUTH_SECRET = "test-secret";
+    vi.stubEnv("AUTH_SECRET", "test-secret");
 
     const session: WalletSession = {
       walletAddress: "wallet_1234",
@@ -65,7 +61,7 @@ describe("wallet sessions", () => {
   });
 
   it("resolves request wallets from session before demo fallback", () => {
-    process.env.AUTH_SECRET = "test-secret";
+    vi.stubEnv("AUTH_SECRET", "test-secret");
     const cookie = createWalletSessionCookie("session_wallet", new Date("2029-01-01T00:00:00.000Z"));
     const request = new Request("http://localhost/api/contracts/list", {
       headers: {
@@ -77,20 +73,28 @@ describe("wallet sessions", () => {
   });
 
   it("can disable the demo wallet fallback", () => {
-    process.env.DEMO_WALLET_AUTH_ENABLED = "false";
+    vi.stubEnv("DEMO_WALLET_AUTH_ENABLED", "false");
     const request = new Request("http://localhost/api/contracts/list");
 
     expect(() => resolveRequestWallet(request, "body_wallet")).toThrow("Wallet session is required");
   });
 
   it("requires an explicit true flag before using the demo wallet fallback", () => {
-    delete process.env.DEMO_WALLET_AUTH_ENABLED;
+    vi.stubEnv("DEMO_WALLET_AUTH_ENABLED", undefined);
     const request = new Request("http://localhost/api/contracts/list");
 
     expect(resolveOptionalRequestWallet(request, "body_wallet")).toBeNull();
 
-    process.env.DEMO_WALLET_AUTH_ENABLED = "true";
+    vi.stubEnv("DEMO_WALLET_AUTH_ENABLED", "true");
 
     expect(resolveOptionalRequestWallet(request, "body_wallet")).toBe("body_wallet");
+  });
+
+  it("never enables the demo wallet fallback in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DEMO_WALLET_AUTH_ENABLED", "true");
+    const request = new Request("http://localhost/api/contracts/list");
+
+    expect(resolveOptionalRequestWallet(request, "body_wallet")).toBeNull();
   });
 });

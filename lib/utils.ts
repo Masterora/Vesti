@@ -24,6 +24,32 @@ export function shortenWallet(wallet: string) {
   return `${wallet.slice(0, 6)}...${wallet.slice(-6)}`;
 }
 
+const contractDisplayIdPrefix = "VESTI-";
+const contractDisplayIdAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+export function generateContractDisplayId() {
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+
+  return Array.from(bytes, (byte) => contractDisplayIdAlphabet[byte % contractDisplayIdAlphabet.length]).join("");
+}
+
+export function normalizeContractDisplayIdQuery(query: string) {
+  const trimmed = query.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const normalized = trimmed.toUpperCase().replace(new RegExp(`^${contractDisplayIdPrefix}`), "");
+
+  if (!normalized || !/^[A-Z0-9]+$/.test(normalized)) {
+    return null;
+  }
+
+  return normalized;
+}
+
 function pad2(value: number) {
   return String(value).padStart(2, "0");
 }

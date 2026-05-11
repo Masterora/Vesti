@@ -1,15 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Check,
   CircleDollarSign,
   Ban,
+  Copy,
+  PencilLine,
   Eye,
   EyeOff,
   ExternalLink,
   RefreshCw,
+  Trash2,
   RotateCcw,
   Send,
   Wallet
@@ -20,12 +24,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/input";
+import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { ContractProgress } from "@/components/contracts/contract-progress";
+import { ContractDiscussion } from "@/components/contracts/contract-discussion";
 import { EventTimeline } from "@/components/timeline/event-timeline";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { postJson } from "@/lib/api/client";
+import { getWalletAvatarImage, getWalletDisplayLabel, getWalletDisplayName } from "@/lib/display-profiles";
+import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { formatDate, formatDateTime, formatUsdc, shortenWallet } from "@/lib/utils";
 import type { SerializedContract, SerializedMilestone } from "@/types/contract";
+import type { SerializedPublicUserProfile } from "@/types/profile";
 
 type ContractDetailClientProps = {
   contractId: string;
@@ -70,20 +79,23 @@ type EscrowActionInput = {
 async function fetchContract(contractId: string, walletAddress: string) {
   return postJson<SerializedContract>("/api/contracts/get", {
     contractId,
-    walletAddress
+    walletAddress: walletAddress.trim() ? walletAddress : undefined
   });
 }
 
 export function ContractDetailClient({ contractId }: ContractDetailClientProps) {
+  const router = useRouter();
   const { locale, messages } = useLocale();
   const { walletAddress, signAndSendPreparedTransaction } = useWallet();
   const copy = messages.contractDetail;
   const [contract, setContract] = useState<SerializedContract | null>(null);
+  const [titleDraft, setTitleDraft] = useState("");
   const [proofDrafts, setProofDrafts] = useState<Record<string, ProofDraft>>({});
   const [revisionDrafts, setRevisionDrafts] = useState<Record<string, string>>({});
   const [disputeDrafts, setDisputeDrafts] = useState<Record<string, string>>({});
   const [cancelReason, setCancelReason] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(Boolean(contractId));
   const [activeAction, setActiveAction] = useState("");
 
@@ -100,8 +112,17 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       return "worker";
     }
 
+    if (getPendingApplicantWallets(contract).includes(walletAddress)) {
+      return "applicant";
+    }
+
     return "viewer";
   }, [contract, walletAddress]);
+  const contractTags = contract?.tags ?? [];
+  const pendingApplicants = useMemo(
+    () => (contract ? getPendingApplicantWallets(contract) : []),
+    [contract]
+  );
 
   const loadContract = useCallback(async () => {
     if (!contractId) {
@@ -114,6 +135,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
     try {
       const data = await fetchContract(contractId, walletAddress);
       setContract(data);
+      setTitleDraft(data.title);
       setError("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : messages.errors.failedToLoadContract);
@@ -121,6 +143,25 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       setIsLoading(false);
     }
   }, [contractId, messages.errors.failedToLoadContract, walletAddress]);
+
+  const copyDisplayId = async () => {
+    if (!contract?.displayId) {
+      return;
+    }
+
+    try {
+      if (!navigator.clipboard) {
+        throw new Error(copy.idCopyFailed);
+      }
+
+      await navigator.clipboard.writeText(contract.displayId);
+      setError("");
+      setSuccessMessage(copy.idCopied);
+    } catch {
+      setSuccessMessage("");
+      setError(copy.idCopyFailed);
+    }
+  };
 
   useEffect(() => {
     if (!contractId) {
@@ -135,6 +176,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
 
         if (isCurrent) {
           setContract(data);
+          setTitleDraft(data.title);
           setError("");
         }
       } catch (caught) {
@@ -158,10 +200,13 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
   const runAction = async (actionKey: string, url: string, body: unknown) => {
     setActiveAction(actionKey);
     setError("");
+    setSuccessMessage("");
 
     try {
       const data = await postJson<SerializedContract>(url, body);
       setContract(data);
+      setTitleDraft(data.title);
+      setSuccessMessage(getSuccessMessage(actionKey, copy));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : messages.errors.actionFailed);
     } finally {
@@ -181,6 +226,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
     }: EscrowActionInput) => {
       setActiveAction(actionKey);
       setError("");
+      setSuccessMessage("");
 
       try {
         const prepared = await postJson<PreparedEscrowTransaction>(prepareUrl, prepareBody);
@@ -188,6 +234,8 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
         if (prepared.canUseDirectAction) {
           const data = await postJson<SerializedContract>(directUrl, directBody);
           setContract(data);
+          setTitleDraft(data.title);
+          setSuccessMessage(getSuccessMessage(actionKey, copy));
           return;
         }
 
@@ -206,6 +254,8 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
         }
 
         setContract(confirmed.contract);
+        setTitleDraft(confirmed.contract.title);
+        setSuccessMessage(getSuccessMessage(actionKey, copy));
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : messages.errors.escrowActionFailed);
       } finally {
@@ -213,6 +263,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       }
     },
     [
+      copy,
       messages.errors.confirmedTransactionMissingContract,
       messages.errors.escrowActionFailed,
       messages.errors.preparedTransactionMissing,
@@ -268,6 +319,24 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
     });
   };
 
+  const deleteProject = async () => {
+    setActiveAction("delete");
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      await postJson<{ deleted: boolean; contractId: string }>("/api/contracts/delete", {
+        contractId,
+        walletAddress
+      });
+      router.push("/dashboard?deleted=1");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : messages.errors.actionFailed);
+    } finally {
+      setActiveAction("");
+    }
+  };
+
   if (!contractId) {
     return (
       <div className="page-shell py-10">
@@ -287,6 +356,24 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
           <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
             {contract?.title ?? copy.loadingTitle}
           </h1>
+          {contract ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span>
+                {copy.idLabel} {contract.displayId}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-7 px-2 text-[11px] font-semibold tracking-normal text-muted-foreground"
+                onClick={() => void copyDisplayId()}
+                title={copy.copyId}
+                aria-label={copy.copyId}
+              >
+                <Copy className="mr-1 size-3.5" aria-hidden="true" />
+                {copy.copyId}
+              </Button>
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" onClick={loadContract} disabled={isLoading}>
@@ -300,6 +387,11 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       </div>
 
       {error ? <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+      {!error && successMessage ? (
+        <p className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+          {successMessage}
+        </p>
+      ) : null}
 
       {isLoading || !contract ? (
         <Card>{copy.loadingTitle}...</Card>
@@ -309,26 +401,138 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
             <Card>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge value={contract.status} />
-                <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-                  {role === "creator" ? copy.creator : role === "worker" ? copy.worker : copy.viewer}
-                </span>
-                <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-                  {contract.isPublic ? copy.public : copy.private}
-                </span>
+                <Badge
+                  value={contract.isPublic ? "public" : "private"}
+                  label={contract.isPublic ? copy.public : copy.private}
+                />
               </div>
-              {contract.isPublic ? (
-                <p className="mt-4 rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-800">
-                  {copy.publicNotice}
+              {contract.status === "open" ? (
+                <p className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
+                  {copy.openNotice}
                 </p>
+              ) : null}
+              {contract.status === "claimed" ? (
+                <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  {copy.claimedNotice}
+                </p>
+              ) : null}
+              {contract.status === "draft" ? (
+                <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                  {copy.matchedNotice}
+                </p>
+              ) : null}
+              {role === "creator" &&
+              ["open", "claimed", "draft", "active", "disputed"].includes(contract.status) ? (
+                <div className="mt-5 rounded-lg border border-border bg-muted/40 p-4">
+                  <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                    <div className="grid gap-2">
+                      <Label>{copy.titleLabel}</Label>
+                      <Input
+                        value={titleDraft}
+                        onChange={(event) => setTitleDraft(event.target.value)}
+                        placeholder={copy.titleLabel}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      className="w-full sm:w-auto"
+                      onClick={() =>
+                        runAction("rename", "/api/contracts/rename", {
+                          contractId: contract.id,
+                          walletAddress,
+                          title: titleDraft
+                        })
+                      }
+                      disabled={!titleDraft.trim() || titleDraft.trim() === contract.title || activeAction === "rename"}
+                    >
+                      <PencilLine className="mr-2 size-4" aria-hidden="true" />
+                      {activeAction === "rename" ? copy.renamingTitle : copy.renameTitle}
+                    </Button>
+                  </div>
+                </div>
               ) : null}
               <p className="mt-4 text-sm leading-6 text-muted-foreground">
                 {contract.description || copy.noDescription}
               </p>
+              {contractTags.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {contractTags.map((tag) => (
+                    <Badge key={tag} value="public" label={`#${tag}`} className="font-medium" />
+                  ))}
+                </div>
+              ) : null}
               <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
-                <WalletLine label={copy.creator} wallet={contract.creatorWallet} />
-                <WalletLine label={copy.worker} wallet={contract.workerWallet} />
+                <WalletLine
+                  label={copy.creator}
+                  wallet={contract.creatorWallet}
+                  tone="creator"
+                  profiles={contract.profiles}
+                />
+                <WalletLine
+                  label={copy.worker}
+                  wallet={contract.workerWallet}
+                  tone="worker"
+                  profiles={contract.profiles}
+                  emptyLabel={pendingApplicants.length > 0 ? copy.pendingWorker : copy.unassignedWorker}
+                />
                 <WalletLine label={copy.escrow} wallet={contract.escrowAccount || copy.notFunded} />
               </div>
+              {!contract.workerWallet && pendingApplicants.length > 0 ? (
+                <div className="mt-5 rounded-lg border border-border bg-white p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                      {copy.applicants}
+                    </h3>
+                    <Badge value="applicant" label={`${pendingApplicants.length}`} />
+                  </div>
+                  <div className="space-y-2">
+                    {pendingApplicants.map((applicantWallet) => (
+                      <div
+                        key={applicantWallet}
+                        className="flex flex-col gap-2 rounded-md bg-muted p-3 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <ProfileAvatar
+                            walletAddress={applicantWallet}
+                            displayName={getWalletDisplayName(contract.profiles, applicantWallet)}
+                            avatarImage={getWalletAvatarImage(contract.profiles, applicantWallet)}
+                            className="size-10 shrink-0 rounded-md"
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate font-medium" title={applicantWallet}>
+                              {getWalletDisplayLabel(contract.profiles, applicantWallet)}
+                            </p>
+                            {getWalletDisplayName(contract.profiles, applicantWallet) ? (
+                              <p className="truncate text-xs text-muted-foreground" title={applicantWallet}>
+                                {shortenWallet(applicantWallet)}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                        {role === "creator" && contract.status === "claimed" ? (
+                          <Button
+                            type="button"
+                            className="w-max"
+                            onClick={() =>
+                              runAction(`accept-claim-${applicantWallet}`, "/api/contracts/accept-claim", {
+                                contractId: contract.id,
+                                walletAddress,
+                                applicantWallet
+                              })
+                            }
+                            disabled={activeAction === `accept-claim-${applicantWallet}`}
+                          >
+                            <Check className="mr-2 size-4" aria-hidden="true" />
+                            {activeAction === `accept-claim-${applicantWallet}`
+                              ? copy.acceptingClaim
+                              : copy.acceptClaim}
+                          </Button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-6">
                 <ContractProgress
                   totalAmount={contract.totalAmount}
@@ -357,7 +561,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                   </Button>
                 </div>
               ) : null}
-              {role === "creator" && contract.status === "draft" ? (
+              {role === "creator" && ["open", "claimed", "draft"].includes(contract.status) ? (
                 <div className="mt-6 rounded-lg bg-muted p-4">
                   <div className="grid gap-3">
                     <div className="grid gap-2">
@@ -369,51 +573,93 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                       />
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        onClick={() =>
-                          runEscrowAction({
-                            actionKey: "fund",
-                            prepareUrl: "/api/transactions/prepare-fund",
-                            prepareBody: {
+                      {!contract.workerWallet ? (
+                        <Button
+                          type="button"
+                          variant="danger"
+                          onClick={() => void deleteProject()}
+                          disabled={activeAction === "delete"}
+                        >
+                          <Trash2 className="mr-2 size-4" aria-hidden="true" />
+                          {activeAction === "delete" ? copy.deletingProject : copy.deleteProject}
+                        </Button>
+                      ) : null}
+                      {contract.status === "draft" ? (
+                        <Button
+                          type="button"
+                          onClick={() =>
+                            runEscrowAction({
+                              actionKey: "fund",
+                              prepareUrl: "/api/transactions/prepare-fund",
+                              prepareBody: {
+                                contractId: contract.id,
+                                walletAddress
+                              },
+                              directUrl: "/api/contracts/fund",
+                              directBody: {
+                                contractId: contract.id,
+                                walletAddress
+                              },
+                              confirmUrl: "/api/transactions/confirm-fund",
+                              confirmBody: {
+                                contractId: contract.id,
+                                walletAddress
+                              }
+                            })
+                          }
+                          disabled={activeAction === "fund"}
+                        >
+                          <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
+                          {activeAction === "fund" ? copy.funding : copy.fundContract}
+                        </Button>
+                      ) : null}
+                      {contract.workerWallet ? (
+                        <Button
+                          type="button"
+                          variant="danger"
+                          onClick={() =>
+                            runAction("cancel", "/api/contracts/cancel", {
                               contractId: contract.id,
-                              walletAddress
-                            },
-                            directUrl: "/api/contracts/fund",
-                            directBody: {
-                              contractId: contract.id,
-                              walletAddress
-                            },
-                            confirmUrl: "/api/transactions/confirm-fund",
-                            confirmBody: {
-                              contractId: contract.id,
-                              walletAddress
-                            }
-                          })
-                        }
-                        disabled={activeAction === "fund"}
-                      >
-                        <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
-                        {activeAction === "fund" ? copy.funding : copy.fundContract}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="danger"
-                        onClick={() =>
-                          runAction("cancel", "/api/contracts/cancel", {
-                            contractId: contract.id,
-                            walletAddress,
-                            reason: cancelReason || undefined
-                          })
-                        }
-                        disabled={activeAction === "cancel"}
-                      >
-                        <Ban className="mr-2 size-4" aria-hidden="true" />
-                        {activeAction === "cancel" ? copy.cancelling : copy.cancelDraft}
-                      </Button>
+                              walletAddress,
+                              reason: cancelReason || undefined
+                            })
+                          }
+                          disabled={activeAction === "cancel"}
+                        >
+                          <Ban className="mr-2 size-4" aria-hidden="true" />
+                          {activeAction === "cancel" ? copy.cancelling : copy.cancelDraft}
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
                 </div>
+              ) : null}
+              {role !== "creator" &&
+              role !== "worker" &&
+              role !== "applicant" &&
+              ["open", "claimed"].includes(contract.status) ? (
+                <div className="mt-6 rounded-lg bg-muted p-4">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      onClick={() =>
+                        runAction("claim", "/api/contracts/claim", {
+                          contractId: contract.id,
+                          walletAddress
+                        })
+                      }
+                      disabled={!walletAddress || activeAction === "claim"}
+                      >
+                      <Wallet className="mr-2 size-4" aria-hidden="true" />
+                      {activeAction === "claim" ? copy.claimingProject : copy.claimProject}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+              {role === "applicant" && contract.status === "claimed" ? (
+                <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  {copy.applicantPendingNotice}
+                </p>
               ) : null}
             </Card>
 
@@ -508,9 +754,15 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
           </div>
 
           <aside className="space-y-6 lg:sticky lg:top-24 lg:h-max">
+            <ContractDiscussion
+              contract={contract}
+              walletAddress={walletAddress}
+              onContractUpdate={setContract}
+              onStatusMessage={setSuccessMessage}
+            />
             <Card>
               <h2 className="mb-4 text-lg font-semibold">{copy.timeline}</h2>
-              <EventTimeline events={contract.events} />
+              <EventTimeline events={contract.events} profiles={contract.profiles} />
             </Card>
           </aside>
         </div>
@@ -519,15 +771,122 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
   );
 }
 
-function WalletLine({ label, wallet }: { label: string; wallet: string }) {
+type ContractDetailCopy = {
+  applicationSubmitted: string;
+  workerSelected: string;
+  contractFunded: string;
+  proofSubmitted: string;
+  milestoneApproved: string;
+  revisionRequested: string;
+  paymentReleased: string;
+  visibilityUpdated: string;
+  titleRenamed: string;
+  projectCancelled: string;
+  disputeOpened: string;
+};
+
+function getSuccessMessage(actionKey: string, copy: ContractDetailCopy) {
+  if (actionKey === "claim") {
+    return copy.applicationSubmitted;
+  }
+
+  if (actionKey.startsWith("accept-claim-")) {
+    return copy.workerSelected;
+  }
+
+  if (actionKey === "fund") {
+    return copy.contractFunded;
+  }
+
+  if (actionKey.startsWith("submit-")) {
+    return copy.proofSubmitted;
+  }
+
+  if (actionKey.startsWith("approve-")) {
+    return copy.milestoneApproved;
+  }
+
+  if (actionKey.startsWith("revision-")) {
+    return copy.revisionRequested;
+  }
+
+  if (actionKey.startsWith("release-")) {
+    return copy.paymentReleased;
+  }
+
+  if (actionKey === "visibility") {
+    return copy.visibilityUpdated;
+  }
+
+  if (actionKey === "rename") {
+    return copy.titleRenamed;
+  }
+
+  if (actionKey === "cancel") {
+    return copy.projectCancelled;
+  }
+
+  if (actionKey.startsWith("dispute-")) {
+    return copy.disputeOpened;
+  }
+
+  return "";
+}
+
+function WalletLine({
+  label,
+  wallet,
+  emptyLabel,
+  tone,
+  profiles
+}: {
+  label: string;
+  wallet?: string | null;
+  emptyLabel?: string;
+  tone?: "creator" | "worker" | "applicant";
+  profiles?: SerializedPublicUserProfile[];
+}) {
+  const labelToneClass =
+    tone === "creator"
+      ? "text-blue-700"
+      : tone === "worker"
+        ? "text-emerald-700"
+        : tone === "applicant"
+          ? "text-amber-700"
+          : "text-muted-foreground";
+  const displayName = wallet ? getWalletDisplayName(profiles, wallet) : null;
+  const avatarImage = wallet ? getWalletAvatarImage(profiles, wallet) : null;
+
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-lg bg-muted p-3">
-      <Wallet className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      {wallet && tone ? (
+        <ProfileAvatar
+          walletAddress={wallet}
+          displayName={displayName}
+          avatarImage={avatarImage}
+          className="size-10 shrink-0 rounded-md"
+        />
+      ) : (
+        <Wallet className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      )}
       <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className="truncate font-medium" title={wallet}>
-          {shortenWallet(wallet)}
-        </p>
+        <p className={`text-xs font-semibold uppercase tracking-wide ${labelToneClass}`}>{label}</p>
+        {wallet ? (
+          <>
+            <p className="truncate font-medium" title={wallet}>
+              {getWalletDisplayLabel(profiles, wallet)}
+            </p>
+            {displayName ? (
+              <p className="truncate text-xs text-muted-foreground" title={wallet}>
+                {shortenWallet(wallet)}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <p className="truncate font-medium" title={emptyLabel}>
+            {emptyLabel}
+          </p>
+        )}
       </div>
     </div>
   );

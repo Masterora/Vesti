@@ -1,4 +1,6 @@
 export const contractStatuses = [
+  "open",
+  "claimed",
   "draft",
   "active",
   "completed",

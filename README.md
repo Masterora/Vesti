@@ -2,15 +2,15 @@
 
 Vesti is a USDC milestone escrow MVP for remote work collaboration.
 
-Creators create contracts and fund escrow. Workers submit proof for each milestone. Creators review the submission and release the corresponding payment.
+Creators can publish public projects, accept a worker claim, fund escrow, and release milestone payments. Workers can browse open projects, claim a project, submit proof for each milestone, and get paid on-chain after approval.
 
 ## Scope
 
 Vesti focuses on:
 
 - Wallet-based identity
-- Contract creation
-- Worker assignment
+- Public project publishing
+- Project claim and creator acceptance
 - Multi-milestone escrow
 - Contract funding
 - Proof submission
@@ -21,15 +21,17 @@ Vesti focuses on:
 
 ## Roles
 
-- Creator: creates the contract, funds escrow, reviews proof, and releases payments.
-- Worker: completes milestones and submits proof.
+- Creator: publishes the project, accepts a worker claim, funds escrow, reviews proof, and releases payments.
+- Worker: claims an open project, completes milestones, and submits proof.
 
 Roles are determined by wallet address.
 
 ## Workflow
 
 ```text
-Create contract
+Publish project
+  -> Worker claims project
+  -> Creator accepts worker
   -> Fund contract
   -> Submit proof
   -> Request revision when needed
@@ -115,6 +117,8 @@ Examples:
 POST /api/contracts/create
 POST /api/contracts/list
 POST /api/contracts/get
+POST /api/contracts/claim
+POST /api/contracts/accept-claim
 POST /api/contracts/fund
 POST /api/contracts/cancel
 POST /api/contracts/visibility
