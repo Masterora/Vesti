@@ -3,7 +3,7 @@ import { getEscrowAdapterMode } from "@/lib/blockchain/escrow-adapter";
 import { reconcileReleaseEscrowTransaction } from "@/lib/blockchain/solana-escrow-reconciliation";
 import { applyMilestoneRelease } from "@/lib/services/milestones/apply-milestone-release";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { ConfirmReleaseTransactionInput } from "@/lib/validations/transaction";
 
 export async function confirmReleaseTransaction(input: ConfirmReleaseTransactionInput) {
@@ -115,7 +115,7 @@ export async function confirmReleaseTransaction(input: ConfirmReleaseTransaction
       action: "release_milestone" as const,
       confirmed: true,
       confirmation: reconciliation.confirmation,
-      contract: serializeContract(updated)
+      contract: await serializeContractWithProfiles(updated)
     };
   });
 }

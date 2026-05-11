@@ -6,6 +6,8 @@ import type {
   Milestone,
   ProofSubmission
 } from "@prisma/client";
+import { getPublicUserProfilesByWallets } from "@/lib/services/user-profiles";
+import type { SerializedPublicUserProfile } from "@/types/profile";
 
 type MilestoneWithProofs = Milestone & {
   proofSubmissions?: ProofSubmission[];
@@ -17,6 +19,18 @@ export type ContractWithRelations = Contract & {
   comments?: ContractComment[];
   applications?: ContractApplication[];
 };
+
+function collectContractWallets(contract: ContractWithRelations) {
+  return [
+    contract.creatorWallet,
+    contract.workerWallet,
+    contract.requestedWorkerWallet,
+    ...(contract.comments?.map((comment) => comment.authorWallet) ?? []),
+    ...(contract.applications?.map((application) => application.applicantWallet) ?? []),
+    ...(contract.events?.map((event) => event.actorWallet) ?? []),
+    ...contract.milestones.flatMap((milestone) => milestone.proofSubmissions?.map((proof) => proof.submittedBy) ?? [])
+  ].filter((wallet): wallet is string => Boolean(wallet?.trim()));
+}
 
 export function serializeProofSubmission(proof: ProofSubmission) {
   return {
@@ -61,7 +75,10 @@ export function serializeContractApplication(application: ContractApplication) {
   };
 }
 
-export function serializeContract(contract: ContractWithRelations) {
+export function serializeContract(
+  contract: ContractWithRelations,
+  profilesByWallet?: Map<string, SerializedPublicUserProfile>
+) {
   return {
     ...contract,
     isPublic: contract.isPublic,
@@ -76,6 +93,18 @@ export function serializeContract(contract: ContractWithRelations) {
     milestones: contract.milestones.map(serializeMilestone),
     events: contract.events?.map(serializeEvent),
     comments: contract.comments?.map(serializeContractComment),
-    applications: contract.applications?.map(serializeContractApplication)
+    applications: contract.applications?.map(serializeContractApplication),
+    profiles: profilesByWallet
+      ? Array.from(new Set(collectContractWallets(contract))).flatMap((wallet) => {
+          const profile = profilesByWallet.get(wallet);
+          return profile ? [profile] : [];
+        })
+      : undefined
   };
+}
+
+export async function serializeContractWithProfiles(contract: ContractWithRelations) {
+  const profilesByWallet = await getPublicUserProfilesByWallets(collectContractWallets(contract));
+
+  return serializeContract(contract, profilesByWallet);
 }

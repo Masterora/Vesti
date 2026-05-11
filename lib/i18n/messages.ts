@@ -8,7 +8,7 @@ export const messages = {
   en: {
     header: {
       brand: "Vesti",
-      tagline: "USDC stage escrow",
+      tagline: "USDC milestone escrow",
       dashboard: "Dashboard",
       newContract: "New contract"
     },
@@ -28,14 +28,26 @@ export const messages = {
       connectTitle: "Connect and sign in with wallet",
       installTitle: "Install a Solana wallet",
       disconnectTitle: "Disconnect wallet session",
+      profile: "Profile",
+      editProfile: "Edit profile",
+      closeProfile: "Close profile",
+      displayName: "Display name",
+      displayNamePlaceholder: "How should other people see you?",
+      email: "Email",
+      emailPlaceholder: "you@example.com",
+      bio: "Bio",
+      bioPlaceholder: "What kind of work do you usually take on?",
+      saveProfile: "Save profile",
+      savingProfile: "Saving...",
+      profileSaved: "Profile saved",
       demoCreator: "Demo creator",
       demoWorker: "Demo worker",
       signed: "signed",
       demo: "demo"
     },
     landing: {
-      eyebrow: "USDC stage escrow",
-      title: "Public project hiring with staged escrow.",
+      eyebrow: "USDC milestone escrow",
+      title: "Public project hiring with milestone escrow.",
       description:
         "Vesti lets a Creator publish a project, a Worker apply with a wallet, and both sides move through funding, proof, approvals, and release in one clean escrow workflow.",
       openDashboard: "Open dashboard",
@@ -44,7 +56,7 @@ export const messages = {
       steps: [
         {
           title: "Create",
-          text: "Creator publishes the project scope, price, and stage split."
+          text: "Creator publishes the project scope, price, and milestone split."
         },
         {
           title: "Apply",
@@ -56,7 +68,7 @@ export const messages = {
         },
         {
           title: "Deliver",
-          text: "Worker submits proof, Creator approves, and the stage payout is released."
+          text: "Worker submits proof, Creator approves, and the milestone payout is released."
         }
       ]
     },
@@ -258,6 +270,7 @@ export const messages = {
       failedToClaimContract: "Failed to apply to project",
       failedToAcceptClaim: "Failed to select worker",
       failedToPostComment: "Failed to post comment",
+      failedToUpdateProfile: "Failed to update profile",
       preparedTransactionMissing: "Prepared Solana transaction is missing",
       confirmedTransactionMissingContract:
         "Confirmed transaction did not return an updated contract",
@@ -305,6 +318,18 @@ export const messages = {
       connectTitle: "连接钱包并完成签名登录",
       installTitle: "请安装支持签名的钱包",
       disconnectTitle: "断开当前钱包会话",
+      profile: "个人资料",
+      editProfile: "编辑资料",
+      closeProfile: "关闭资料",
+      displayName: "显示名称",
+      displayNamePlaceholder: "其他人会如何看到你？",
+      email: "邮箱",
+      emailPlaceholder: "you@example.com",
+      bio: "简介",
+      bioPlaceholder: "介绍一下你通常接什么类型的项目。",
+      saveProfile: "保存资料",
+      savingProfile: "保存中...",
+      profileSaved: "资料已保存",
       demoCreator: "演示甲方",
       demoWorker: "演示乙方",
       signed: "已登录",
@@ -531,6 +556,7 @@ export const messages = {
       failedToClaimContract: "申请项目失败",
       failedToAcceptClaim: "选择乙方失败",
       failedToPostComment: "发送留言失败",
+      failedToUpdateProfile: "保存资料失败",
       preparedTransactionMissing: "缺少预构建的链上交易",
       confirmedTransactionMissingContract: "交易确认后没有返回更新后的合同数据",
       escrowActionFailed: "托管操作失败",

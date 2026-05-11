@@ -8,6 +8,7 @@ const exactErrorMap: Record<string, keyof typeof messages.en.errors> = {
   "Failed to claim project": "failedToClaimContract",
   "Failed to accept worker claim": "failedToAcceptClaim",
   "Failed to post comment": "failedToPostComment",
+  "Failed to update profile": "failedToUpdateProfile",
   "Prepared Solana transaction is missing": "preparedTransactionMissing",
   "Confirmed transaction did not return an updated contract": "confirmedTransactionMissingContract",
   "Escrow action failed": "escrowActionFailed",
@@ -90,7 +91,8 @@ const exactZhMessages: Record<string, string> = {
   "Escrow account discriminator does not match EscrowState": "托管账户的链上状态格式不匹配。",
   "u64 value cannot be negative": "u64 数值不能为负数。",
   "Wallet address is required": "钱包地址不能为空。",
-  "Date must be valid": "日期格式无效。"
+  "Date must be valid": "日期格式无效。",
+  "Email address is already in use": "这个邮箱已经被使用。"
 };
 
 const regexZhMessages: Array<[RegExp, (match: RegExpMatchArray) => string]> = [

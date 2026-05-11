@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { getContractRole } from "@/lib/auth/wallet-role";
 import { assertAllowed, assertFound } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import type { GetContractInput } from "@/lib/validations/contract";
 
@@ -45,5 +45,5 @@ export async function getContractById(input: GetContractInput) {
     "Only the Creator or Worker can view this contract"
   );
 
-  return serializeContract(contract);
+  return serializeContractWithProfiles(contract);
 }

@@ -6,6 +6,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getWalletDisplayLabel, getWalletDisplayName } from "@/lib/display-profiles";
 import { Label, Textarea } from "@/components/ui/input";
 import { postJson } from "@/lib/api/client";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
@@ -154,15 +155,23 @@ function DiscussionItem({
   const { locale } = useLocale();
   const role = getDiscussionRole(contract, comment.authorWallet);
   const textToneClass = getRoleTextClass(role);
+  const displayName = getWalletDisplayName(contract.profiles, comment.authorWallet);
 
   return (
     <div className="rounded-lg border border-border bg-muted/40 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <Badge value={role} />
-          <span className={`truncate text-sm font-semibold ${textToneClass}`} title={comment.authorWallet}>
-            {shortenWallet(comment.authorWallet)}
-          </span>
+          <div className="min-w-0">
+            <p className={`truncate text-sm font-semibold ${textToneClass}`} title={comment.authorWallet}>
+              {getWalletDisplayLabel(contract.profiles, comment.authorWallet)}
+            </p>
+            {displayName ? (
+              <p className="truncate text-xs text-muted-foreground" title={comment.authorWallet}>
+                {shortenWallet(comment.authorWallet)}
+              </p>
+            ) : null}
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">{formatDateTime(comment.createdAt, locale)}</p>
       </div>

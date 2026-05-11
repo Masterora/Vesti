@@ -14,7 +14,8 @@ export async function POST(request: Request) {
       {
         data: {
           walletAddress: result.walletAddress,
-          expiresAt: cookie.session.expiresAt
+          expiresAt: cookie.session.expiresAt,
+          profile: result.profile
         }
       },
       {

@@ -2,6 +2,7 @@ import type { ContractStatus, Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { serializeContract } from "@/lib/services/serialize";
+import { getPublicUserProfilesByWallets } from "@/lib/services/user-profiles";
 import type { ListContractsInput } from "@/lib/validations/contract";
 
 export async function listContractsForWallet(input: ListContractsInput) {
@@ -70,5 +71,15 @@ export async function listContractsForWallet(input: ListContractsInput) {
     orderBy: { updatedAt: "desc" }
   });
 
-  return contracts.map(serializeContract);
+  const wallets = contracts.flatMap((contract) => [
+    contract.creatorWallet,
+    contract.workerWallet,
+    contract.requestedWorkerWallet,
+    ...contract.applications.map((application) => application.applicantWallet)
+  ]);
+  const profilesByWallet = await getPublicUserProfilesByWallets(
+    wallets.filter((wallet): wallet is string => Boolean(wallet?.trim()))
+  );
+
+  return contracts.map((contract) => serializeContract(contract, profilesByWallet));
 }

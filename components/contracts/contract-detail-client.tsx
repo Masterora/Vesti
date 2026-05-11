@@ -25,9 +25,11 @@ import { ContractDiscussion } from "@/components/contracts/contract-discussion";
 import { EventTimeline } from "@/components/timeline/event-timeline";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { postJson } from "@/lib/api/client";
+import { getWalletDisplayLabel, getWalletDisplayName } from "@/lib/display-profiles";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { formatDate, formatDateTime, formatUsdc, shortenWallet } from "@/lib/utils";
 import type { SerializedContract, SerializedMilestone } from "@/types/contract";
+import type { SerializedPublicUserProfile } from "@/types/profile";
 
 type ContractDetailClientProps = {
   contractId: string;
@@ -351,11 +353,17 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                 </div>
               ) : null}
               <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
-                <WalletLine label={copy.creator} wallet={contract.creatorWallet} tone="creator" />
+                <WalletLine
+                  label={copy.creator}
+                  wallet={contract.creatorWallet}
+                  tone="creator"
+                  profiles={contract.profiles}
+                />
                 <WalletLine
                   label={copy.worker}
                   wallet={contract.workerWallet}
                   tone="worker"
+                  profiles={contract.profiles}
                   emptyLabel={pendingApplicants.length > 0 ? copy.pendingWorker : copy.unassignedWorker}
                 />
                 <WalletLine label={copy.escrow} wallet={contract.escrowAccount || copy.notFunded} />
@@ -374,9 +382,16 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                         key={applicantWallet}
                         className="flex flex-col gap-2 rounded-md bg-muted p-3 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        <span className="font-medium" title={applicantWallet}>
-                          {shortenWallet(applicantWallet)}
-                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium" title={applicantWallet}>
+                            {getWalletDisplayLabel(contract.profiles, applicantWallet)}
+                          </p>
+                          {getWalletDisplayName(contract.profiles, applicantWallet) ? (
+                            <p className="truncate text-xs text-muted-foreground" title={applicantWallet}>
+                              {shortenWallet(applicantWallet)}
+                            </p>
+                          ) : null}
+                        </div>
                         {role === "creator" && contract.status === "claimed" ? (
                           <Button
                             type="button"
@@ -616,7 +631,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
             />
             <Card>
               <h2 className="mb-4 text-lg font-semibold">{copy.timeline}</h2>
-              <EventTimeline events={contract.events} />
+              <EventTimeline events={contract.events} profiles={contract.profiles} />
             </Card>
           </aside>
         </div>
@@ -629,12 +644,14 @@ function WalletLine({
   label,
   wallet,
   emptyLabel,
-  tone
+  tone,
+  profiles
 }: {
   label: string;
   wallet?: string | null;
   emptyLabel?: string;
   tone?: "creator" | "worker" | "applicant";
+  profiles?: SerializedPublicUserProfile[];
 }) {
   const labelToneClass =
     tone === "creator"
@@ -650,9 +667,22 @@ function WalletLine({
       <Wallet className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <div className="min-w-0">
         <p className={`text-xs font-semibold uppercase tracking-wide ${labelToneClass}`}>{label}</p>
-        <p className="truncate font-medium" title={wallet ?? emptyLabel}>
-          {wallet ? shortenWallet(wallet) : emptyLabel}
-        </p>
+        {wallet ? (
+          <>
+            <p className="truncate font-medium" title={wallet}>
+              {getWalletDisplayLabel(profiles, wallet)}
+            </p>
+            {getWalletDisplayName(profiles, wallet) ? (
+              <p className="truncate text-xs text-muted-foreground" title={wallet}>
+                {shortenWallet(wallet)}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <p className="truncate font-medium" title={emptyLabel}>
+            {emptyLabel}
+          </p>
+        )}
       </div>
     </div>
   );

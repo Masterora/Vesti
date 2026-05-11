@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { ServiceError } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { CreateContractInput } from "@/lib/validations/contract";
 
 function decimal(value: string) {
@@ -103,6 +103,6 @@ export async function createContract(input: CreateContractInput) {
       }
     });
 
-    return serializeContract(created);
+    return serializeContractWithProfiles(created);
   });
 }

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { assertAllowed, assertFound } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { UpdateContractVisibilityInput } from "@/lib/validations/contract";
 
 export async function updateContractVisibility(input: UpdateContractVisibilityInput) {
@@ -39,5 +39,5 @@ export async function updateContractVisibility(input: UpdateContractVisibilityIn
     }
   });
 
-  return serializeContract(updated);
+  return serializeContractWithProfiles(updated);
 }

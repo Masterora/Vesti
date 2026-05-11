@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { AcceptContractClaimInput } from "@/lib/validations/contract";
 
 export async function acceptContractClaim(input: AcceptContractClaimInput) {
@@ -71,6 +71,6 @@ export async function acceptContractClaim(input: AcceptContractClaimInput) {
       }
     });
 
-    return serializeContract(updated);
+    return serializeContractWithProfiles(updated);
   });
 }

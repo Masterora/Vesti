@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { SubmitProofInput } from "@/lib/validations/proof-submission";
 
 export async function submitMilestoneProof(input: SubmitProofInput) {
@@ -87,6 +87,6 @@ export async function submitMilestoneProof(input: SubmitProofInput) {
       }
     });
 
-    return serializeContract(updated);
+    return serializeContractWithProfiles(updated);
   });
 }

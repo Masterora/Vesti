@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import type { ClaimContractInput } from "@/lib/validations/contract";
 
@@ -83,6 +83,6 @@ export async function claimContract(input: ClaimContractInput) {
       }
     });
 
-    return serializeContract(updated);
+    return serializeContractWithProfiles(updated);
   });
 }

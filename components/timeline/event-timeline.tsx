@@ -2,11 +2,19 @@
 
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
+import { getWalletDisplayName } from "@/lib/display-profiles";
 import { shortenWallet } from "@/lib/utils";
 import { formatDateTime } from "@/lib/utils";
 import type { SerializedEvent } from "@/types/contract";
+import type { SerializedPublicUserProfile } from "@/types/profile";
 
-export function EventTimeline({ events = [] }: { events?: SerializedEvent[] }) {
+export function EventTimeline({
+  events = [],
+  profiles
+}: {
+  events?: SerializedEvent[];
+  profiles?: SerializedPublicUserProfile[];
+}) {
   const { locale, messages } = useLocale();
 
   if (events.length === 0) {
@@ -25,7 +33,10 @@ export function EventTimeline({ events = [] }: { events?: SerializedEvent[] }) {
             </span>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {messages.timeline.actor} {shortenWallet(event.actorWallet)}
+            {messages.timeline.actor} {getWalletDisplayName(profiles, event.actorWallet) ?? shortenWallet(event.actorWallet)}
+            {getWalletDisplayName(profiles, event.actorWallet)
+              ? ` · ${shortenWallet(event.actorWallet)}`
+              : ""}
             {event.txSig ? ` | ${messages.timeline.transaction} ${shortenWallet(event.txSig)}` : ""}
           </p>
         </li>

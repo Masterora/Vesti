@@ -1,3 +1,5 @@
+import type { SerializedPublicUserProfile } from "@/types/profile";
+
 export type SerializedProofSubmission = {
   id: string;
   milestoneId: string;
@@ -71,4 +73,5 @@ export type SerializedContract = {
   events?: SerializedEvent[];
   comments?: SerializedContractComment[];
   applications?: SerializedContractApplication[];
+  profiles?: SerializedPublicUserProfile[];
 };

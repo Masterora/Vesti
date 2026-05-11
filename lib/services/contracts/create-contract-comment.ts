@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { getContractRole } from "@/lib/auth/wallet-role";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { assertAllowed, assertFound } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { CreateContractCommentInput } from "@/lib/validations/contract";
 
 export async function createContractComment(input: CreateContractCommentInput) {
@@ -69,6 +69,6 @@ export async function createContractComment(input: CreateContractCommentInput) {
       }
     });
 
-    return serializeContract(updated);
+    return serializeContractWithProfiles(updated);
   });
 }

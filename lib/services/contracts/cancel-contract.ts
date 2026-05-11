@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { CancelContractInput } from "@/lib/validations/contract";
 
 export async function cancelContract(input: CancelContractInput) {
@@ -58,6 +58,6 @@ export async function cancelContract(input: CancelContractInput) {
       }
     });
 
-    return serializeContract(updated);
+    return serializeContractWithProfiles(updated);
   });
 }

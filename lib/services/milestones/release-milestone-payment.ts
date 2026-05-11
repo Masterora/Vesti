@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { getEscrowAdapter } from "@/lib/blockchain/escrow-adapter";
 import { applyMilestoneRelease } from "@/lib/services/milestones/apply-milestone-release";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContract } from "@/lib/services/serialize";
+import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import type { ReleaseMilestoneInput } from "@/lib/validations/proof-submission";
 
 export async function releaseMilestonePayment(input: ReleaseMilestoneInput) {
@@ -72,6 +72,6 @@ export async function releaseMilestonePayment(input: ReleaseMilestoneInput) {
       }
     });
 
-    return serializeContract(updated);
+    return serializeContractWithProfiles(updated);
   });
 }

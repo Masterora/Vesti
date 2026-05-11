@@ -6,6 +6,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ContractProgress } from "@/components/contracts/contract-progress";
+import { getWalletDisplayLabel, getWalletDisplayName } from "@/lib/display-profiles";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { shortenWallet } from "@/lib/utils";
 import type { SerializedContract } from "@/types/contract";
@@ -51,10 +52,16 @@ export function ContractList({
             ? `${contract.milestones.length}${messages.contractList.milestones}`
             : `${contract.milestones.length} ${messages.contractList.milestones}`;
         const workerLabel = contract.workerWallet
-          ? shortenWallet(contract.workerWallet)
+          ? getWalletDisplayLabel(contract.profiles, contract.workerWallet)
           : pendingApplicants.length > 0
-            ? `${messages.contractList.applicants} ${pendingApplicants.map(shortenWallet).join(", ")}`
+            ? `${messages.contractList.applicants} ${pendingApplicants
+                .map((wallet) => getWalletDisplayLabel(contract.profiles, wallet))
+                .join(", ")}`
             : messages.contractList.unassigned;
+        const creatorDisplayName = getWalletDisplayName(contract.profiles, contract.creatorWallet);
+        const workerDisplayName = contract.workerWallet
+          ? getWalletDisplayName(contract.profiles, contract.workerWallet)
+          : null;
         const nextStepHint =
           relation === "creator" && contract.status === "claimed"
             ? messages.contractList.creatorClaimHint
@@ -94,16 +101,19 @@ export function ContractList({
                   ) : null}
                   <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
                     <span>
-                    <span className="font-semibold text-blue-700">{messages.contractList.creator}</span>{" "}
-                    {shortenWallet(contract.creatorWallet)}
-                  </span>
-                  <span>
-                    <span className="font-semibold text-emerald-700">
-                      {contract.workerWallet ? messages.contractList.worker : messages.contractList.applicants}
-                    </span>{" "}
-                    {workerLabel}
-                  </span>
-                  <span>{milestoneCount}</span>
+                      <span className="font-semibold text-blue-700">{messages.contractList.creator}</span>{" "}
+                      {creatorDisplayName ?? shortenWallet(contract.creatorWallet)}
+                      {creatorDisplayName ? ` · ${shortenWallet(contract.creatorWallet)}` : ""}
+                    </span>
+                    <span>
+                      <span className="font-semibold text-emerald-700">
+                        {contract.workerWallet ? messages.contractList.worker : messages.contractList.applicants}
+                      </span>{" "}
+                      {workerDisplayName && contract.workerWallet
+                        ? `${workerDisplayName} · ${shortenWallet(contract.workerWallet)}`
+                        : workerLabel}
+                    </span>
+                    <span>{milestoneCount}</span>
                   </div>
                 </div>
                 <div className="w-full lg:w-80">
