@@ -9,8 +9,24 @@ export const siteKeywords = [
   "milestone payments"
 ];
 
+function normalizeSiteUrl(rawUrl: string) {
+  const trimmedUrl = rawUrl.trim();
+
+  if (trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://")) {
+    return trimmedUrl;
+  }
+
+  return `https://${trimmedUrl}`;
+}
+
 export function getSiteUrl() {
-  return new URL(process.env.NEXT_PUBLIC_APP_URL!);
+  const siteUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL ||
+    "http://localhost:3000";
+
+  return new URL(normalizeSiteUrl(siteUrl));
 }
 
 export function getAbsoluteUrl(path = "/") {
