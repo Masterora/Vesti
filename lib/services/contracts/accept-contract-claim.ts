@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
 import { serializeContract } from "@/lib/services/serialize";
@@ -8,7 +9,12 @@ export async function acceptContractClaim(input: AcceptContractClaimInput) {
   return db.$transaction(async (tx) => {
     const contract = assertFound(
       await tx.contract.findUnique({
-        where: { id: input.contractId }
+        where: { id: input.contractId },
+        include: {
+          applications: {
+            orderBy: { createdAt: "asc" }
+          }
+        }
       }),
       "Contract not found"
     );
@@ -17,16 +23,20 @@ export async function acceptContractClaim(input: AcceptContractClaimInput) {
       input.walletAddress === contract.creatorWallet,
       "Only the Creator can accept a worker claim"
     );
-    assertState(contract.status === "claimed", "Only claimed contracts can accept a worker");
+    assertState(contract.status === "claimed", "Only claimed contracts can accept an applicant");
     assertState(
-      Boolean(contract.requestedWorkerWallet),
-      "This contract does not have a pending worker claim"
+      getPendingApplicantWallets(contract).includes(input.applicantWallet),
+      "Selected applicant was not found on this contract"
     );
+
+    await tx.contractApplication.deleteMany({
+      where: { contractId: contract.id }
+    });
 
     await tx.contract.update({
       where: { id: contract.id },
       data: {
-        workerWallet: contract.requestedWorkerWallet,
+        workerWallet: input.applicantWallet,
         requestedWorkerWallet: null,
         status: "draft"
       }
@@ -37,7 +47,7 @@ export async function acceptContractClaim(input: AcceptContractClaimInput) {
       actorWallet: input.walletAddress,
       eventType: "contract_claim_accepted",
       payload: {
-        workerWallet: contract.requestedWorkerWallet
+        workerWallet: input.applicantWallet
       }
     });
 
@@ -54,6 +64,9 @@ export async function acceptContractClaim(input: AcceptContractClaimInput) {
         },
         events: {
           orderBy: { createdAt: "desc" }
+        },
+        applications: {
+          orderBy: { createdAt: "asc" }
         }
       }
     });

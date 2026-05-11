@@ -56,11 +56,13 @@ describe("contract validation", () => {
     expect(
       acceptContractClaimSchema.parse({
         contractId: "contract_123",
-        walletAddress: "creator_wallet"
+        walletAddress: "creator_wallet",
+        applicantWallet: "worker_wallet"
       })
     ).toMatchObject({
       contractId: "contract_123",
-      walletAddress: "creator_wallet"
+      walletAddress: "creator_wallet",
+      applicantWallet: "worker_wallet"
     });
 
     expect(() =>
@@ -73,7 +75,16 @@ describe("contract validation", () => {
     expect(() =>
       acceptContractClaimSchema.parse({
         contractId: "contract_123",
-        walletAddress: ""
+        walletAddress: "",
+        applicantWallet: "worker_wallet"
+      })
+    ).toThrow("Wallet address is required");
+
+    expect(() =>
+      acceptContractClaimSchema.parse({
+        contractId: "contract_123",
+        walletAddress: "creator_wallet",
+        applicantWallet: ""
       })
     ).toThrow("Wallet address is required");
   });

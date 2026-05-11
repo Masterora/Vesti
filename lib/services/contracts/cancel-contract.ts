@@ -51,6 +51,9 @@ export async function cancelContract(input: CancelContractInput) {
         },
         events: {
           orderBy: { createdAt: "desc" }
+        },
+        applications: {
+          orderBy: { createdAt: "asc" }
         }
       }
     });

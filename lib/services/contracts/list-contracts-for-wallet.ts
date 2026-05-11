@@ -20,7 +20,14 @@ export async function listContractsForWallet(input: ListContractsInput) {
         ? [
             { creatorWallet: walletAddress },
             { workerWallet: walletAddress },
-            { requestedWorkerWallet: walletAddress }
+            { requestedWorkerWallet: walletAddress },
+            {
+              applications: {
+                some: {
+                  applicantWallet: walletAddress
+                }
+              }
+            }
           ]
         : [])
     ]
@@ -55,6 +62,9 @@ export async function listContractsForWallet(input: ListContractsInput) {
     include: {
       milestones: {
         orderBy: { index: "asc" }
+      },
+      applications: {
+        orderBy: { createdAt: "asc" }
       }
     },
     orderBy: { updatedAt: "desc" }

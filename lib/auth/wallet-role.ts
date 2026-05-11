@@ -4,6 +4,7 @@ export function getContractRole(input: {
   walletAddress?: string | null;
   creatorWallet: string;
   workerWallet?: string | null;
+  applicantWallets?: string[] | null;
   requestedWorkerWallet?: string | null;
 }): ContractRole {
   const wallet = input.walletAddress?.trim();
@@ -18,6 +19,10 @@ export function getContractRole(input: {
 
   if (input.workerWallet && wallet === input.workerWallet) {
     return "worker";
+  }
+
+  if (input.applicantWallets?.includes(wallet)) {
+    return "applicant";
   }
 
   if (input.requestedWorkerWallet && wallet === input.requestedWorkerWallet) {

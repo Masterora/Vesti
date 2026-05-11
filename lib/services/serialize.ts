@@ -1,4 +1,11 @@
-import type { Contract, ContractComment, Event, Milestone, ProofSubmission } from "@prisma/client";
+import type {
+  Contract,
+  ContractApplication,
+  ContractComment,
+  Event,
+  Milestone,
+  ProofSubmission
+} from "@prisma/client";
 
 type MilestoneWithProofs = Milestone & {
   proofSubmissions?: ProofSubmission[];
@@ -8,6 +15,7 @@ export type ContractWithRelations = Contract & {
   milestones: MilestoneWithProofs[];
   events?: Event[];
   comments?: ContractComment[];
+  applications?: ContractApplication[];
 };
 
 export function serializeProofSubmission(proof: ProofSubmission) {
@@ -46,6 +54,13 @@ export function serializeContractComment(comment: ContractComment) {
   };
 }
 
+export function serializeContractApplication(application: ContractApplication) {
+  return {
+    ...application,
+    createdAt: application.createdAt.toISOString()
+  };
+}
+
 export function serializeContract(contract: ContractWithRelations) {
   return {
     ...contract,
@@ -60,6 +75,7 @@ export function serializeContract(contract: ContractWithRelations) {
     updatedAt: contract.updatedAt.toISOString(),
     milestones: contract.milestones.map(serializeMilestone),
     events: contract.events?.map(serializeEvent),
-    comments: contract.comments?.map(serializeContractComment)
+    comments: contract.comments?.map(serializeContractComment),
+    applications: contract.applications?.map(serializeContractApplication)
   };
 }

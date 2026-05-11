@@ -55,7 +55,8 @@ export const claimContractSchema = z.object({
 
 export const acceptContractClaimSchema = z.object({
   contractId: z.string().trim().min(1),
-  walletAddress: walletAddressSchema
+  walletAddress: walletAddressSchema,
+  applicantWallet: walletAddressSchema
 });
 
 export const createContractCommentSchema = z.object({

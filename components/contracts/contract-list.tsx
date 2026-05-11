@@ -6,6 +6,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ContractProgress } from "@/components/contracts/contract-progress";
+import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { shortenWallet } from "@/lib/utils";
 import type { SerializedContract } from "@/types/contract";
 
@@ -36,12 +37,13 @@ export function ContractList({
     <div className="grid gap-4">
       {contracts.map((contract) => {
         const tags = contract.tags ?? [];
+        const pendingApplicants = getPendingApplicantWallets(contract);
         const relation =
           walletAddress === contract.creatorWallet
             ? "creator"
             : walletAddress === contract.workerWallet
               ? "worker"
-              : walletAddress === contract.requestedWorkerWallet
+              : pendingApplicants.includes(walletAddress)
                 ? "applicant"
                 : "viewer";
         const milestoneCount =
@@ -50,8 +52,8 @@ export function ContractList({
             : `${contract.milestones.length} ${messages.contractList.milestones}`;
         const workerLabel = contract.workerWallet
           ? shortenWallet(contract.workerWallet)
-          : contract.requestedWorkerWallet
-            ? `${messages.contractList.pendingClaim} ${shortenWallet(contract.requestedWorkerWallet)}`
+          : pendingApplicants.length > 0
+            ? `${messages.contractList.applicants} ${pendingApplicants.map(shortenWallet).join(", ")}`
             : messages.contractList.unassigned;
         const nextStepHint =
           relation === "creator" && contract.status === "claimed"
@@ -92,14 +94,16 @@ export function ContractList({
                   ) : null}
                   <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
                     <span>
-                      <span className="font-semibold text-blue-700">{messages.contractList.creator}</span>{" "}
-                      {shortenWallet(contract.creatorWallet)}
-                    </span>
-                    <span>
-                      <span className="font-semibold text-emerald-700">{messages.contractList.worker}</span>{" "}
-                      {workerLabel}
-                    </span>
-                    <span>{milestoneCount}</span>
+                    <span className="font-semibold text-blue-700">{messages.contractList.creator}</span>{" "}
+                    {shortenWallet(contract.creatorWallet)}
+                  </span>
+                  <span>
+                    <span className="font-semibold text-emerald-700">
+                      {contract.workerWallet ? messages.contractList.worker : messages.contractList.applicants}
+                    </span>{" "}
+                    {workerLabel}
+                  </span>
+                  <span>{milestoneCount}</span>
                   </div>
                 </div>
                 <div className="w-full lg:w-80">

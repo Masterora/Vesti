@@ -2,13 +2,19 @@ import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
 import { serializeContract } from "@/lib/services/serialize";
+import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import type { ClaimContractInput } from "@/lib/validations/contract";
 
 export async function claimContract(input: ClaimContractInput) {
   return db.$transaction(async (tx) => {
     const contract = assertFound(
       await tx.contract.findUnique({
-        where: { id: input.contractId }
+        where: { id: input.contractId },
+        include: {
+          applications: {
+            orderBy: { createdAt: "asc" }
+          }
+        }
       }),
       "Contract not found"
     );
@@ -18,7 +24,14 @@ export async function claimContract(input: ClaimContractInput) {
       "Creator cannot claim their own contract"
     );
     assertAllowed(contract.isPublic, "Only public contracts can be claimed");
-    assertState(contract.status === "open", "Only open contracts can be claimed");
+    assertState(
+      ["open", "claimed"].includes(contract.status),
+      "Only open or claimed contracts can receive additional claims"
+    );
+    assertState(
+      !getPendingApplicantWallets(contract).includes(input.walletAddress),
+      "You have already claimed this contract"
+    );
 
     await tx.user.upsert({
       where: { walletAddress: input.walletAddress },
@@ -26,10 +39,17 @@ export async function claimContract(input: ClaimContractInput) {
       create: { walletAddress: input.walletAddress }
     });
 
+    await tx.contractApplication.create({
+      data: {
+        contractId: contract.id,
+        applicantWallet: input.walletAddress
+      }
+    });
+
     await tx.contract.update({
       where: { id: contract.id },
       data: {
-        requestedWorkerWallet: input.walletAddress,
+        requestedWorkerWallet: contract.requestedWorkerWallet ?? input.walletAddress,
         status: "claimed"
       }
     });
@@ -56,6 +76,9 @@ export async function claimContract(input: ClaimContractInput) {
         },
         events: {
           orderBy: { createdAt: "desc" }
+        },
+        applications: {
+          orderBy: { createdAt: "asc" }
         }
       }
     });

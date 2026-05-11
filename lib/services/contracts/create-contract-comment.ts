@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getContractRole } from "@/lib/auth/wallet-role";
+import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { assertAllowed, assertFound } from "@/lib/services/errors";
 import { serializeContract } from "@/lib/services/serialize";
 import type { CreateContractCommentInput } from "@/lib/validations/contract";
@@ -8,7 +9,12 @@ export async function createContractComment(input: CreateContractCommentInput) {
   return db.$transaction(async (tx) => {
     const contract = assertFound(
       await tx.contract.findUnique({
-        where: { id: input.contractId }
+        where: { id: input.contractId },
+        include: {
+          applications: {
+            orderBy: { createdAt: "asc" }
+          }
+        }
       }),
       "Contract not found"
     );
@@ -17,6 +23,7 @@ export async function createContractComment(input: CreateContractCommentInput) {
       walletAddress: input.walletAddress,
       creatorWallet: contract.creatorWallet,
       workerWallet: contract.workerWallet,
+      applicantWallets: getPendingApplicantWallets(contract),
       requestedWorkerWallet: contract.requestedWorkerWallet
     });
 
@@ -54,6 +61,9 @@ export async function createContractComment(input: CreateContractCommentInput) {
           orderBy: { createdAt: "desc" }
         },
         comments: {
+          orderBy: { createdAt: "asc" }
+        },
+        applications: {
           orderBy: { createdAt: "asc" }
         }
       }

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label, Textarea } from "@/components/ui/input";
 import { postJson } from "@/lib/api/client";
+import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { formatDateTime, shortenWallet } from "@/lib/utils";
 import type { SerializedContract, SerializedContractComment } from "@/types/contract";
 
@@ -28,7 +29,7 @@ function getDiscussionRole(contract: SerializedContract, wallet: string): Discus
     return "worker";
   }
 
-  if (contract.requestedWorkerWallet && wallet === contract.requestedWorkerWallet) {
+  if (getPendingApplicantWallets(contract).includes(wallet)) {
     return "applicant";
   }
 

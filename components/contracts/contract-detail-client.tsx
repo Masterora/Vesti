@@ -25,6 +25,7 @@ import { ContractDiscussion } from "@/components/contracts/contract-discussion";
 import { EventTimeline } from "@/components/timeline/event-timeline";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { postJson } from "@/lib/api/client";
+import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { formatDate, formatDateTime, formatUsdc, shortenWallet } from "@/lib/utils";
 import type { SerializedContract, SerializedMilestone } from "@/types/contract";
 
@@ -101,13 +102,17 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       return "worker";
     }
 
-    if (walletAddress === contract.requestedWorkerWallet) {
+    if (getPendingApplicantWallets(contract).includes(walletAddress)) {
       return "applicant";
     }
 
     return "viewer";
   }, [contract, walletAddress]);
   const contractTags = contract?.tags ?? [];
+  const pendingApplicants = useMemo(
+    () => (contract ? getPendingApplicantWallets(contract) : []),
+    [contract]
+  );
 
   const loadContract = useCallback(async () => {
     if (!contractId) {
@@ -348,15 +353,54 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
               <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
                 <WalletLine label={copy.creator} wallet={contract.creatorWallet} tone="creator" />
                 <WalletLine
-                  label={contract.workerWallet ? copy.worker : contract.requestedWorkerWallet ? copy.applicant : copy.worker}
-                  wallet={contract.workerWallet ?? contract.requestedWorkerWallet}
-                  tone={contract.requestedWorkerWallet && !contract.workerWallet ? "applicant" : "worker"}
-                  emptyLabel={
-                    contract.requestedWorkerWallet ? copy.pendingWorker : copy.unassignedWorker
-                  }
+                  label={copy.worker}
+                  wallet={contract.workerWallet}
+                  tone="worker"
+                  emptyLabel={pendingApplicants.length > 0 ? copy.pendingWorker : copy.unassignedWorker}
                 />
                 <WalletLine label={copy.escrow} wallet={contract.escrowAccount || copy.notFunded} />
               </div>
+              {!contract.workerWallet && pendingApplicants.length > 0 ? (
+                <div className="mt-5 rounded-lg border border-border bg-white p-4">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                      {copy.applicants}
+                    </h3>
+                    <Badge value="applicant" label={`${pendingApplicants.length}`} />
+                  </div>
+                  <div className="space-y-2">
+                    {pendingApplicants.map((applicantWallet) => (
+                      <div
+                        key={applicantWallet}
+                        className="flex flex-col gap-2 rounded-md bg-muted p-3 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <span className="font-medium" title={applicantWallet}>
+                          {shortenWallet(applicantWallet)}
+                        </span>
+                        {role === "creator" && contract.status === "claimed" ? (
+                          <Button
+                            type="button"
+                            className="w-max"
+                            onClick={() =>
+                              runAction(`accept-claim-${applicantWallet}`, "/api/contracts/accept-claim", {
+                                contractId: contract.id,
+                                walletAddress,
+                                applicantWallet
+                              })
+                            }
+                            disabled={activeAction === `accept-claim-${applicantWallet}`}
+                          >
+                            <Check className="mr-2 size-4" aria-hidden="true" />
+                            {activeAction === `accept-claim-${applicantWallet}`
+                              ? copy.acceptingClaim
+                              : copy.acceptClaim}
+                          </Button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-6">
                 <ContractProgress
                   totalAmount={contract.totalAmount}
@@ -397,21 +441,6 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                       />
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {contract.status === "claimed" ? (
-                        <Button
-                          type="button"
-                          onClick={() =>
-                            runAction("accept-claim", "/api/contracts/accept-claim", {
-                              contractId: contract.id,
-                              walletAddress
-                            })
-                          }
-                          disabled={activeAction === "accept-claim"}
-                        >
-                          <Check className="mr-2 size-4" aria-hidden="true" />
-                          {activeAction === "accept-claim" ? copy.acceptingClaim : copy.acceptClaim}
-                        </Button>
-                      ) : null}
                       {contract.status === "draft" ? (
                         <Button
                           type="button"
@@ -460,7 +489,10 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                   </div>
                 </div>
               ) : null}
-              {role !== "creator" && role !== "worker" && contract.status === "open" ? (
+              {role !== "creator" &&
+              role !== "worker" &&
+              role !== "applicant" &&
+              ["open", "claimed"].includes(contract.status) ? (
                 <div className="mt-6 rounded-lg bg-muted p-4">
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -472,12 +504,17 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                         })
                       }
                       disabled={!walletAddress || activeAction === "claim"}
-                    >
+                      >
                       <Wallet className="mr-2 size-4" aria-hidden="true" />
                       {activeAction === "claim" ? copy.claimingProject : copy.claimProject}
                     </Button>
                   </div>
                 </div>
+              ) : null}
+              {role === "applicant" && contract.status === "claimed" ? (
+                <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  {copy.applicantPendingNotice}
+                </p>
               ) : null}
             </Card>
 

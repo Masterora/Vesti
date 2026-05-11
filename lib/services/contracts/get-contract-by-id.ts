@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { getContractRole } from "@/lib/auth/wallet-role";
 import { assertAllowed, assertFound } from "@/lib/services/errors";
 import { serializeContract } from "@/lib/services/serialize";
+import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import type { GetContractInput } from "@/lib/validations/contract";
 
 export async function getContractById(input: GetContractInput) {
@@ -22,6 +23,9 @@ export async function getContractById(input: GetContractInput) {
         },
         comments: {
           orderBy: { createdAt: "asc" }
+        },
+        applications: {
+          orderBy: { createdAt: "asc" }
         }
       }
     }),
@@ -32,6 +36,7 @@ export async function getContractById(input: GetContractInput) {
     walletAddress: input.walletAddress,
     creatorWallet: contract.creatorWallet,
     workerWallet: contract.workerWallet,
+    applicantWallets: getPendingApplicantWallets(contract),
     requestedWorkerWallet: contract.requestedWorkerWallet
   });
 

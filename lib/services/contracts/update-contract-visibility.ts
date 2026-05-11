@@ -32,6 +32,9 @@ export async function updateContractVisibility(input: UpdateContractVisibilityIn
       },
       events: {
         orderBy: { createdAt: "desc" }
+      },
+      applications: {
+        orderBy: { createdAt: "asc" }
       }
     }
   });
