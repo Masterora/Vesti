@@ -11,10 +11,13 @@ import { useWallet } from "@/components/wallet/wallet-provider";
 import { postJson } from "@/lib/api/client";
 import type { SerializedContract } from "@/types/contract";
 
-async function fetchContracts(walletAddress?: string, query?: string) {
+type DashboardStatusFilter = "all" | "open" | "claimed" | "active" | "completed";
+
+async function fetchContracts(walletAddress?: string, query?: string, status?: DashboardStatusFilter) {
   return postJson<SerializedContract[]>("/api/contracts/list", {
     walletAddress: walletAddress?.trim() ? walletAddress : undefined,
-    query: query?.trim() ? query : undefined
+    query: query?.trim() ? query : undefined,
+    status: status && status !== "all" ? status : undefined
   });
 }
 
@@ -25,13 +28,22 @@ export function DashboardClient() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<DashboardStatusFilter>("all");
+
+  const filterOptions: Array<{ value: DashboardStatusFilter; label: string }> = [
+    { value: "all", label: messages.dashboard.filterAll },
+    { value: "open", label: messages.dashboard.filterOpen },
+    { value: "claimed", label: messages.dashboard.filterClaimed },
+    { value: "active", label: messages.dashboard.filterActive },
+    { value: "completed", label: messages.dashboard.filterCompleted }
+  ];
 
   const loadContracts = useCallback(async () => {
     setIsLoading(true);
     setError("");
 
     try {
-      const data = await fetchContracts(walletAddress, query);
+      const data = await fetchContracts(walletAddress, query, statusFilter);
       setContracts(data);
       setError("");
     } catch (caught) {
@@ -39,14 +51,14 @@ export function DashboardClient() {
     } finally {
       setIsLoading(false);
     }
-  }, [messages.errors.failedToLoadContracts, query, walletAddress]);
+  }, [messages.errors.failedToLoadContracts, query, statusFilter, walletAddress]);
 
   useEffect(() => {
     let isCurrent = true;
 
     const loadInitialContracts = async () => {
       try {
-        const data = await fetchContracts(walletAddress, query);
+        const data = await fetchContracts(walletAddress, query, statusFilter);
 
         if (isCurrent) {
           setContracts(data);
@@ -68,7 +80,7 @@ export function DashboardClient() {
     return () => {
       isCurrent = false;
     };
-  }, [messages.errors.failedToLoadContracts, query, walletAddress]);
+  }, [messages.errors.failedToLoadContracts, query, statusFilter, walletAddress]);
 
   return (
     <div className="page-shell py-10">
@@ -99,6 +111,19 @@ export function DashboardClient() {
             placeholder={messages.dashboard.searchPlaceholder}
             aria-label={messages.dashboard.searchLabel}
           />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {filterOptions.map((option) => (
+            <Button
+              key={option.value}
+              type="button"
+              variant={statusFilter === option.value ? "primary" : "secondary"}
+              className="h-9 px-3"
+              onClick={() => setStatusFilter(option.value)}
+            >
+              {option.label}
+            </Button>
+          ))}
         </div>
       </div>
 

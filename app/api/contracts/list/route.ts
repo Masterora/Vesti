@@ -14,7 +14,8 @@ export async function POST(request: Request) {
             request,
             typeof body.walletAddress === "string" ? body.walletAddress : undefined
           ) ?? undefined,
-        query: typeof body.query === "string" ? body.query : undefined
+        query: typeof body.query === "string" ? body.query : undefined,
+        status: typeof body.status === "string" ? body.status : undefined
       })
     );
   });

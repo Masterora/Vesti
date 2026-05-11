@@ -23,7 +23,8 @@ export const createContractSchema = z.object({
 
 export const listContractsSchema = z.object({
   walletAddress: walletAddressSchema.optional(),
-  query: z.string().trim().max(80).optional()
+  query: z.string().trim().max(80).optional(),
+  status: z.enum(["open", "claimed", "active", "completed"]).optional()
 });
 
 export const getContractSchema = z.object({

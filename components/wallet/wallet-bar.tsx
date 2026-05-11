@@ -7,10 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { useWallet } from "./wallet-provider";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
-import { shortenWallet } from "@/lib/utils";
+import { formatDate, shortenWallet } from "@/lib/utils";
 
 export function WalletBar() {
-  const { messages } = useLocale();
+  const { locale, messages } = useLocale();
   const {
     walletAddress,
     setWalletAddress,
@@ -78,7 +78,9 @@ export function WalletBar() {
           </div>
         ) : isAuthenticated && sessionWalletAddress ? (
           <div className="flex min-w-0 max-w-[14rem] items-center gap-2 rounded-md border border-border bg-white px-3 py-1.5 sm:max-w-none">
-            <UserRound className="size-4 text-muted-foreground" aria-hidden="true" />
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+              {getProfileInitial(sessionProfile?.displayName, sessionWalletAddress)}
+            </div>
             <Badge value="connected" label={messages.wallet.connectedWallet} />
             <div className="min-w-0">
               <p
@@ -173,8 +175,39 @@ export function WalletBar() {
         ) : null}
       </div>
       {isAuthenticated && isEditingProfile ? (
-        <div className="absolute right-0 top-full z-30 mt-2 w-[22rem] rounded-xl border border-border bg-white p-4 shadow-lg">
+        <div className="fixed right-4 top-20 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-border bg-white p-4 shadow-xl">
           <div className="grid gap-3">
+            <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                {getProfileInitial(sessionProfile?.displayName, sessionWalletAddress)}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {sessionProfile?.displayName || shortenWallet(sessionWalletAddress ?? "")}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {shortenWallet(sessionWalletAddress ?? "")}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {messages.wallet.joined}
+                </p>
+                <p className="mt-1 font-medium text-foreground">
+                  {formatDate(sessionProfile?.joinedAt, locale)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {messages.wallet.completedContracts}
+                </p>
+                <p className="mt-1 font-medium text-foreground">
+                  {sessionProfile?.completedContractsCount ?? 0}
+                </p>
+              </div>
+            </div>
             <div className="grid gap-2">
               <Label>{messages.wallet.displayName}</Label>
               <Input
@@ -236,4 +269,10 @@ export function WalletBar() {
       ) : null}
     </div>
   );
+}
+
+function getProfileInitial(displayName: string | null | undefined, walletAddress: string | null) {
+  const source = displayName?.trim() || walletAddress || "?";
+
+  return source.charAt(0).toUpperCase();
 }

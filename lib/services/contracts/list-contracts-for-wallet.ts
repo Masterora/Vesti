@@ -8,6 +8,7 @@ import type { ListContractsInput } from "@/lib/validations/contract";
 export async function listContractsForWallet(input: ListContractsInput) {
   const walletAddress = input.walletAddress?.trim();
   const query = input.query?.trim();
+  const status = input.status;
   const publicStatuses: ContractStatus[] = ["open", "claimed"];
   const visibilityWhere: Prisma.ContractWhereInput = {
     OR: [
@@ -58,8 +59,13 @@ export async function listContractsForWallet(input: ListContractsInput) {
         AND: [visibilityWhere, searchWhere]
       }
     : visibilityWhere;
+  const filteredWhere: Prisma.ContractWhereInput = status
+    ? {
+        AND: [where, { status }]
+      }
+    : where;
   const contracts = await db.contract.findMany({
-    where,
+    where: filteredWhere,
     include: {
       milestones: {
         orderBy: { index: "asc" }

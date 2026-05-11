@@ -42,6 +42,16 @@ describe("contract validation", () => {
     });
   });
 
+  it("accepts an optional status filter", () => {
+    expect(
+      listContractsSchema.parse({
+        status: "active"
+      })
+    ).toEqual({
+      status: "active"
+    });
+  });
+
   it("requires wallet addresses for claim and accept-claim actions", () => {
     expect(
       claimContractSchema.parse({

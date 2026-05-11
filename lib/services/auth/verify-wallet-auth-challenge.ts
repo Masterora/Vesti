@@ -50,7 +50,22 @@ export async function verifyWalletAuthChallenge(input: VerifyAuthChallengeInput)
         walletAddress: true,
         displayName: true,
         email: true,
-        bio: true
+        bio: true,
+        createdAt: true,
+        _count: {
+          select: {
+            createdContracts: {
+              where: {
+                status: "completed"
+              }
+            },
+            workedContracts: {
+              where: {
+                status: "completed"
+              }
+            }
+          }
+        }
       }
     })
   ]);

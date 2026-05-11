@@ -23,6 +23,8 @@ const exactErrorMap: Record<string, keyof typeof messages.en.errors> = {
   "The transaction expired. Please sign again.": "transactionExpired",
   "You canceled the signature. Contract state did not change.": "signatureCanceled",
   "The transaction failed on-chain. Contract state did not change.": "onchainTransactionFailed",
+  "The creator wallet does not have enough USDC balance to finish this transaction.":
+    "insufficientTokenBalance",
   "The Solana network is temporarily unavailable. Please try again.": "networkUnavailable",
   "Request failed": "requestFailed",
   "Invalid request body": "invalidRequestBody",

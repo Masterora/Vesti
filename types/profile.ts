@@ -6,4 +6,6 @@ export type SerializedPublicUserProfile = {
 export type SerializedSessionUserProfile = SerializedPublicUserProfile & {
   email: string | null;
   bio: string | null;
+  completedContractsCount: number;
+  joinedAt: string;
 };

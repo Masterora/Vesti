@@ -88,6 +88,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
   const [disputeDrafts, setDisputeDrafts] = useState<Record<string, string>>({});
   const [cancelReason, setCancelReason] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(Boolean(contractId));
   const [activeAction, setActiveAction] = useState("");
 
@@ -171,10 +172,12 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
   const runAction = async (actionKey: string, url: string, body: unknown) => {
     setActiveAction(actionKey);
     setError("");
+    setSuccessMessage("");
 
     try {
       const data = await postJson<SerializedContract>(url, body);
       setContract(data);
+      setSuccessMessage(getSuccessMessage(actionKey, copy));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : messages.errors.actionFailed);
     } finally {
@@ -194,6 +197,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
     }: EscrowActionInput) => {
       setActiveAction(actionKey);
       setError("");
+      setSuccessMessage("");
 
       try {
         const prepared = await postJson<PreparedEscrowTransaction>(prepareUrl, prepareBody);
@@ -201,6 +205,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
         if (prepared.canUseDirectAction) {
           const data = await postJson<SerializedContract>(directUrl, directBody);
           setContract(data);
+          setSuccessMessage(getSuccessMessage(actionKey, copy));
           return;
         }
 
@@ -219,6 +224,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
         }
 
         setContract(confirmed.contract);
+        setSuccessMessage(getSuccessMessage(actionKey, copy));
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : messages.errors.escrowActionFailed);
       } finally {
@@ -226,6 +232,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       }
     },
     [
+      copy,
       messages.errors.confirmedTransactionMissingContract,
       messages.errors.escrowActionFailed,
       messages.errors.preparedTransactionMissing,
@@ -313,6 +320,11 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       </div>
 
       {error ? <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+      {!error && successMessage ? (
+        <p className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+          {successMessage}
+        </p>
+      ) : null}
 
       {isLoading || !contract ? (
         <Card>{copy.loadingTitle}...</Card>
@@ -628,6 +640,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
               contract={contract}
               walletAddress={walletAddress}
               onContractUpdate={setContract}
+              onStatusMessage={setSuccessMessage}
             />
             <Card>
               <h2 className="mb-4 text-lg font-semibold">{copy.timeline}</h2>
@@ -638,6 +651,63 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       )}
     </div>
   );
+}
+
+type ContractDetailCopy = {
+  applicationSubmitted: string;
+  workerSelected: string;
+  contractFunded: string;
+  proofSubmitted: string;
+  milestoneApproved: string;
+  revisionRequested: string;
+  paymentReleased: string;
+  visibilityUpdated: string;
+  projectCancelled: string;
+  disputeOpened: string;
+};
+
+function getSuccessMessage(actionKey: string, copy: ContractDetailCopy) {
+  if (actionKey === "claim") {
+    return copy.applicationSubmitted;
+  }
+
+  if (actionKey.startsWith("accept-claim-")) {
+    return copy.workerSelected;
+  }
+
+  if (actionKey === "fund") {
+    return copy.contractFunded;
+  }
+
+  if (actionKey.startsWith("submit-")) {
+    return copy.proofSubmitted;
+  }
+
+  if (actionKey.startsWith("approve-")) {
+    return copy.milestoneApproved;
+  }
+
+  if (actionKey.startsWith("revision-")) {
+    return copy.revisionRequested;
+  }
+
+  if (actionKey.startsWith("release-")) {
+    return copy.paymentReleased;
+  }
+
+  if (actionKey === "visibility") {
+    return copy.visibilityUpdated;
+  }
+
+  if (actionKey === "cancel") {
+    return copy.projectCancelled;
+  }
+
+  if (actionKey.startsWith("dispute-")) {
+    return copy.disputeOpened;
+  }
+
+  return "";
 }
 
 function WalletLine({

@@ -17,12 +17,19 @@ export function serializeSessionUserProfile(profile: {
   displayName: string | null;
   email: string | null;
   bio: string | null;
+  createdAt: Date;
+  _count: {
+    createdContracts: number;
+    workedContracts: number;
+  };
 }): SerializedSessionUserProfile {
   return {
     walletAddress: profile.walletAddress,
     displayName: profile.displayName?.trim() || null,
     email: profile.email?.trim() || null,
-    bio: profile.bio?.trim() || null
+    bio: profile.bio?.trim() || null,
+    completedContractsCount: profile._count.createdContracts + profile._count.workedContracts,
+    joinedAt: profile.createdAt.toISOString()
   };
 }
 
@@ -55,7 +62,22 @@ export async function getSessionUserProfile(walletAddress: string) {
       walletAddress: true,
       displayName: true,
       email: true,
-      bio: true
+      bio: true,
+      createdAt: true,
+      _count: {
+        select: {
+          createdContracts: {
+            where: {
+              status: "completed"
+            }
+          },
+          workedContracts: {
+            where: {
+              status: "completed"
+            }
+          }
+        }
+      }
     }
   });
 
@@ -100,7 +122,22 @@ export async function updateSessionUserProfile(input: {
       walletAddress: true,
       displayName: true,
       email: true,
-      bio: true
+      bio: true,
+      createdAt: true,
+      _count: {
+        select: {
+          createdContracts: {
+            where: {
+              status: "completed"
+            }
+          },
+          workedContracts: {
+            where: {
+              status: "completed"
+            }
+          }
+        }
+      }
     }
   });
 

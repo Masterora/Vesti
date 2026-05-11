@@ -51,6 +51,9 @@ model User {
   bio           String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  createdContracts Contract[] @relation("UserCreatedContracts")
+  workedContracts  Contract[] @relation("UserWorkedContracts")
 }
 
 model WalletAuthChallenge {
@@ -83,10 +86,12 @@ model Contract {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  milestones Milestone[]
-  events     Event[]
-  comments   ContractComment[]
-  applications ContractApplication[]
+  milestones    Milestone[]
+  events        Event[]
+  comments      ContractComment[]
+  applications  ContractApplication[]
+  creatorUser   User?         @relation("UserCreatedContracts", fields: [creatorWallet], references: [walletAddress], onDelete: NoAction, onUpdate: Cascade)
+  workerUser    User?         @relation("UserWorkedContracts", fields: [workerWallet], references: [walletAddress], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([creatorWallet])
   @@index([workerWallet])

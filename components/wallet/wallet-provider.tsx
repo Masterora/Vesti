@@ -156,6 +156,13 @@ function formatWalletActionError(error: unknown, locale: Locale) {
     return translateErrorMessage(locale, "You canceled the signature. Contract state did not change.");
   }
 
+  if (/insufficient funds/i.test(message)) {
+    return translateErrorMessage(
+      locale,
+      "The creator wallet does not have enough USDC balance to finish this transaction."
+    );
+  }
+
   if (error instanceof SendTransactionError) {
     return translateErrorMessage(locale, "The transaction failed on-chain. Contract state did not change.");
   }

@@ -17,6 +17,7 @@ type ContractDiscussionProps = {
   contract: SerializedContract;
   walletAddress: string;
   onContractUpdate: (contract: SerializedContract) => void;
+  onStatusMessage?: (message: string) => void;
 };
 
 type DiscussionRole = "creator" | "worker" | "applicant" | "viewer";
@@ -56,7 +57,8 @@ function getRoleTextClass(role: DiscussionRole) {
 export function ContractDiscussion({
   contract,
   walletAddress,
-  onContractUpdate
+  onContractUpdate,
+  onStatusMessage
 }: ContractDiscussionProps) {
   const { messages } = useLocale();
   const copy = messages.contractDetail;
@@ -86,6 +88,7 @@ export function ContractDiscussion({
       });
 
       onContractUpdate(updated);
+      onStatusMessage?.(copy.commentPosted);
       setDraft("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : messages.errors.failedToPostComment);
