@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { amountSchema, optionalDateSchema, walletAddressSchema } from "./shared";
 
+const tagSchema = z.string().trim().min(1, "Tag is required").max(24, "Tag is too long");
+
 export const milestoneInputSchema = z.object({
   title: z.string().trim().min(1, "Milestone title is required"),
   description: z.string().trim().optional(),
@@ -13,13 +15,15 @@ export const createContractSchema = z.object({
   workerWallet: walletAddressSchema.optional(),
   title: z.string().trim().min(1, "Contract title is required"),
   description: z.string().trim().optional(),
+  tags: z.array(tagSchema).max(8, "Use up to 8 tags").optional(),
   isPublic: z.boolean().optional(),
   totalAmount: amountSchema,
   milestones: z.array(milestoneInputSchema).min(1, "At least one milestone is required")
 });
 
 export const listContractsSchema = z.object({
-  walletAddress: walletAddressSchema.optional()
+  walletAddress: walletAddressSchema.optional(),
+  query: z.string().trim().max(80).optional()
 });
 
 export const getContractSchema = z.object({

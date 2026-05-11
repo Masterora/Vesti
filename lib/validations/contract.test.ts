@@ -12,6 +12,7 @@ describe("contract validation", () => {
       createContractSchema.parse({
         creatorWallet: "creator_wallet",
         title: "Open project",
+        tags: ["solana", "frontend"],
         totalAmount: "100",
         milestones: [
           {
@@ -28,6 +29,16 @@ describe("contract validation", () => {
 
   it("accepts contract list requests without a wallet filter", () => {
     expect(listContractsSchema.parse({})).toEqual({});
+  });
+
+  it("accepts an optional title-or-tag search query", () => {
+    expect(
+      listContractsSchema.parse({
+        query: "solana"
+      })
+    ).toEqual({
+      query: "solana"
+    });
   });
 
   it("requires wallet addresses for claim and accept-claim actions", () => {

@@ -10,11 +10,9 @@ import { shortenWallet } from "@/lib/utils";
 import type { SerializedContract } from "@/types/contract";
 
 export function ContractList({
-  contracts,
-  walletAddress
+  contracts
 }: {
   contracts: SerializedContract[];
-  walletAddress: string;
 }) {
   const { locale, messages } = useLocale();
 
@@ -35,14 +33,7 @@ export function ContractList({
   return (
     <div className="grid gap-4">
       {contracts.map((contract) => {
-        const role =
-          walletAddress === contract.creatorWallet
-            ? messages.contractList.creator
-            : walletAddress === contract.workerWallet
-              ? messages.contractList.worker
-              : walletAddress === contract.requestedWorkerWallet
-                ? messages.contractList.applicant
-              : messages.contractList.viewer;
+        const tags = contract.tags ?? [];
         const milestoneCount =
           locale === "zh"
             ? `${contract.milestones.length}${messages.contractList.milestones}`
@@ -61,19 +52,30 @@ export function ContractList({
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-xl font-semibold">{contract.title}</h2>
                     <Badge value={contract.status} />
-                    <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-                      {role}
-                    </span>
-                    <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-                      {contract.isPublic ? messages.contractList.public : messages.contractList.private}
-                    </span>
+                    <Badge
+                      value={contract.isPublic ? "public" : "private"}
+                      label={contract.isPublic ? messages.contractList.public : messages.contractList.private}
+                    />
                   </div>
                   <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
                     {contract.description || messages.contractList.noDescription}
                   </p>
+                  {tags.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {tags.map((tag) => (
+                        <Badge key={tag} value="public" label={`#${tag}`} className="font-medium" />
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                    <span>{messages.contractList.creator} {shortenWallet(contract.creatorWallet)}</span>
-                    <span>{messages.contractList.worker} {workerLabel}</span>
+                    <span>
+                      <span className="font-semibold text-blue-700">{messages.contractList.creator}</span>{" "}
+                      {shortenWallet(contract.creatorWallet)}
+                    </span>
+                    <span>
+                      <span className="font-semibold text-emerald-700">{messages.contractList.worker}</span>{" "}
+                      {workerLabel}
+                    </span>
                     <span>{milestoneCount}</span>
                   </div>
                 </div>

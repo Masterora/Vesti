@@ -2,6 +2,7 @@
 
 import { LogOut, UserRound, Wallet } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { Badge } from "@/components/ui/badge";
 import { useWallet } from "./wallet-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +48,11 @@ export function WalletBar() {
         ) : isAuthenticated && sessionWalletAddress ? (
           <div className="hidden min-w-0 items-center gap-2 rounded-md border border-border bg-white px-3 py-1.5 md:flex">
             <UserRound className="size-4 text-muted-foreground" aria-hidden="true" />
-            <span className="max-w-52 truncate text-sm text-muted-foreground" title={sessionWalletAddress ?? undefined}>
+            <Badge value="connected" label={messages.wallet.connectedWallet} />
+            <span
+              className="max-w-52 truncate text-sm font-medium text-foreground"
+              title={sessionWalletAddress ?? undefined}
+            >
               {shortenWallet(sessionWalletAddress)}
             </span>
           </div>
@@ -97,15 +102,6 @@ export function WalletBar() {
               {messages.wallet.demoWorker}
             </Button>
           </div>
-        ) : null}
-        {isAuthenticated ? (
-          <span className="hidden text-xs text-muted-foreground lg:inline">
-            {messages.wallet.signed} {shortenWallet(sessionWalletAddress ?? walletAddress)}
-          </span>
-        ) : demoWalletsEnabled && walletAddress ? (
-          <span className="hidden text-xs text-muted-foreground lg:inline">
-            {messages.wallet.demo} {shortenWallet(walletAddress)}
-          </span>
         ) : null}
       </div>
       {authError ? <p className="max-w-sm text-right text-xs text-danger">{authError}</p> : null}

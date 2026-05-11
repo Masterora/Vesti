@@ -13,7 +13,8 @@ export async function POST(request: Request) {
           resolveOptionalRequestWallet(
             request,
             typeof body.walletAddress === "string" ? body.walletAddress : undefined
-          ) ?? undefined
+          ) ?? undefined,
+        query: typeof body.query === "string" ? body.query : undefined
       })
     );
   });

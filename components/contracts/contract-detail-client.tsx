@@ -106,6 +106,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
 
     return "viewer";
   }, [contract, walletAddress]);
+  const contractTags = contract?.tags ?? [];
 
   const loadContract = useCallback(async () => {
     if (!contractId) {
@@ -313,24 +314,11 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
             <Card>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge value={contract.status} />
-                <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-                  {role === "creator"
-                    ? copy.creator
-                    : role === "worker"
-                      ? copy.worker
-                      : role === "applicant"
-                        ? copy.applicant
-                        : copy.viewer}
-                </span>
-                <span className="rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
-                  {contract.isPublic ? copy.public : copy.private}
-                </span>
+                <Badge
+                  value={contract.isPublic ? "public" : "private"}
+                  label={contract.isPublic ? copy.public : copy.private}
+                />
               </div>
-              {contract.isPublic ? (
-                <p className="mt-4 rounded-lg border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-800">
-                  {copy.publicNotice}
-                </p>
-              ) : null}
               {contract.status === "open" ? (
                 <p className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm text-sky-800">
                   {copy.openNotice}
@@ -349,11 +337,19 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
               <p className="mt-4 text-sm leading-6 text-muted-foreground">
                 {contract.description || copy.noDescription}
               </p>
+              {contractTags.length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {contractTags.map((tag) => (
+                    <Badge key={tag} value="public" label={`#${tag}`} className="font-medium" />
+                  ))}
+                </div>
+              ) : null}
               <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
-                <WalletLine label={copy.creator} wallet={contract.creatorWallet} />
+                <WalletLine label={copy.creator} wallet={contract.creatorWallet} tone="creator" />
                 <WalletLine
                   label={contract.workerWallet ? copy.worker : contract.requestedWorkerWallet ? copy.applicant : copy.worker}
                   wallet={contract.workerWallet ?? contract.requestedWorkerWallet}
+                  tone={contract.requestedWorkerWallet && !contract.workerWallet ? "applicant" : "worker"}
                   emptyLabel={
                     contract.requestedWorkerWallet ? copy.pendingWorker : copy.unassignedWorker
                   }
@@ -589,17 +585,28 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
 function WalletLine({
   label,
   wallet,
-  emptyLabel
+  emptyLabel,
+  tone
 }: {
   label: string;
   wallet?: string | null;
   emptyLabel?: string;
+  tone?: "creator" | "worker" | "applicant";
 }) {
+  const labelToneClass =
+    tone === "creator"
+      ? "text-blue-700"
+      : tone === "worker"
+        ? "text-emerald-700"
+        : tone === "applicant"
+          ? "text-amber-700"
+          : "text-muted-foreground";
+
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-lg bg-muted p-3">
       <Wallet className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       <div className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className={`text-xs font-semibold uppercase tracking-wide ${labelToneClass}`}>{label}</p>
         <p className="truncate font-medium" title={wallet ?? emptyLabel}>
           {wallet ? shortenWallet(wallet) : emptyLabel}
         </p>

@@ -13,6 +13,13 @@ export async function createContract(input: CreateContractInput) {
   const creatorWallet = input.creatorWallet.trim();
   const workerWallet = input.workerWallet?.trim() || null;
   const hasAssignedWorker = Boolean(workerWallet);
+  const tags = Array.from(
+    new Set(
+      (input.tags ?? [])
+        .map((tag) => tag.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
 
   if (workerWallet && creatorWallet === workerWallet) {
     throw new ServiceError("Creator and Worker wallets must be different");
@@ -49,6 +56,7 @@ export async function createContract(input: CreateContractInput) {
         workerWallet,
         title: input.title,
         description: input.description || null,
+        tags,
         isPublic: input.isPublic ?? !hasAssignedWorker,
         totalAmount,
         status: hasAssignedWorker ? "draft" : "open",
@@ -77,6 +85,7 @@ export async function createContract(input: CreateContractInput) {
         title: contract.title,
         totalAmount: contract.totalAmount.toString(),
         milestoneCount: contract.milestones.length,
+        tags: contract.tags,
         isPublic: contract.isPublic,
         status: contract.status
       }

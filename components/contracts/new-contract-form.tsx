@@ -75,6 +75,7 @@ export function NewContractForm() {
   const contractCopy = messages.newContract;
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
+  const [tagsInput, setTagsInput] = useState<string>("");
   const [isPublic, setIsPublic] = useState(true);
   const [totalAmount, setTotalAmount] = useState<string>("");
   const [milestones, setMilestones] = useState<MilestoneDraft[]>(() => [createEmptyMilestone()]);
@@ -122,6 +123,14 @@ export function NewContractForm() {
         creatorWallet: walletAddress,
         title,
         description,
+        tags: Array.from(
+          new Set(
+            tagsInput
+              .split(",")
+              .map((tag) => tag.trim())
+              .filter(Boolean)
+          )
+        ),
         isPublic,
         totalAmount,
         milestones: milestones.map((milestone) => ({
@@ -163,6 +172,15 @@ export function NewContractForm() {
                 value={description}
                 placeholder={contractCopy.descriptionPlaceholder}
                 onChange={(event) => setDescription(event.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="tags">{contractCopy.tagsLabel}</Label>
+              <Input
+                id="tags"
+                value={tagsInput}
+                placeholder={contractCopy.tagsPlaceholder}
+                onChange={(event) => setTagsInput(event.target.value)}
               />
             </div>
             <div className="grid gap-2">

@@ -5,6 +5,14 @@ import { getBadgeLabel } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
 const toneByStatus: Record<string, string> = {
+  creator: "bg-blue-100 text-blue-800",
+  worker: "bg-emerald-100 text-emerald-800",
+  applicant: "bg-amber-100 text-amber-800",
+  viewer: "bg-zinc-100 text-zinc-700",
+  public: "bg-fuchsia-100 text-fuchsia-800",
+  private: "bg-slate-200 text-slate-800",
+  connected: "bg-indigo-100 text-indigo-800",
+  demo: "bg-zinc-100 text-zinc-700",
   open: "bg-sky-100 text-sky-800",
   claimed: "bg-amber-100 text-amber-800",
   draft: "bg-muted text-muted-foreground",
@@ -20,7 +28,15 @@ const toneByStatus: Record<string, string> = {
   released: "bg-emerald-100 text-emerald-800"
 };
 
-export function Badge({ value, className }: { value: string; className?: string }) {
+export function Badge({
+  value,
+  className,
+  label
+}: {
+  value: string;
+  className?: string;
+  label?: string;
+}) {
   const { locale } = useLocale();
 
   return (
@@ -31,7 +47,7 @@ export function Badge({ value, className }: { value: string; className?: string 
         className
       )}
     >
-      {getBadgeLabel(locale, value)}
+      {label ?? getBadgeLabel(locale, value)}
     </span>
   );
 }
