@@ -110,7 +110,13 @@ export function NewContractForm() {
   };
 
   const removeMilestone = (index: number) => {
-    setMilestones((current) => current.filter((_, currentIndex) => currentIndex !== index));
+    setMilestones((current) => {
+      if (current.length <= 1) {
+        return current;
+      }
+
+      return current.filter((_, currentIndex) => currentIndex !== index);
+    });
   };
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {

@@ -43,6 +43,11 @@ export const cancelContractSchema = z.object({
   reason: z.string().trim().max(500).optional()
 });
 
+export const deleteContractSchema = z.object({
+  contractId: z.string().trim().min(1),
+  walletAddress: walletAddressSchema
+});
+
 export const updateContractVisibilitySchema = z.object({
   contractId: z.string().trim().min(1),
   walletAddress: walletAddressSchema,
@@ -60,6 +65,12 @@ export const acceptContractClaimSchema = z.object({
   applicantWallet: walletAddressSchema
 });
 
+export const renameContractSchema = z.object({
+  contractId: z.string().trim().min(1),
+  walletAddress: walletAddressSchema,
+  title: z.string().trim().min(1, "Contract title is required").max(120, "Contract title is too long")
+});
+
 export const createContractCommentSchema = z.object({
   contractId: z.string().trim().min(1),
   walletAddress: walletAddressSchema,
@@ -71,7 +82,9 @@ export type ListContractsInput = z.infer<typeof listContractsSchema>;
 export type GetContractInput = z.infer<typeof getContractSchema>;
 export type FundContractInput = z.infer<typeof fundContractSchema>;
 export type CancelContractInput = z.infer<typeof cancelContractSchema>;
+export type DeleteContractInput = z.infer<typeof deleteContractSchema>;
 export type UpdateContractVisibilityInput = z.infer<typeof updateContractVisibilitySchema>;
 export type ClaimContractInput = z.infer<typeof claimContractSchema>;
 export type AcceptContractClaimInput = z.infer<typeof acceptContractClaimSchema>;
 export type CreateContractCommentInput = z.infer<typeof createContractCommentSchema>;
+export type RenameContractInput = z.infer<typeof renameContractSchema>;

@@ -55,6 +55,7 @@ export type SerializedContractApplication = {
 
 export type SerializedContract = {
   id: string;
+  displayId: string;
   creatorWallet: string;
   workerWallet: string | null;
   requestedWorkerWallet: string | null;

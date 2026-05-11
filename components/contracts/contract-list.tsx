@@ -89,6 +89,9 @@ export function ContractList({
                   <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
                     {contract.description || messages.contractList.noDescription}
                   </p>
+                  <p className="mt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {messages.contractList.idLabel} {contract.displayId}
+                  </p>
                   {nextStepHint ? (
                     <p className="mt-3 text-sm font-medium text-primary">{nextStepHint}</p>
                   ) : null}

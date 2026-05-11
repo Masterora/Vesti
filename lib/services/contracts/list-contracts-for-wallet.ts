@@ -3,12 +3,14 @@ import type { ContractStatus, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { serializeContract } from "@/lib/services/serialize";
 import { getPublicUserProfilesByWallets } from "@/lib/services/user-profiles";
+import { parseContractDisplayId } from "@/lib/utils";
 import type { ListContractsInput } from "@/lib/validations/contract";
 
 export async function listContractsForWallet(input: ListContractsInput) {
   const walletAddress = input.walletAddress?.trim();
   const query = input.query?.trim();
   const status = input.status;
+  const displayIdQuery = query ? parseContractDisplayId(query) : null;
   const publicStatuses: ContractStatus[] = ["open", "claimed"];
   const visibilityWhere: Prisma.ContractWhereInput = {
     OR: [
@@ -46,6 +48,15 @@ export async function listContractsForWallet(input: ListContractsInput) {
               mode: "insensitive"
             }
           },
+          ...(displayIdQuery
+            ? [
+                {
+                  id: {
+                    startsWith: displayIdQuery
+                  }
+                }
+              ]
+            : []),
           ...queryTerms.map((term) => ({
             tags: {
               has: term

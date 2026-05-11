@@ -4,7 +4,9 @@ import {
   claimContractSchema,
   createContractCommentSchema,
   createContractSchema,
-  listContractsSchema
+  deleteContractSchema,
+  listContractsSchema,
+  renameContractSchema
 } from "./contract";
 
 describe("contract validation", () => {
@@ -97,6 +99,36 @@ describe("contract validation", () => {
         applicantWallet: ""
       })
     ).toThrow("Wallet address is required");
+  });
+
+  it("validates delete and rename contract actions", () => {
+    expect(
+      deleteContractSchema.parse({
+        contractId: "contract_123",
+        walletAddress: "creator_wallet"
+      })
+    ).toMatchObject({
+      contractId: "contract_123",
+      walletAddress: "creator_wallet"
+    });
+
+    expect(
+      renameContractSchema.parse({
+        contractId: "contract_123",
+        walletAddress: "creator_wallet",
+        title: "Renamed contract"
+      })
+    ).toMatchObject({
+      title: "Renamed contract"
+    });
+
+    expect(() =>
+      renameContractSchema.parse({
+        contractId: "contract_123",
+        walletAddress: "creator_wallet",
+        title: "   "
+      })
+    ).toThrow("Contract title is required");
   });
 
   it("validates contract discussion comments", () => {

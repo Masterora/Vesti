@@ -52,6 +52,12 @@ const exactZhMessages: Record<string, string> = {
   "Selected applicant was not found on this contract": "当前项目中没有找到这位申请方。",
   "Assigned Worker wallet is required before funding": "需要先确认乙方后才能注资。",
   "Assigned Worker wallet is required before release": "需要先确认乙方后才能放款。",
+  "Only the Creator can delete this contract": "只有甲方可以删除这个项目。",
+  "Only projects without an assigned Worker can be deleted": "只有还没接单的项目可以删除。",
+  "Only open or claimed projects can be deleted": "只有待申请或审核中的项目可以删除。",
+  "Only the Creator can rename this contract": "只有甲方可以重命名这个项目。",
+  "Only open, claimed, draft, active, or disputed contracts can be renamed":
+    "只有待申请、审核中、草稿、进行中或争议中的项目可以重命名。",
   "Milestone amounts must add up to the contract total": "所有里程碑金额之和必须等于合同总额。",
   "Only the Creator can fund this contract": "只有甲方可以为这个合同注资。",
   "Only draft contracts can be funded": "只有草稿状态的合同可以注资。",

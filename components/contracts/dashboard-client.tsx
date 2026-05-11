@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { RefreshCw, Search } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -23,12 +24,15 @@ async function fetchContracts(walletAddress?: string, query?: string, status?: D
 
 export function DashboardClient() {
   const { messages } = useLocale();
+  const searchParams = useSearchParams();
   const { walletAddress } = useWallet();
   const [contracts, setContracts] = useState<SerializedContract[]>([]);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DashboardStatusFilter>("all");
+  const successMessage =
+    searchParams.get("deleted") === "1" ? messages.contractDetail.projectDeleted : "";
 
   const filterOptions: Array<{ value: DashboardStatusFilter; label: string }> = [
     { value: "all", label: messages.dashboard.filterAll },
@@ -128,6 +132,11 @@ export function DashboardClient() {
       </div>
 
       {error ? <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+      {!error && successMessage ? (
+        <p className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+          {successMessage}
+        </p>
+      ) : null}
       {isLoading ? (
         <div className="rounded-lg border border-border bg-white p-8 text-sm text-muted-foreground">
           {messages.dashboard.loading}

@@ -7,6 +7,7 @@ import type {
   ProofSubmission
 } from "@prisma/client";
 import { getPublicUserProfilesByWallets } from "@/lib/services/user-profiles";
+import { formatContractDisplayId } from "@/lib/utils";
 import type { SerializedPublicUserProfile } from "@/types/profile";
 
 type MilestoneWithProofs = Milestone & {
@@ -81,6 +82,7 @@ export function serializeContract(
 ) {
   return {
     ...contract,
+    displayId: formatContractDisplayId(contract.id),
     isPublic: contract.isPublic,
     tags: contract.tags,
     workerWallet: contract.workerWallet,

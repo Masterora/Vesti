@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Check,
   CircleDollarSign,
   Ban,
+  PencilLine,
   Eye,
   EyeOff,
   ExternalLink,
   RefreshCw,
+  Trash2,
   RotateCcw,
   Send,
   Wallet
@@ -79,10 +82,12 @@ async function fetchContract(contractId: string, walletAddress: string) {
 }
 
 export function ContractDetailClient({ contractId }: ContractDetailClientProps) {
+  const router = useRouter();
   const { locale, messages } = useLocale();
   const { walletAddress, signAndSendPreparedTransaction } = useWallet();
   const copy = messages.contractDetail;
   const [contract, setContract] = useState<SerializedContract | null>(null);
+  const [titleDraft, setTitleDraft] = useState("");
   const [proofDrafts, setProofDrafts] = useState<Record<string, ProofDraft>>({});
   const [revisionDrafts, setRevisionDrafts] = useState<Record<string, string>>({});
   const [disputeDrafts, setDisputeDrafts] = useState<Record<string, string>>({});
@@ -128,6 +133,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
     try {
       const data = await fetchContract(contractId, walletAddress);
       setContract(data);
+      setTitleDraft(data.title);
       setError("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : messages.errors.failedToLoadContract);
@@ -149,6 +155,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
 
         if (isCurrent) {
           setContract(data);
+          setTitleDraft(data.title);
           setError("");
         }
       } catch (caught) {
@@ -177,6 +184,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
     try {
       const data = await postJson<SerializedContract>(url, body);
       setContract(data);
+      setTitleDraft(data.title);
       setSuccessMessage(getSuccessMessage(actionKey, copy));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : messages.errors.actionFailed);
@@ -205,6 +213,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
         if (prepared.canUseDirectAction) {
           const data = await postJson<SerializedContract>(directUrl, directBody);
           setContract(data);
+          setTitleDraft(data.title);
           setSuccessMessage(getSuccessMessage(actionKey, copy));
           return;
         }
@@ -224,6 +233,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
         }
 
         setContract(confirmed.contract);
+        setTitleDraft(confirmed.contract.title);
         setSuccessMessage(getSuccessMessage(actionKey, copy));
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : messages.errors.escrowActionFailed);
@@ -288,6 +298,24 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
     });
   };
 
+  const deleteProject = async () => {
+    setActiveAction("delete");
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      await postJson<{ deleted: boolean; contractId: string }>("/api/contracts/delete", {
+        contractId,
+        walletAddress
+      });
+      router.push("/dashboard?deleted=1");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : messages.errors.actionFailed);
+    } finally {
+      setActiveAction("");
+    }
+  };
+
   if (!contractId) {
     return (
       <div className="page-shell py-10">
@@ -307,6 +335,11 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
           <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
             {contract?.title ?? copy.loadingTitle}
           </h1>
+          {contract ? (
+            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {copy.idLabel} {contract.displayId}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="secondary" onClick={loadContract} disabled={isLoading}>
@@ -353,6 +386,36 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                 <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
                   {copy.matchedNotice}
                 </p>
+              ) : null}
+              {role === "creator" &&
+              ["open", "claimed", "draft", "active", "disputed"].includes(contract.status) ? (
+                <div className="mt-5 rounded-lg border border-border bg-muted/40 p-4">
+                  <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                    <div className="grid gap-2">
+                      <Label>{copy.titleLabel}</Label>
+                      <Input
+                        value={titleDraft}
+                        onChange={(event) => setTitleDraft(event.target.value)}
+                        placeholder={copy.titleLabel}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      className="w-full sm:w-auto"
+                      onClick={() =>
+                        runAction("rename", "/api/contracts/rename", {
+                          contractId: contract.id,
+                          walletAddress,
+                          title: titleDraft
+                        })
+                      }
+                      disabled={!titleDraft.trim() || titleDraft.trim() === contract.title || activeAction === "rename"}
+                    >
+                      <PencilLine className="mr-2 size-4" aria-hidden="true" />
+                      {activeAction === "rename" ? copy.renamingTitle : copy.renameTitle}
+                    </Button>
+                  </div>
+                </div>
               ) : null}
               <p className="mt-4 text-sm leading-6 text-muted-foreground">
                 {contract.description || copy.noDescription}
@@ -468,6 +531,17 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                       />
                     </div>
                     <div className="flex flex-wrap gap-2">
+                      {!contract.workerWallet ? (
+                        <Button
+                          type="button"
+                          variant="danger"
+                          onClick={() => void deleteProject()}
+                          disabled={activeAction === "delete"}
+                        >
+                          <Trash2 className="mr-2 size-4" aria-hidden="true" />
+                          {activeAction === "delete" ? copy.deletingProject : copy.deleteProject}
+                        </Button>
+                      ) : null}
                       {contract.status === "draft" ? (
                         <Button
                           type="button"
@@ -497,21 +571,23 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                           {activeAction === "fund" ? copy.funding : copy.fundContract}
                         </Button>
                       ) : null}
-                      <Button
-                        type="button"
-                        variant="danger"
-                        onClick={() =>
-                          runAction("cancel", "/api/contracts/cancel", {
-                            contractId: contract.id,
-                            walletAddress,
-                            reason: cancelReason || undefined
-                          })
-                        }
-                        disabled={activeAction === "cancel"}
-                      >
-                        <Ban className="mr-2 size-4" aria-hidden="true" />
-                        {activeAction === "cancel" ? copy.cancelling : copy.cancelDraft}
-                      </Button>
+                      {contract.workerWallet ? (
+                        <Button
+                          type="button"
+                          variant="danger"
+                          onClick={() =>
+                            runAction("cancel", "/api/contracts/cancel", {
+                              contractId: contract.id,
+                              walletAddress,
+                              reason: cancelReason || undefined
+                            })
+                          }
+                          disabled={activeAction === "cancel"}
+                        >
+                          <Ban className="mr-2 size-4" aria-hidden="true" />
+                          {activeAction === "cancel" ? copy.cancelling : copy.cancelDraft}
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -662,6 +738,7 @@ type ContractDetailCopy = {
   revisionRequested: string;
   paymentReleased: string;
   visibilityUpdated: string;
+  titleRenamed: string;
   projectCancelled: string;
   disputeOpened: string;
 };
@@ -697,6 +774,10 @@ function getSuccessMessage(actionKey: string, copy: ContractDetailCopy) {
 
   if (actionKey === "visibility") {
     return copy.visibilityUpdated;
+  }
+
+  if (actionKey === "rename") {
+    return copy.titleRenamed;
   }
 
   if (actionKey === "cancel") {

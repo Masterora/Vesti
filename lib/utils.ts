@@ -24,6 +24,28 @@ export function shortenWallet(wallet: string) {
   return `${wallet.slice(0, 6)}...${wallet.slice(-6)}`;
 }
 
+const contractDisplayIdPrefix = "VESTI-";
+
+export function formatContractDisplayId(contractId: string) {
+  return `${contractDisplayIdPrefix}${contractId.slice(0, 8).toUpperCase()}`;
+}
+
+export function parseContractDisplayId(query: string) {
+  const trimmed = query.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  const normalized = trimmed.toUpperCase();
+
+  if (normalized.startsWith(contractDisplayIdPrefix)) {
+    return normalized.slice(contractDisplayIdPrefix.length).toLowerCase();
+  }
+
+  return null;
+}
+
 function pad2(value: number) {
   return String(value).padStart(2, "0");
 }
