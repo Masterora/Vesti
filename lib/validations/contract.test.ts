@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   acceptContractClaimSchema,
   claimContractSchema,
+  createContractCommentSchema,
   createContractSchema,
   listContractsSchema
 } from "./contract";
@@ -75,5 +76,26 @@ describe("contract validation", () => {
         walletAddress: ""
       })
     ).toThrow("Wallet address is required");
+  });
+
+  it("validates contract discussion comments", () => {
+    expect(
+      createContractCommentSchema.parse({
+        contractId: "contract_123",
+        walletAddress: "worker_wallet",
+        body: "Can you clarify the acceptance criteria for milestone 2?"
+      })
+    ).toMatchObject({
+      contractId: "contract_123",
+      walletAddress: "worker_wallet"
+    });
+
+    expect(() =>
+      createContractCommentSchema.parse({
+        contractId: "contract_123",
+        walletAddress: "worker_wallet",
+        body: "   "
+      })
+    ).toThrow("Comment is required");
   });
 });

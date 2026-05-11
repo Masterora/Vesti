@@ -19,6 +19,9 @@ export async function getContractById(input: GetContractInput) {
         },
         events: {
           orderBy: { createdAt: "desc" }
+        },
+        comments: {
+          orderBy: { createdAt: "asc" }
         }
       }
     }),
@@ -28,7 +31,8 @@ export async function getContractById(input: GetContractInput) {
   const role = getContractRole({
     walletAddress: input.walletAddress,
     creatorWallet: contract.creatorWallet,
-    workerWallet: contract.workerWallet
+    workerWallet: contract.workerWallet,
+    requestedWorkerWallet: contract.requestedWorkerWallet
   });
 
   assertAllowed(

@@ -7,6 +7,7 @@ const exactErrorMap: Record<string, keyof typeof messages.en.errors> = {
   "Failed to create contract": "failedToCreateContract",
   "Failed to claim project": "failedToClaimContract",
   "Failed to accept worker claim": "failedToAcceptClaim",
+  "Failed to post comment": "failedToPostComment",
   "Prepared Solana transaction is missing": "preparedTransactionMissing",
   "Confirmed transaction did not return an updated contract": "confirmedTransactionMissingContract",
   "Escrow action failed": "escrowActionFailed",
@@ -60,6 +61,8 @@ const exactZhMessages: Record<string, string> = {
   "Contract must be active before revision requests": "合同必须处于进行中状态后才能要求修改。",
   "Only submitted milestones can be sent back for revision": "只有待审核的里程碑可以被退回修改。",
   "Only the Creator or Worker can open a dispute": "只有甲方或乙方可以发起争议。",
+  "Only public viewers or contract participants can comment on this contract":
+    "只有公开合同的访客或当前合同参与方可以留言。",
   "Only active contracts can enter dispute": "只有进行中的合同可以进入争议流程。",
   "This milestone cannot enter dispute from its current status": "当前里程碑状态不能发起争议。",
   "Contract must be active before release": "合同必须处于进行中状态后才能放款。",

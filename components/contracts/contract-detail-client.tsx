@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { ContractProgress } from "@/components/contracts/contract-progress";
+import { ContractDiscussion } from "@/components/contracts/contract-discussion";
 import { EventTimeline } from "@/components/timeline/event-timeline";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { postJson } from "@/lib/api/client";
@@ -571,6 +572,11 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
           </div>
 
           <aside className="space-y-6 lg:sticky lg:top-24 lg:h-max">
+            <ContractDiscussion
+              contract={contract}
+              walletAddress={walletAddress}
+              onContractUpdate={setContract}
+            />
             <Card>
               <h2 className="mb-4 text-lg font-semibold">{copy.timeline}</h2>
               <EventTimeline events={contract.events} />

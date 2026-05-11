@@ -82,11 +82,26 @@ model Contract {
 
   milestones Milestone[]
   events     Event[]
+  comments   ContractComment[]
 
   @@index([creatorWallet])
   @@index([workerWallet])
   @@index([requestedWorkerWallet])
   @@index([status])
+}
+
+model ContractComment {
+  id           String   @id @default(cuid())
+  contractId   String
+  authorWallet String
+  body         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId, createdAt])
+  @@index([authorWallet])
 }
 
 model Milestone {

@@ -58,6 +58,12 @@ export const acceptContractClaimSchema = z.object({
   walletAddress: walletAddressSchema
 });
 
+export const createContractCommentSchema = z.object({
+  contractId: z.string().trim().min(1),
+  walletAddress: walletAddressSchema,
+  body: z.string().trim().min(1, "Comment is required").max(1000, "Comment is too long")
+});
+
 export type CreateContractInput = z.infer<typeof createContractSchema>;
 export type ListContractsInput = z.infer<typeof listContractsSchema>;
 export type GetContractInput = z.infer<typeof getContractSchema>;
@@ -66,3 +72,4 @@ export type CancelContractInput = z.infer<typeof cancelContractSchema>;
 export type UpdateContractVisibilityInput = z.infer<typeof updateContractVisibilitySchema>;
 export type ClaimContractInput = z.infer<typeof claimContractSchema>;
 export type AcceptContractClaimInput = z.infer<typeof acceptContractClaimSchema>;
+export type CreateContractCommentInput = z.infer<typeof createContractCommentSchema>;

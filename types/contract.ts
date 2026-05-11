@@ -35,6 +35,15 @@ export type SerializedEvent = {
   createdAt: string;
 };
 
+export type SerializedContractComment = {
+  id: string;
+  contractId: string;
+  authorWallet: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type SerializedContract = {
   id: string;
   creatorWallet: string;
@@ -53,4 +62,5 @@ export type SerializedContract = {
   updatedAt: string;
   milestones: SerializedMilestone[];
   events?: SerializedEvent[];
+  comments?: SerializedContractComment[];
 };

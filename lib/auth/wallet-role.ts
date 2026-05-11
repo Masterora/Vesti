@@ -1,9 +1,10 @@
-export type ContractRole = "creator" | "worker" | "viewer";
+export type ContractRole = "creator" | "worker" | "applicant" | "viewer";
 
 export function getContractRole(input: {
   walletAddress?: string | null;
   creatorWallet: string;
   workerWallet?: string | null;
+  requestedWorkerWallet?: string | null;
 }): ContractRole {
   const wallet = input.walletAddress?.trim();
 
@@ -17,6 +18,10 @@ export function getContractRole(input: {
 
   if (input.workerWallet && wallet === input.workerWallet) {
     return "worker";
+  }
+
+  if (input.requestedWorkerWallet && wallet === input.requestedWorkerWallet) {
+    return "applicant";
   }
 
   return "viewer";
