@@ -1,5 +1,6 @@
 import type { Contract, Milestone, Prisma } from "@prisma/client";
 import { recordEvent } from "@/lib/services/events/record-event";
+import { assertState } from "@/lib/services/errors";
 
 export async function applyMilestoneRelease(
   tx: Prisma.TransactionClient,
@@ -12,13 +13,15 @@ export async function applyMilestoneRelease(
 ) {
   const nextReleasedAmount = input.contract.releasedAmount.plus(input.milestone.amount);
 
-  await tx.milestone.update({
-    where: { id: input.milestone.id },
+  const claimed = await tx.milestone.updateMany({
+    where: { id: input.milestone.id, status: "approved" },
     data: {
       status: "released",
       releasedAt: new Date()
     }
   });
+
+  assertState(claimed.count === 1, "Milestone release was already applied");
 
   const remainingMilestones = await tx.milestone.count({
     where: {

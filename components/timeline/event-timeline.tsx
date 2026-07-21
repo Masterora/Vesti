@@ -3,11 +3,15 @@
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
-import { getWalletAvatarImage, getWalletDisplayName } from "@/lib/display-profiles";
-import { shortenWallet } from "@/lib/utils";
-import { formatDateTime } from "@/lib/utils";
+import { getWalletAvatarImage, getWalletDisplayName } from "@/lib/profile/display-profiles";
+import { formatDateTime, shortenWallet } from "@/lib/utils";
 import type { SerializedEvent } from "@/types/contract";
 import type { SerializedPublicUserProfile } from "@/types/profile";
+
+function getExplorerUrl(txSig: string) {
+  const cluster = process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? "devnet";
+  return `https://explorer.solana.com/tx/${encodeURIComponent(txSig)}?cluster=${encodeURIComponent(cluster)}`;
+}
 
 export function EventTimeline({
   events = [],
@@ -27,6 +31,7 @@ export function EventTimeline({
       {events.map((event) => {
         const displayName = getWalletDisplayName(profiles, event.actorWallet);
         const avatarImage = getWalletAvatarImage(profiles, event.actorWallet);
+        const showExplorerLink = Boolean(event.txSig && !event.txSig.startsWith("mock_"));
 
         return (
           <li key={event.id} className="relative border-l border-border pl-4">
@@ -48,7 +53,19 @@ export function EventTimeline({
                 <p className="mt-1 text-sm text-muted-foreground">
                   {messages.timeline.actor} {displayName ?? shortenWallet(event.actorWallet)}
                   {displayName ? ` · ${shortenWallet(event.actorWallet)}` : ""}
-                  {event.txSig ? ` | ${messages.timeline.transaction} ${shortenWallet(event.txSig)}` : ""}
+                  {event.txSig ? ` | ${messages.timeline.transaction} ` : ""}
+                  {event.txSig && showExplorerLink ? (
+                    <a
+                      href={getExplorerUrl(event.txSig)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {shortenWallet(event.txSig)}
+                    </a>
+                  ) : event.txSig ? (
+                    shortenWallet(event.txSig)
+                  ) : null}
                 </p>
               </div>
             </div>

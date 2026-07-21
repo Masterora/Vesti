@@ -1,5 +1,10 @@
 import { Connection } from "@solana/web3.js";
-import type { EscrowAdapter, FundContractParams, ReleaseMilestoneParams } from "./escrow-adapter";
+import type {
+  EscrowAdapter,
+  FundContractParams,
+  RefundContractParams,
+  ReleaseMilestoneParams
+} from "./escrow-adapter";
 import {
   decimalToTokenUnits,
   deriveSolanaEscrowAccounts,
@@ -76,6 +81,10 @@ function getReleaseContext(params: ReleaseMilestoneParams) {
   };
 }
 
+function getRefundContext(params: RefundContractParams) {
+  return getFundingContext(params);
+}
+
 function notWired(action: string, accounts: SolanaEscrowAccounts, amountUnits: bigint): never {
   throw new Error(
     [
@@ -95,5 +104,9 @@ export const solanaEscrowAdapter: EscrowAdapter = {
   async releaseMilestonePayment(params) {
     const context = getReleaseContext(params);
     notWired("releaseMilestonePayment", context.accounts, context.amountUnits);
+  },
+  async refundContract(params) {
+    const context = getRefundContext(params);
+    notWired("refundContract", context.accounts, context.amountUnits);
   }
 };

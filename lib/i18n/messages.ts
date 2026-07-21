@@ -58,44 +58,24 @@ export const messages = {
       signed: "signed",
       demo: "demo"
     },
-    landing: {
-      eyebrow: "USDC milestone escrow",
-      title: "Public project hiring with milestone escrow.",
-      description:
-        "Vesti lets a Creator publish a project, a Worker apply with a wallet, and both sides move through funding, proof, approvals, and release in one clean escrow workflow.",
-      openDashboard: "Open dashboard",
-      createContract: "Create contract",
-      flowTitle: "Workflow",
-      steps: [
-        {
-          title: "Create",
-          text: "Creator publishes the project scope, price, and milestone split."
-        },
-        {
-          title: "Apply",
-          text: "A Worker applies to the project and the Creator selects the match."
-        },
-        {
-          title: "Fund",
-          text: "Creator signs a Solana funding transaction so escrow is locked on devnet."
-        },
-        {
-          title: "Deliver",
-          text: "Worker submits proof, Creator approves, and the milestone payout is released."
-        }
-      ]
-    },
     dashboard: {
-      eyebrow: "Dashboard",
-      title: "Public project escrow",
-      description: "Browse open projects, review applications, and continue the escrow flow.",
+      eyebrow: "Operations",
+      title: "Contract operations",
+      description: "Monitor applications, funding, delivery, disputes, and settlement from one workspace.",
       searchLabel: "Search projects",
-      searchPlaceholder: "Search by title or tag",
+      searchPlaceholder: "Search by title, contract ID, or tag",
       filterAll: "All",
       filterOpen: "Open",
       filterClaimed: "In review",
+      filterDraft: "Awaiting funding",
       filterActive: "Active",
+      filterDisputed: "Disputed",
       filterCompleted: "Completed",
+      summaryLabel: "Contract overview",
+      visibleContracts: "Contracts in view",
+      activeContracts: "Active",
+      attentionRequired: "Action required",
+      releasedValue: "Released USDC",
       refresh: "Refresh",
       newContract: "New contract",
       loading: "Loading contracts...",
@@ -104,9 +84,8 @@ export const messages = {
         "Sign in with Phantom to apply to projects, fund matched contracts, and continue the on-chain workflow."
     },
     contractList: {
-      emptyTitle: "No contracts yet",
-      emptyDescription:
-        "Publish a project as Creator or connect a Worker wallet to apply to an open project.",
+      emptyTitle: "No contracts match this view",
+      emptyDescription: "Adjust the search or status filters, or create a contract to start a milestone workflow.",
       idLabel: "ID",
       creator: "Creator",
       worker: "Worker",
@@ -169,6 +148,7 @@ export const messages = {
       missingIdDescription: "Open a contract from the dashboard or use `/contracts/detail?id=...`.",
       eyebrow: "Contract detail",
       loadingTitle: "Loading contract",
+      notFoundTitle: "Contract unavailable",
       refresh: "Refresh",
       dashboard: "Dashboard",
       idLabel: "Project ID",
@@ -181,6 +161,7 @@ export const messages = {
       notFunded: "Not funded",
       openNotice: "This project is public and open for Worker applications.",
       claimedNotice: "Workers have applied to this project. Creator review is required before funding.",
+      claimedNoticeSingle: "One Worker has applied to this project. Creator review is required before funding.",
       matchedNotice: "A Worker has been accepted. Fund the contract to start milestone work.",
       creator: "Creator",
       worker: "Worker",
@@ -215,7 +196,7 @@ export const messages = {
       discussionEmpty: "No messages yet. Use the sidebar to ask about scope or confirm details.",
       discussionPlaceholder: "Ask a question or leave a note for this contract...",
       discussionConnectHint: "Connect your wallet to join the discussion.",
-      discussionPrivateHint: "Only connected participants can comment on a private contract.",
+      discussionPrivateHint: "Only the Creator and selected Worker can comment on this contract.",
       postComment: "Post message",
       postingComment: "Posting...",
       commentPosted: "Message posted.",
@@ -227,6 +208,20 @@ export const messages = {
       disputePlaceholder: "Explain why this milestone needs to enter dispute.",
       openDispute: "Open dispute",
       openingDispute: "Opening...",
+      disputeResolutionTitle: "Resolve dispute",
+      disputeResolutionDescription: "A settlement only takes effect after the other participant accepts it.",
+      transactionStatusTitle: "Escrow transaction status",
+      transactionStatusDescription: "{action} transaction is currently {status}. Refresh to check again.",
+      retryConfirmation: "Retry confirmation",
+      transactionReconciled: "Transaction reconciled with the contract.",
+      transactionRetrying: "Automatic reconciliation attempts: {count}.",
+      transactionManualReview: "Automatic reconciliation paused. Operations review is required.",
+      proposeRelease: "Propose payment to Worker",
+      proposeRefund: "Propose refund to Creator",
+      proposalWaiting: "Waiting for the other participant to accept your proposal.",
+      proposedRelease: "Proposal: release this milestone payment to the Worker.",
+      proposedRefund: "Proposal: refund the remaining escrow balance to the Creator.",
+      acceptResolution: "Accept settlement",
       proofNote: "Proof note",
       proofNotePlaceholder: "Summarize what was delivered.",
       proofUrl: "Proof URL",
@@ -234,6 +229,7 @@ export const messages = {
       submitProof: "Submit proof",
       submittingProof: "Submitting...",
       revisionNote: "Revision note",
+      requestedRevisionNote: "Requested changes",
       revisionPlaceholder: "Describe what needs to be changed before approval.",
       approveMilestone: "Approve milestone",
       approvingMilestone: "Approving...",
@@ -247,17 +243,20 @@ export const messages = {
       proofSubmitted: "Proof submitted. The milestone is waiting for review.",
       milestoneApproved: "Milestone approved.",
       revisionRequested: "Revision requested and added to the timeline.",
-      paymentReleased: "Payment released on-chain and contract state updated.",
+      paymentReleased: "Payment released and contract state updated.",
       visibilityUpdated: "Visibility updated.",
       titleRenamed: "Project title updated.",
       projectDeleted: "Project deleted.",
       projectCancelled: "Project cancelled.",
-      disputeOpened: "Dispute opened and timeline updated."
+      disputeOpened: "Dispute opened and timeline updated.",
+      disputeResolutionProposed: "Settlement proposal recorded.",
+      disputeResolutionAccepted: "Dispute settlement completed."
     },
     contractProgress: {
       total: "Total",
       funded: "Funded",
-      released: "Released"
+      released: "Released",
+      refunded: "Refunded"
     },
     timeline: {
       noEvents: "No events recorded yet.",
@@ -298,7 +297,10 @@ export const messages = {
       milestone_released: "Milestone released",
       contract_completed: "Contract completed",
       contract_cancelled: "Contract cancelled",
-      contract_disputed: "Contract disputed"
+      contract_disputed: "Contract disputed",
+      dispute_resolution_proposed: "Dispute settlement proposed",
+      contract_dispute_resolved: "Dispute resolved",
+      contract_refunded: "Escrow refunded"
     },
     dates: {
       noDueDate: "No due date"
@@ -391,44 +393,24 @@ export const messages = {
       signed: "已登录",
       demo: "演示"
     },
-    landing: {
-      eyebrow: "稳定币里程碑托管",
-      title: "把公开接单和里程碑托管放到一条链路里。",
-      description:
-        "Vesti 让甲方先发布公开项目，让乙方用钱包申请接单，再把注资、证明提交、审批和放款收拢到一条清晰的托管流程里。",
-      openDashboard: "打开看板",
-      createContract: "创建合同",
-      flowTitle: "流程概览",
-      steps: [
-        {
-          title: "创建合同",
-          text: "甲方发布项目范围、总价和里程碑拆分。"
-        },
-        {
-          title: "申请接单",
-          text: "乙方用钱包申请项目，甲方选择合适的乙方。"
-        },
-        {
-          title: "注资托管",
-          text: "甲方签署链上注资交易，把资金锁定到测试网络托管账户。"
-        },
-        {
-          title: "验收放款",
-          text: "乙方提交证明，甲方审批后按里程碑释放付款。"
-        }
-      ]
-    },
     dashboard: {
-      eyebrow: "看板",
-      title: "公开项目托管",
-      description: "浏览公开项目、查看申请进展，并继续后续托管流程。",
+      eyebrow: "运营工作台",
+      title: "合同运营",
+      description: "在一个工作台中监控申请、注资、交付、争议和结算。",
       searchLabel: "搜索项目",
-      searchPlaceholder: "按标题或标签搜索",
+      searchPlaceholder: "按标题、合同 ID 或标签搜索",
       filterAll: "全部",
       filterOpen: "待申请",
       filterClaimed: "审核中",
+      filterDraft: "待注资",
       filterActive: "进行中",
+      filterDisputed: "争议中",
       filterCompleted: "已完成",
+      summaryLabel: "合同概览",
+      visibleContracts: "当前合同",
+      activeContracts: "进行中",
+      attentionRequired: "待处理",
+      releasedValue: "已释放 USDC",
       refresh: "刷新",
       newContract: "新建合同",
       loading: "正在加载合同...",
@@ -436,8 +418,8 @@ export const messages = {
       connectDescription: "请先完成钱包登录，申请项目、查看你的合同并继续链上流程。"
     },
     contractList: {
-      emptyTitle: "还没有合同",
-      emptyDescription: "先以甲方身份发布项目，或连接乙方钱包申请公开项目。",
+      emptyTitle: "当前视图没有匹配合同",
+      emptyDescription: "调整搜索或状态筛选，或新建合同以启动里程碑工作流。",
       idLabel: "ID",
       creator: "甲方",
       worker: "乙方",
@@ -485,7 +467,7 @@ export const messages = {
       milestoneAmountLabel: "金额",
       milestoneAmountPlaceholder: "0.00",
       dueDateLabel: "截止日期",
-      dueDatePlaceholder: "2026-05-11",
+      dueDatePlaceholder: "YYYY-MM-DD",
       contractTotalLabel: "合同总额",
       milestoneTotalLabel: "里程碑合计",
       mismatchError: "所有里程碑金额之和必须等于合同总额。",
@@ -498,6 +480,7 @@ export const messages = {
       missingIdDescription: "请从看板打开合同，或使用 `/contracts/detail?id=...` 访问。",
       eyebrow: "合同详情",
       loadingTitle: "正在加载合同",
+      notFoundTitle: "合同不可用",
       refresh: "刷新",
       dashboard: "返回看板",
       idLabel: "ID",
@@ -510,6 +493,7 @@ export const messages = {
       notFunded: "尚未注资",
       openNotice: "当前项目已公开，乙方可以直接申请接单。",
       claimedNotice: "已有多位乙方申请接单，等待甲方选择后再注资。",
+      claimedNoticeSingle: "已有一位乙方申请接单，等待甲方选择后再注资。",
       matchedNotice: "甲方已确认乙方，接下来可以为合同注资。",
       creator: "甲方",
       worker: "乙方",
@@ -544,7 +528,7 @@ export const messages = {
       discussionEmpty: "还没有留言，可以在这里继续确认范围或补充细节。",
       discussionPlaceholder: "输入问题或补充说明...",
       discussionConnectHint: "请先连接钱包，再参与留言讨论。",
-      discussionPrivateHint: "私密合同只允许已连接的参与方留言。",
+      discussionPrivateHint: "只有甲方和已选定的乙方可以在此合同中留言。",
       postComment: "发送留言",
       postingComment: "发送中...",
       commentPosted: "留言已发送。",
@@ -556,6 +540,20 @@ export const messages = {
       disputePlaceholder: "说明为什么这个里程碑需要进入争议流程。",
       openDispute: "发起争议",
       openingDispute: "发起中...",
+      disputeResolutionTitle: "解决争议",
+      disputeResolutionDescription: "和解方案只有在另一方接受后才会生效。",
+      transactionStatusTitle: "托管交易状态",
+      transactionStatusDescription: "{action} 交易当前为 {status}，可刷新页面再次检查。",
+      retryConfirmation: "重新确认",
+      transactionReconciled: "交易已与合同状态完成对账。",
+      transactionRetrying: "自动对账已尝试 {count} 次。",
+      transactionManualReview: "自动对账已暂停，需要运营人员检查。",
+      proposeRelease: "提议向乙方放款",
+      proposeRefund: "提议退款给甲方",
+      proposalWaiting: "正在等待另一方接受你的方案。",
+      proposedRelease: "方案：向乙方释放该里程碑款项。",
+      proposedRefund: "方案：将剩余托管资金退还甲方。",
+      acceptResolution: "接受和解方案",
       proofNote: "证明说明",
       proofNotePlaceholder: "概述这次交付了什么。",
       proofUrl: "证明地址",
@@ -563,6 +561,7 @@ export const messages = {
       submitProof: "提交证明",
       submittingProof: "提交中...",
       revisionNote: "修改说明",
+      requestedRevisionNote: "甲方要求修改",
       revisionPlaceholder: "说明在批准前还需要修改什么。",
       approveMilestone: "确认里程碑",
       approvingMilestone: "确认中...",
@@ -576,17 +575,20 @@ export const messages = {
       proofSubmitted: "证明已提交，里程碑正在等待审核。",
       milestoneApproved: "里程碑已确认。",
       revisionRequested: "修改要求已提交，并写入时间线。",
-      paymentReleased: "链上放款已完成，合同状态已同步更新。",
+      paymentReleased: "付款已释放，合同状态已同步更新。",
       visibilityUpdated: "可见性已更新。",
       titleRenamed: "项目标题已更新。",
       projectDeleted: "项目已删除。",
       projectCancelled: "项目已取消。",
-      disputeOpened: "争议已发起，并写入时间线。"
+      disputeOpened: "争议已发起，并写入时间线。",
+      disputeResolutionProposed: "和解方案已记录。",
+      disputeResolutionAccepted: "争议和解已完成。"
     },
     contractProgress: {
       total: "总额",
       funded: "已注资",
-      released: "已放款"
+      released: "已放款",
+      refunded: "已退款"
     },
     timeline: {
       noEvents: "还没有事件记录。",
@@ -627,7 +629,10 @@ export const messages = {
       milestone_released: "里程碑已放款",
       contract_completed: "合同已完成",
       contract_cancelled: "合同已取消",
-      contract_disputed: "合同争议中"
+      contract_disputed: "合同争议中",
+      dispute_resolution_proposed: "已提出争议和解方案",
+      contract_dispute_resolved: "争议已解决",
+      contract_refunded: "托管资金已退款"
     },
     dates: {
       noDueDate: "无截止日期"

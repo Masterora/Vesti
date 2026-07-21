@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { buildStoredProfileAvatarUrl } from "@/lib/avatar";
+import { buildStoredProfileAvatarUrl } from "@/lib/profile/avatar";
 import { ServiceError } from "@/lib/services/errors";
 import type { SerializedPublicUserProfile, SerializedSessionUserProfile } from "@/types/profile";
 

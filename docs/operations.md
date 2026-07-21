@@ -1,5 +1,7 @@
 # Vesti Operations
 
+[English](operations.md) | [简体中文](operations.zh-CN.md)
+
 This guide covers local operation for the off-chain MVP.
 
 ## Start Locally
@@ -90,25 +92,58 @@ Worker:  worker_demo_wallet_5kL9s1
 7. Either approve the submitted milestone or write a revision note and request revision.
 8. If revision is requested, switch to Worker and submit a new proof version.
 9. Optionally open a dispute as Creator or Worker before payment is released.
-10. Switch back to Creator, approve the latest proof, and release payment.
-11. Confirm amount progress, proof history, and Event Timeline updates.
+10. In mock mode, one participant proposes release or refund and the other participant accepts.
+11. Switch back to Creator, approve the latest proof, and release payment when no dispute is open.
+12. Confirm amount progress, proof history, transaction status, and Event Timeline updates.
+
+On-chain dispute actions are intentionally disabled until an on-chain settlement instruction is
+implemented. This prevents the database from reporting a frozen escrow state that does not exist
+on-chain.
 
 ## Quality Checks
 
 Run these before committing:
 
 ```bash
-corepack pnpm prisma validate
-corepack pnpm lint
-corepack pnpm build
+corepack pnpm check
 ```
+
+When PostgreSQL is running and migrations are available, run the full verification suite:
+
+```bash
+corepack pnpm check:full
+```
+
+`check` validates the Prisma schema, lints, runs unit tests, and builds the production application. `check:full` additionally runs the database-backed integration suite. CI runs the same checks for pull requests and updates to `main`.
+
+Deployment readiness can probe the application with `POST /api/health`. A healthy response confirms database connectivity and reports the configured escrow mode and network; it does not validate Solana RPC availability.
+
+## Operational Jobs
+
+In on-chain deployments, schedule the reconciliation command at least once per minute:
+
+```bash
+corepack pnpm reconcile:transactions
+```
+
+Each run atomically leases up to `RECONCILIATION_BATCH_SIZE` submitted transactions. Failed reconciliation uses exponential backoff. After `RECONCILIATION_MAX_ATTEMPTS`, the record remains submitted and is marked for manual review rather than being silently discarded or reported as failed on-chain.
+
+Schedule operational cleanup daily:
+
+```bash
+corepack pnpm cleanup:operational
+```
+
+Cleanup only removes expired rate-limit buckets and authentication challenges older than the retention window. It does not delete contracts, events, proofs, disputes, or financial transaction records. The deployment scheduler must prevent overlapping cleanup runs and alert on non-zero exit codes from both commands.
+
+Authentication rate limiting reads `CF-Connecting-IP`, `X-Real-IP`, and `X-Forwarded-For` in that order. Only expose the application through a reverse proxy that overwrites these headers; never append or pass through client-supplied values. Wallet-level limits remain the primary control when the deployment cannot guarantee that boundary.
 
 Stop the dev server before running `corepack pnpm build`, then restart it afterward. If a page suddenly renders without CSS during local development, stop the dev server, clear `.next`, and start it again.
 
 ## On-chain Program
 
-The Rust/Anchor program is in `programs/vesti-escrow`. It currently defines escrow state,
-vault token accounts, and Token/Token-2022 compatible fund/release transfers. In
+The Rust/Anchor program is in `programs/vesti-escrow`. It defines Token/Token-2022 compatible
+program boundaries, while the current Web transaction builder targets the classic SPL Token Program. In
 `ESCROW_ADAPTER_MODE=onchain`, the web app prepares transactions, submits wallet-signed Solana
 transactions, and reconciles the resulting escrow state before local contract state advances.
 

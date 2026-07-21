@@ -11,7 +11,10 @@ export const eventTypes = [
   "milestone_released",
   "contract_completed",
   "contract_cancelled",
-  "contract_disputed"
+  "contract_disputed",
+  "dispute_resolution_proposed",
+  "contract_dispute_resolved",
+  "contract_refunded"
 ] as const;
 
 export type EventType = (typeof eventTypes)[number];

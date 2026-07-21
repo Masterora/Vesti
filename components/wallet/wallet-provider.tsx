@@ -40,7 +40,10 @@ type WalletContextValue = {
   selectDemoWallet: (wallet: string) => Promise<void>;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => Promise<void>;
-  signAndSendPreparedTransaction: (serializedTransaction: string) => Promise<string>;
+  signAndSendPreparedTransaction: (
+    serializedTransaction: string,
+    onSubmitted?: (signature: string) => Promise<void>
+  ) => Promise<string>;
   defaultWallets: typeof defaultWallets;
   authError: string;
   hasInjectedWallet: boolean;
@@ -314,7 +317,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   );
 
   const signAndSendPreparedTransaction = useCallback(
-    async (serializedTransaction: string) => {
+    async (serializedTransaction: string, onSubmitted?: (signature: string) => Promise<void>) => {
       setAuthError("");
 
       try {
@@ -355,6 +358,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           preflightCommitment: "confirmed"
         });
 
+        await onSubmitted?.(signature);
         await connection.confirmTransaction(signature, "confirmed");
 
         return signature;

@@ -8,28 +8,36 @@ type ContractProgressProps = {
   totalAmount: string;
   fundedAmount: string;
   releasedAmount: string;
+  refundedAmount: string;
 };
 
 export function ContractProgress({
   totalAmount,
   fundedAmount,
-  releasedAmount
+  releasedAmount,
+  refundedAmount
 }: ContractProgressProps) {
   const { locale, messages } = useLocale();
   const fundedPercent = amountRatioPercent(fundedAmount, totalAmount);
   const releasedPercent = amountRatioPercent(releasedAmount, totalAmount);
+  const refundedPercent = amountRatioPercent(refundedAmount, totalAmount);
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <AmountStat label={messages.contractProgress.total} value={formatUsdc(totalAmount, locale)} />
         <AmountStat label={messages.contractProgress.funded} value={formatUsdc(fundedAmount, locale)} />
         <AmountStat label={messages.contractProgress.released} value={formatUsdc(releasedAmount, locale)} />
+        <AmountStat label={messages.contractProgress.refunded} value={formatUsdc(refundedAmount, locale)} />
       </div>
       <div className="h-3 overflow-hidden rounded-full bg-muted">
         <div className="relative h-full" style={{ width: `${fundedPercent}%` }}>
           <div className="absolute inset-0 bg-teal-200" />
           <div className="absolute inset-y-0 left-0 bg-primary" style={{ width: `${releasedPercent}%` }} />
+          <div
+            className="absolute inset-y-0 right-0 bg-amber-400"
+            style={{ width: `${refundedPercent}%` }}
+          />
         </div>
       </div>
     </div>

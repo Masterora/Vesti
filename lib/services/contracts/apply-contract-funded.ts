@@ -1,5 +1,6 @@
 import type { Contract, Milestone, Prisma } from "@prisma/client";
 import { recordEvent } from "@/lib/services/events/record-event";
+import { assertState } from "@/lib/services/errors";
 
 type ContractWithMilestones = Contract & {
   milestones: Milestone[];
@@ -14,14 +15,16 @@ export async function applyContractFunded(
     txSig: string;
   }
 ) {
-  await tx.contract.update({
-    where: { id: input.contract.id },
+  const claimed = await tx.contract.updateMany({
+    where: { id: input.contract.id, status: "draft" },
     data: {
       status: "active",
       fundedAmount: input.contract.totalAmount,
       escrowAccount: input.escrowAccount
     }
   });
+
+  assertState(claimed.count === 1, "Contract funding was already applied");
 
   await tx.milestone.updateMany({
     where: { contractId: input.contract.id, status: "pending" },

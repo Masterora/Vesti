@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="430" viewBox="0 0 1320 430" role="img" aria-labelledby="title desc">
+  <title id="title">Vesti system overview / Vesti 系统概览</title>
+  <desc id="desc">Wallet users interact with the Web app and workflow services, which store collaboration data and call either mock or Solana escrow.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#64748b"/>
+    </marker>
+    <style>
+      .title{font:700 24px Inter,"Noto Sans SC",Arial,sans-serif;fill:#f8fafc}.node{fill:#111827;stroke:#475569;stroke-width:2}.primary{fill:#0c2841;stroke:#38bdf8}.data{fill:#0d2a24;stroke:#34d399}.chain{fill:#2a1c12;stroke:#fb923c}.label{font:600 17px Inter,"Noto Sans SC",Arial,sans-serif;fill:#f8fafc;text-anchor:middle}.sub{font:14px Inter,"Noto Sans SC",Arial,sans-serif;fill:#cbd5e1;text-anchor:middle}.edge{fill:none;stroke:#64748b;stroke-width:2.5;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1320" height="430" rx="24" fill="#070d19"/>
+  <text class="title" x="40" y="44">Vesti system overview / Vesti 系统概览</text>
+
+  <rect class="node" x="40" y="160" width="200" height="100" rx="16"/>
+  <text class="label" x="140" y="200">Wallet users</text>
+  <text class="sub" x="140" y="229">需求方与工作者钱包</text>
+
+  <rect class="node primary" x="300" y="160" width="210" height="100" rx="16"/>
+  <text class="label" x="405" y="200">Vesti Web app</text>
+  <text class="sub" x="405" y="229">页面与 API</text>
+
+  <rect class="node primary" x="570" y="160" width="230" height="100" rx="16"/>
+  <text class="label" x="685" y="196">Workflow services</text>
+  <text class="sub" x="685" y="224">授权、状态转换与业务规则</text>
+
+  <rect class="node data" x="870" y="75" width="220" height="100" rx="16"/>
+  <text class="label" x="980" y="115">PostgreSQL</text>
+  <text class="sub" x="980" y="144">协作记录与审计事件</text>
+
+  <rect class="node chain" x="870" y="245" width="220" height="100" rx="16"/>
+  <text class="label" x="980" y="285">Escrow adapter</text>
+  <text class="sub" x="980" y="314">统一托管边界</text>
+
+  <rect class="node" x="1150" y="205" width="130" height="70" rx="14"/>
+  <text class="label" x="1215" y="235">Mock</text>
+  <text class="sub" x="1215" y="256">本地托管</text>
+
+  <rect class="node chain" x="1150" y="305" width="130" height="70" rx="14"/>
+  <text class="label" x="1215" y="335">Solana</text>
+  <text class="sub" x="1215" y="356">链上程序</text>
+
+  <path class="edge" d="M240 210 H300"/>
+  <path class="edge" d="M510 210 H570"/>
+  <path class="edge" d="M800 195 C830 180 840 135 870 125"/>
+  <path class="edge" d="M800 225 C830 240 840 285 870 295"/>
+  <path class="edge" d="M1090 280 C1120 270 1125 240 1150 240"/>
+  <path class="edge" d="M1090 310 C1120 320 1125 340 1150 340"/>
+</svg>

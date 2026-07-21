@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
-import { getWalletAvatarImage, getWalletDisplayLabel, getWalletDisplayName } from "@/lib/display-profiles";
+import { getWalletAvatarImage, getWalletDisplayLabel, getWalletDisplayName } from "@/lib/profile/display-profiles";
 import { Label, Textarea } from "@/components/ui/input";
 import { postJson } from "@/lib/api/client";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
@@ -76,7 +76,7 @@ export function ContractDiscussion({
     () => (walletAddress ? getDiscussionRole(contract, walletAddress) : "viewer"),
     [contract, walletAddress]
   );
-  const canComment = Boolean(walletAddress) && (contract.isPublic || currentRole !== "viewer");
+  const canComment = Boolean(walletAddress) && ["creator", "worker"].includes(currentRole);
 
   const submitComment = async () => {
     if (!draft.trim()) {

@@ -7,7 +7,7 @@ import {
 } from "./solana-escrow-instructions";
 import { deriveSolanaEscrowAccounts, TOKEN_PROGRAM_ID } from "./solana-escrow-accounts";
 
-const programId = new PublicKey("H1cs7KqkmmPXMEppuTa7VrVC1apSaYtqUD5hJekwQqyC");
+const programId = new PublicKey("ErFsmiKY7WxjD9ArYmpqjCCUKnTcfzLm6tFpmWdFU9ck");
 const usdcMint = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
 const creator = new PublicKey("11111111111111111111111111111112");
 const worker = new PublicKey("11111111111111111111111111111113");

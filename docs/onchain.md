@@ -1,5 +1,7 @@
 # Vesti On-chain Escrow
 
+[English](onchain.md) | [简体中文](onchain.zh-CN.md)
+
 This document tracks the Rust/Solana phase for Vesti.
 
 ## Current Status
@@ -10,9 +12,9 @@ The repository contains an Anchor-style Rust program scaffold in:
 programs/vesti-escrow/
 ```
 
-The scaffold defines escrow state, vault token accounts, and Token/Token-2022 compatible transfer
-boundaries. It builds with Anchor CLI 1.0.2 and Agave/Solana CLI 3.1.14. The Web app can derive
-the matching PDAs, associated token accounts, USDC token units, and base64 unsigned transactions
+The scaffold defines escrow state, vault token accounts, and Token/Token-2022 compatible program
+boundaries. It builds with Anchor CLI 1.0.2 and Agave/Solana CLI 3.1.14. The current Web path uses
+the classic SPL Token Program and can derive the matching PDAs, associated token accounts, USDC token units, and base64 unsigned transactions
 for funding and release. The frontend now deserializes prepared transactions, asks the connected
 wallet to sign them, submits them to Solana, and reconciles both the committed instruction payload
 and resulting escrow account state before local contract state advances. The program still needs a
@@ -23,7 +25,7 @@ real devnet deployment and end-to-end validation with a funded mint.
 Current local program id:
 
 ```text
-H1cs7KqkmmPXMEppuTa7VrVC1apSaYtqUD5hJekwQqyC
+ErFsmiKY7WxjD9ArYmpqjCCUKnTcfzLm6tFpmWdFU9ck
 ```
 
 Before devnet deployment, use the deployment keypair and keep these files in sync:
@@ -34,12 +36,7 @@ Before devnet deployment, use the deployment keypair and keep these files in syn
 
 ## Instructions
 
-```text
-initialize_escrow(contract_id, worker, total_amount)
-mark_funded(amount)
-release_milestone(milestone_id, amount)
-open_dispute(milestone_id, reason)
-```
+![On-chain escrow instructions](assets/diagrams/onchain-instructions.png)
 
 `initialize_escrow` creates:
 
@@ -59,6 +56,11 @@ The Web-side derivation helpers live in:
 lib/blockchain/solana-escrow-accounts.ts
 ```
 
+The current Web path creates the Worker's classic SPL associated token account during release when
+it does not already exist. Token-2022 account detection is not yet implemented in the Web builder.
+On-chain dispute actions are disabled until a matching settlement instruction and reconciliation
+flow are implemented.
+
 Web-side Anchor instruction and transaction builders live in:
 
 ```text
@@ -70,6 +72,7 @@ lib/blockchain/solana-escrow-transactions.ts
 ## Next On-chain Tasks
 
 - Add Anchor tests for initialize, fund, release, and dispute.
+- Add on-chain dispute settlement and refund instructions before enabling the Web dispute action.
 - Generate and deploy a real program keypair on localnet/devnet.
 - Validate the end-to-end devnet flow with a real test mint, Phantom, and explorer-confirmed signatures.
 - Persist or surface explorer links and richer reconciliation diagnostics in the UI.

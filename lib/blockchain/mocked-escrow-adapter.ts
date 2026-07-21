@@ -16,5 +16,10 @@ export const mockedEscrowAdapter: EscrowAdapter = {
     return {
       txSig: txSig("release")
     };
+  },
+  async refundContract() {
+    return {
+      txSig: txSig("refund")
+    };
   }
 };

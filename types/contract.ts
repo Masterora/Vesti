@@ -53,6 +53,44 @@ export type SerializedContractApplication = {
   createdAt: string;
 };
 
+export type SerializedDispute = {
+  id: string;
+  contractId: string;
+  milestoneId: string;
+  openedBy: string;
+  reason: string;
+  previousMilestoneStatus: string;
+  status: "open" | "proposed" | "resolved";
+  proposedOutcome: "release_to_worker" | "refund_to_creator" | null;
+  proposedBy: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SerializedEscrowTransaction = {
+  id: string;
+  contractId: string;
+  milestoneId: string | null;
+  action: string;
+  mode: "mock" | "onchain";
+  walletAddress: string;
+  amount: string | null;
+  txSig: string | null;
+  status: "prepared" | "submitted" | "confirmed" | "reconciled" | "failed";
+  errorCode: string | null;
+  errorMessage: string | null;
+  reconciliationAttempts: number;
+  lastAttemptAt: string | null;
+  nextAttemptAt: string | null;
+  requiresReviewAt: string | null;
+  submittedAt: string | null;
+  confirmedAt: string | null;
+  reconciledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type SerializedContractListItem = {
   id: string;
   displayId: string;
@@ -66,6 +104,7 @@ export type SerializedContractListItem = {
   totalAmount: string;
   fundedAmount: string;
   releasedAmount: string;
+  refundedAmount: string;
   status: string;
   escrowAccount: string | null;
   createdAt: string;
@@ -88,6 +127,7 @@ export type SerializedContract = {
   totalAmount: string;
   fundedAmount: string;
   releasedAmount: string;
+  refundedAmount: string;
   status: string;
   escrowAccount: string | null;
   createdAt: string;
@@ -96,6 +136,8 @@ export type SerializedContract = {
   events?: SerializedEvent[];
   comments?: SerializedContractComment[];
   applications?: SerializedContractApplication[];
+  disputes?: SerializedDispute[];
+  escrowTransactions?: SerializedEscrowTransaction[];
   profiles?: SerializedPublicUserProfile[];
 };
 

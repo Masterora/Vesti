@@ -1,6 +1,6 @@
 import { handleRoute } from "@/lib/api/route-helpers";
 import { getWalletSession } from "@/lib/auth/wallet-session";
-import { getSessionUserProfile } from "@/lib/services/user-profiles";
+import { getSessionUserProfile } from "@/lib/services/profile/user-profiles";
 
 export async function POST(request: Request) {
   return handleRoute(request, async () => {

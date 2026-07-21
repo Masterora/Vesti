@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="980" viewBox="0 0 1280 980" role="img" aria-labelledby="title desc">
+  <title id="title">Wallet-signed transaction sequence / 钱包签名交易时序</title>
+  <desc id="desc">A wallet prepares, signs, durably submits, confirms, and recovers a Solana escrow transaction.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#475569"/></marker>
+    <style>
+      .title{font:700 24px Inter,"Noto Sans SC",Arial,sans-serif;fill:#f8fafc}.participant{fill:#111827;stroke:#64748b;stroke-width:2}.label{font:700 16px Inter,"Noto Sans SC",Arial,sans-serif;fill:#f8fafc;text-anchor:middle}.sub{font:13px Inter,"Noto Sans SC",Arial,sans-serif;fill:#cbd5e1;text-anchor:middle}.life{stroke:#475569;stroke-width:1.5;stroke-dasharray:7 7}.request{stroke:#38bdf8;stroke-width:2.3;marker-end:url(#arrow)}.response{stroke:#34d399;stroke-width:2.3;stroke-dasharray:7 5;marker-end:url(#arrow)}.step{font:13px Inter,"Noto Sans SC",Arial,sans-serif;fill:#cbd5e1;text-anchor:middle}.phase{fill:#0c1b32;stroke:#1e3a5f}.phaseText{font:600 13px Inter,"Noto Sans SC",Arial,sans-serif;fill:#7dd3fc;text-anchor:middle}
+    </style>
+  </defs>
+  <rect width="1280" height="980" rx="24" fill="#070d19"/>
+  <text class="title" x="40" y="44">Wallet-signed transaction sequence / 钱包签名交易时序</text>
+
+  <rect class="participant" x="60" y="80" width="210" height="75" rx="14"/><text class="label" x="165" y="111">Connected wallet</text><text class="sub" x="165" y="136">已连接钱包</text>
+  <rect class="participant" x="355" y="80" width="210" height="75" rx="14"/><text class="label" x="460" y="111">Vesti API</text><text class="sub" x="460" y="136">准备、提交与对账</text>
+  <rect class="participant" x="650" y="80" width="210" height="75" rx="14"/><text class="label" x="755" y="111">Solana RPC</text><text class="sub" x="755" y="136">提交与链上读取</text>
+  <rect class="participant" x="945" y="80" width="210" height="75" rx="14"/><text class="label" x="1050" y="111">PostgreSQL</text><text class="sub" x="1050" y="136">本地状态与幂等记录</text>
+
+  <line class="life" x1="165" y1="155" x2="165" y2="930"/><line class="life" x1="460" y1="155" x2="460" y2="930"/><line class="life" x1="755" y1="155" x2="755" y2="930"/><line class="life" x1="1050" y1="155" x2="1050" y2="930"/>
+  <rect class="phase" x="30" y="180" width="1220" height="175" rx="12"/><text class="phaseText" x="85" y="205">Prepare / 准备</text>
+  <rect class="phase" x="30" y="375" width="1220" height="190" rx="12"/><text class="phaseText" x="85" y="400">Submit / 提交</text>
+  <rect class="phase" x="30" y="585" width="1220" height="345" rx="12"/><text class="phaseText" x="145" y="610">Confirm or recover / 确认或恢复</text>
+
+  <line class="request" x1="165" y1="235" x2="455" y2="235"/><text class="step" x="310" y="222">1. Prepare fund or release / 准备注资或付款</text>
+  <line class="request" x1="460" y1="280" x2="1045" y2="280"/><text class="step" x="755" y="267">2. Persist idempotent intent / 持久化幂等意图</text>
+  <line class="response" x1="460" y1="325" x2="170" y2="325"/><text class="step" x="315" y="312">3. Base64 unsigned transaction / 未签名交易</text>
+
+  <line class="request" x1="165" y1="425" x2="750" y2="425"/><text class="step" x="460" y="412">4. Wallet signs and broadcasts / 钱包签名并广播</text>
+  <line class="response" x1="755" y1="465" x2="170" y2="465"/><text class="step" x="460" y="452">5. Transaction signature / 交易签名</text>
+  <line class="request" x1="165" y1="505" x2="455" y2="505"/><text class="step" x="310" y="492">6. Submit signature immediately / 立即提交签名</text>
+  <line class="request" x1="460" y1="545" x2="1045" y2="545"/><text class="step" x="755" y="532">7. Persist submitted transaction / 持久化已提交交易</text>
+
+  <line class="request" x1="165" y1="650" x2="455" y2="650"/><text class="step" x="310" y="637">8. Confirm or retry / 确认或重试</text>
+  <line class="request" x1="460" y1="695" x2="750" y2="695"/><text class="step" x="605" y="682">9. Read transaction and escrow / 读取交易与托管账户</text>
+  <line class="response" x1="755" y1="740" x2="465" y2="740"/><text class="step" x="610" y="727">10. Finalized state / 最终确认状态</text>
+  <line class="request" x1="460" y1="785" x2="1045" y2="785"/><text class="step" x="755" y="772">11. Reconcile local state / 对账本地状态</text>
+  <line class="response" x1="1050" y1="835" x2="465" y2="835"/><text class="step" x="755" y="822">12. Updated contract state / 更新后的合约状态</text>
+  <line class="response" x1="460" y1="885" x2="170" y2="885"/><text class="step" x="315" y="872">13. Reconciled result / 对账结果</text>
+</svg>

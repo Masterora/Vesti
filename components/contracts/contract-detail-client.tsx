@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle,
   Check,
   CircleDollarSign,
   Ban,
@@ -11,11 +10,8 @@ import {
   PencilLine,
   Eye,
   EyeOff,
-  ExternalLink,
   RefreshCw,
   Trash2,
-  RotateCcw,
-  Send,
   Wallet
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -27,22 +23,24 @@ import { Input, Label, Textarea } from "@/components/ui/input";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { ContractProgress } from "@/components/contracts/contract-progress";
 import { ContractDiscussion } from "@/components/contracts/contract-discussion";
+import { DisputeResolutionPanel } from "@/components/contracts/dispute-resolution-panel";
+import { EscrowTransactionStatus } from "@/components/contracts/escrow-transaction-status";
+import { ContractWalletLine as WalletLine } from "@/components/contracts/contract-wallet-line";
+import {
+  MilestoneActions,
+  ProofHistory,
+  type ProofDraft
+} from "@/components/contracts/milestone-workflow";
 import { EventTimeline } from "@/components/timeline/event-timeline";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { postJson } from "@/lib/api/client";
-import { getWalletAvatarImage, getWalletDisplayLabel, getWalletDisplayName } from "@/lib/display-profiles";
+import { getWalletAvatarImage, getWalletDisplayLabel, getWalletDisplayName } from "@/lib/profile/display-profiles";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
-import { formatDate, formatDateTime, formatUsdc, shortenWallet } from "@/lib/utils";
+import { formatDate, formatUsdc, shortenWallet } from "@/lib/utils";
 import type { SerializedContract, SerializedMilestone } from "@/types/contract";
-import type { SerializedPublicUserProfile } from "@/types/profile";
 
 type ContractDetailClientProps = {
   contractId: string;
-};
-
-type ProofDraft = {
-  note: string;
-  proofUrl: string;
 };
 
 type PreparedEscrowTransaction = {
@@ -51,6 +49,8 @@ type PreparedEscrowTransaction = {
   contractId: string;
   milestoneId?: string;
   transaction: string | null;
+  transactionId: string | null;
+  idempotencyKey: string;
   canUseDirectAction: boolean;
   message?: string;
 };
@@ -76,6 +76,107 @@ type EscrowActionInput = {
   confirmBody: Record<string, unknown>;
 };
 
+type PendingEscrowSubmission = {
+  contractId: string;
+  milestoneId?: string;
+  walletAddress: string;
+  transactionId: string;
+  txSig: string;
+  confirmUrl: string;
+  createdAt: string;
+};
+
+const pendingEscrowSubmissionStorageKey = "vesti.pendingEscrowSubmissions";
+const legacyPendingEscrowSubmissionStorageKey = "vesti.pendingEscrowSubmission";
+
+function isPendingEscrowSubmission(value: unknown): value is PendingEscrowSubmission {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const parsed = value as Partial<PendingEscrowSubmission>;
+  const validConfirmUrl = [
+    "/api/transactions/confirm-fund",
+    "/api/transactions/confirm-release"
+  ].includes(parsed.confirmUrl ?? "");
+
+  return Boolean(
+    parsed.contractId &&
+      parsed.walletAddress &&
+      parsed.transactionId &&
+      parsed.txSig &&
+      validConfirmUrl &&
+      parsed.createdAt &&
+      !Number.isNaN(new Date(parsed.createdAt).getTime())
+  );
+}
+
+function readPendingEscrowSubmissions() {
+  try {
+    const value =
+      window.localStorage.getItem(pendingEscrowSubmissionStorageKey) ??
+      window.localStorage.getItem(legacyPendingEscrowSubmissionStorageKey);
+
+    if (!value) {
+      return [];
+    }
+
+    const parsed = JSON.parse(value) as unknown;
+    const submissions = (Array.isArray(parsed) ? parsed : [parsed]).filter(
+      isPendingEscrowSubmission
+    );
+
+    return submissions.slice(-20);
+  } catch {
+    return [];
+  }
+}
+
+function storePendingEscrowSubmission(submission: PendingEscrowSubmission) {
+  const submissions = readPendingEscrowSubmissions().filter(
+    (current) => current.transactionId !== submission.transactionId
+  );
+  submissions.push(submission);
+  window.localStorage.setItem(
+    pendingEscrowSubmissionStorageKey,
+    JSON.stringify(submissions.slice(-20))
+  );
+  window.localStorage.removeItem(legacyPendingEscrowSubmissionStorageKey);
+}
+
+function clearPendingEscrowSubmission(transactionId: string) {
+  const submissions = readPendingEscrowSubmissions().filter(
+    (current) => current.transactionId !== transactionId
+  );
+
+  if (submissions.length === 0) {
+    window.localStorage.removeItem(pendingEscrowSubmissionStorageKey);
+  } else {
+    window.localStorage.setItem(pendingEscrowSubmissionStorageKey, JSON.stringify(submissions));
+  }
+  window.localStorage.removeItem(legacyPendingEscrowSubmissionStorageKey);
+}
+
+function getLatestRevisionRequestNote(contract: SerializedContract, milestoneId: string) {
+  const event = (contract.events ?? []).find(
+      (candidate) =>
+        candidate.milestoneId === milestoneId &&
+        candidate.eventType === "milestone_revision_requested"
+  );
+
+  if (!event?.payload || typeof event.payload !== "object") {
+    return "";
+  }
+
+  const note = (event.payload as Record<string, unknown>).note;
+  return typeof note === "string" ? note : "";
+}
+
+async function persistSubmittedEscrowTransaction(submission: PendingEscrowSubmission) {
+  storePendingEscrowSubmission(submission);
+  return postJson<{ transactionId: string; status: string }>("/api/transactions/submit", submission);
+}
+
 async function fetchContract(contractId: string, walletAddress: string) {
   return postJson<SerializedContract>("/api/contracts/get", {
     contractId,
@@ -95,7 +196,13 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
   const [disputeDrafts, setDisputeDrafts] = useState<Record<string, string>>({});
   const [cancelReason, setCancelReason] = useState("");
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [successState, setSuccessState] = useState({ walletAddress: "", message: "" });
+  const successMessage =
+    successState.walletAddress === walletAddress ? successState.message : "";
+  const setSuccessMessage = useCallback(
+    (message: string) => setSuccessState({ walletAddress, message }),
+    [walletAddress]
+  );
   const [isLoading, setIsLoading] = useState(Boolean(contractId));
   const [activeAction, setActiveAction] = useState("");
 
@@ -118,6 +225,10 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
 
     return "viewer";
   }, [contract, walletAddress]);
+  const activeDispute = contract?.disputes?.find((dispute) => dispute.status !== "resolved");
+  const pendingEscrowTransaction = contract?.escrowTransactions?.find(
+    (transaction) => transaction.status !== "reconciled"
+  );
   const contractTags = contract?.tags ?? [];
   const pendingApplicants = useMemo(
     () => (contract ? getPendingApplicantWallets(contract) : []),
@@ -143,6 +254,23 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       setIsLoading(false);
     }
   }, [contractId, messages.errors.failedToLoadContract, walletAddress]);
+
+  const replaceContractWithCurrentSnapshot = useCallback(
+    async (fallback: SerializedContract) => {
+      let current = fallback;
+
+      try {
+        current = await fetchContract(contractId, walletAddress);
+      } catch {
+        // Keep the successful mutation response if refreshing the expanded snapshot fails.
+      }
+
+      setContract(current);
+      setTitleDraft(current.title);
+      return current;
+    },
+    [contractId, walletAddress]
+  );
 
   const copyDisplayId = async () => {
     if (!contract?.displayId) {
@@ -197,6 +325,58 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
     };
   }, [contractId, messages.errors.failedToLoadContract, walletAddress]);
 
+  useEffect(() => {
+    if (!contractId || !walletAddress) {
+      return;
+    }
+
+    const pendingSubmissions = readPendingEscrowSubmissions().filter(
+      (pending) => pending.contractId === contractId && pending.walletAddress === walletAddress
+    );
+
+    if (pendingSubmissions.length === 0) {
+      return;
+    }
+
+    let isCurrent = true;
+
+    const recoverSubmission = async () => {
+      setActiveAction("retry-confirmation");
+      setError("");
+
+      for (const pending of pendingSubmissions) {
+        try {
+          await persistSubmittedEscrowTransaction(pending);
+          const confirmed = await postJson<ConfirmedEscrowTransaction>(pending.confirmUrl, pending);
+
+          if (!confirmed.contract) {
+            throw new Error(messages.errors.confirmedTransactionMissingContract);
+          }
+
+          clearPendingEscrowSubmission(pending.transactionId);
+          if (isCurrent) {
+            await replaceContractWithCurrentSnapshot(confirmed.contract);
+            setSuccessMessage(copy.transactionReconciled);
+          }
+        } catch (caught) {
+          if (isCurrent) {
+            setError(caught instanceof Error ? caught.message : messages.errors.escrowActionFailed);
+          }
+        }
+      }
+
+      if (isCurrent) {
+        setActiveAction("");
+      }
+    };
+
+    void recoverSubmission();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [contractId, copy.transactionReconciled, messages.errors.confirmedTransactionMissingContract, messages.errors.escrowActionFailed, replaceContractWithCurrentSnapshot, setSuccessMessage, walletAddress]);
+
   const runAction = async (actionKey: string, url: string, body: unknown) => {
     setActiveAction(actionKey);
     setError("");
@@ -204,11 +384,42 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
 
     try {
       const data = await postJson<SerializedContract>(url, body);
-      setContract(data);
-      setTitleDraft(data.title);
+      await replaceContractWithCurrentSnapshot(data);
       setSuccessMessage(getSuccessMessage(actionKey, copy));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : messages.errors.actionFailed);
+    } finally {
+      setActiveAction("");
+    }
+  };
+
+  const retryTransactionConfirmation = async () => {
+    if (!pendingEscrowTransaction?.txSig) {
+      return;
+    }
+
+    const isFunding = pendingEscrowTransaction.action === "fund";
+    setActiveAction("retry-confirmation");
+    setError("");
+    try {
+      const confirmed = await postJson<ConfirmedEscrowTransaction>(
+        isFunding ? "/api/transactions/confirm-fund" : "/api/transactions/confirm-release",
+        {
+          contractId: contractId,
+          milestoneId: pendingEscrowTransaction.milestoneId ?? undefined,
+          walletAddress,
+          transactionId: pendingEscrowTransaction.id,
+          txSig: pendingEscrowTransaction.txSig
+        }
+      );
+      if (!confirmed.contract) {
+        throw new Error(messages.errors.confirmedTransactionMissingContract);
+      }
+      await replaceContractWithCurrentSnapshot(confirmed.contract);
+      clearPendingEscrowSubmission(pendingEscrowTransaction.id);
+      setSuccessMessage(copy.transactionReconciled);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : messages.errors.escrowActionFailed);
     } finally {
       setActiveAction("");
     }
@@ -229,12 +440,18 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       setSuccessMessage("");
 
       try {
-        const prepared = await postJson<PreparedEscrowTransaction>(prepareUrl, prepareBody);
+        const idempotencyKey = crypto.randomUUID();
+        const prepared = await postJson<PreparedEscrowTransaction>(prepareUrl, {
+          ...prepareBody,
+          idempotencyKey
+        });
 
         if (prepared.canUseDirectAction) {
-          const data = await postJson<SerializedContract>(directUrl, directBody);
-          setContract(data);
-          setTitleDraft(data.title);
+          const data = await postJson<SerializedContract>(directUrl, {
+            ...directBody,
+            idempotencyKey
+          });
+          await replaceContractWithCurrentSnapshot(data);
           setSuccessMessage(getSuccessMessage(actionKey, copy));
           return;
         }
@@ -242,10 +459,25 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
         if (!prepared.transaction) {
           throw new Error(messages.errors.preparedTransactionMissing);
         }
+        if (!prepared.transactionId) {
+          throw new Error(messages.errors.preparedTransactionMissing);
+        }
 
-        const txSig = await signAndSendPreparedTransaction(prepared.transaction);
+        const txSig = await signAndSendPreparedTransaction(prepared.transaction, async (signature) => {
+          await persistSubmittedEscrowTransaction({
+            ...confirmBody,
+            contractId: prepared.contractId,
+            milestoneId: prepared.milestoneId,
+            walletAddress,
+            transactionId: prepared.transactionId!,
+            txSig: signature,
+            confirmUrl,
+            createdAt: new Date().toISOString()
+          });
+        });
         const confirmed = await postJson<ConfirmedEscrowTransaction>(confirmUrl, {
           ...confirmBody,
+          transactionId: prepared.transactionId,
           txSig
         });
 
@@ -253,8 +485,8 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
           throw new Error(messages.errors.confirmedTransactionMissingContract);
         }
 
-        setContract(confirmed.contract);
-        setTitleDraft(confirmed.contract.title);
+        clearPendingEscrowSubmission(prepared.transactionId);
+        await replaceContractWithCurrentSnapshot(confirmed.contract);
         setSuccessMessage(getSuccessMessage(actionKey, copy));
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : messages.errors.escrowActionFailed);
@@ -267,7 +499,10 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
       messages.errors.confirmedTransactionMissingContract,
       messages.errors.escrowActionFailed,
       messages.errors.preparedTransactionMissing,
-      signAndSendPreparedTransaction
+      replaceContractWithCurrentSnapshot,
+      setSuccessMessage,
+      signAndSendPreparedTransaction,
+      walletAddress
     ]
   );
 
@@ -354,7 +589,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-primary">{copy.eyebrow}</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
-            {contract?.title ?? copy.loadingTitle}
+            {contract?.title ?? (isLoading ? copy.loadingTitle : copy.notFoundTitle)}
           </h1>
           {contract ? (
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -393,9 +628,9 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
         </p>
       ) : null}
 
-      {isLoading || !contract ? (
+      {isLoading ? (
         <Card>{copy.loadingTitle}...</Card>
-      ) : (
+      ) : !contract ? null : (
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
           <div className="space-y-6">
             <Card>
@@ -413,7 +648,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
               ) : null}
               {contract.status === "claimed" ? (
                 <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                  {copy.claimedNotice}
+                  {pendingApplicants.length === 1 ? copy.claimedNoticeSingle : copy.claimedNotice}
                 </p>
               ) : null}
               {contract.status === "draft" ? (
@@ -538,6 +773,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                   totalAmount={contract.totalAmount}
                   fundedAmount={contract.fundedAmount}
                   releasedAmount={contract.releasedAmount}
+                  refundedAmount={contract.refundedAmount}
                 />
               </div>
               {role === "creator" ? (
@@ -663,17 +899,60 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
               ) : null}
             </Card>
 
+            {pendingEscrowTransaction && ["creator", "worker"].includes(role) ? (
+              <EscrowTransactionStatus
+                transaction={pendingEscrowTransaction}
+                isRetrying={activeAction === "retry-confirmation"}
+                onRetry={() => void retryTransactionConfirmation()}
+              />
+            ) : null}
+
+            {contract.status === "disputed" && activeDispute && ["creator", "worker"].includes(role) ? (
+              <DisputeResolutionPanel
+                dispute={activeDispute}
+                walletAddress={walletAddress}
+                activeAction={activeAction}
+                onPropose={(outcome) =>
+                  void runAction(
+                    outcome === "release_to_worker" ? "propose-release" : "propose-refund",
+                    "/api/milestones/propose-dispute-resolution",
+                    {
+                      contractId: contract.id,
+                      milestoneId: activeDispute.milestoneId,
+                      walletAddress,
+                      outcome
+                    }
+                  )
+                }
+                onAccept={() =>
+                  void runAction("accept-resolution", "/api/milestones/accept-dispute-resolution", {
+                    contractId: contract.id,
+                    milestoneId: activeDispute.milestoneId,
+                    walletAddress,
+                    idempotencyKey: crypto.randomUUID()
+                  })
+                }
+              />
+            ) : null}
+
             <section className="space-y-4">
               <h2 className="text-xl font-semibold">{copy.milestones}</h2>
-              {contract.milestones.map((milestone) => (
-                <Card key={milestone.id}>
+              {contract.milestones.map((milestone) => {
+                const requestedRevisionNote = getLatestRevisionRequestNote(contract, milestone.id);
+                const displayedStatus =
+                  contract.status === "cancelled" && milestone.status !== "released"
+                    ? "cancelled"
+                    : milestone.status;
+
+                return (
+                  <Card key={milestone.id}>
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-lg font-semibold">
                           {milestone.index}. {milestone.title}
                         </h3>
-                        <Badge value={milestone.status} />
+                        <Badge value={displayedStatus} />
                       </div>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
                         {milestone.description || copy.noDescription}
@@ -696,6 +975,7 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                     activeAction={activeAction}
                     draft={proofDrafts[milestone.id] ?? { note: "", proofUrl: "" }}
                     revisionNote={revisionDrafts[milestone.id] ?? ""}
+                    requestedRevisionNote={requestedRevisionNote}
                     disputeReason={disputeDrafts[milestone.id] ?? ""}
                     onDraftChange={(patch) => updateDraft(milestone.id, patch)}
                     onRevisionNoteChange={(note) => updateRevisionDraft(milestone.id, note)}
@@ -748,8 +1028,9 @@ export function ContractDetailClient({ contractId }: ContractDetailClientProps) 
                       })
                     }
                   />
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </section>
           </div>
 
@@ -783,6 +1064,8 @@ type ContractDetailCopy = {
   titleRenamed: string;
   projectCancelled: string;
   disputeOpened: string;
+  disputeResolutionProposed: string;
+  disputeResolutionAccepted: string;
 };
 
 function getSuccessMessage(actionKey: string, copy: ContractDetailCopy) {
@@ -830,261 +1113,13 @@ function getSuccessMessage(actionKey: string, copy: ContractDetailCopy) {
     return copy.disputeOpened;
   }
 
+  if (actionKey.startsWith("propose-")) {
+    return copy.disputeResolutionProposed;
+  }
+
+  if (actionKey === "accept-resolution") {
+    return copy.disputeResolutionAccepted;
+  }
+
   return "";
-}
-
-function WalletLine({
-  label,
-  wallet,
-  emptyLabel,
-  tone,
-  profiles
-}: {
-  label: string;
-  wallet?: string | null;
-  emptyLabel?: string;
-  tone?: "creator" | "worker" | "applicant";
-  profiles?: SerializedPublicUserProfile[];
-}) {
-  const labelToneClass =
-    tone === "creator"
-      ? "text-blue-700"
-      : tone === "worker"
-        ? "text-emerald-700"
-        : tone === "applicant"
-          ? "text-amber-700"
-          : "text-muted-foreground";
-  const displayName = wallet ? getWalletDisplayName(profiles, wallet) : null;
-  const avatarImage = wallet ? getWalletAvatarImage(profiles, wallet) : null;
-
-  return (
-    <div className="flex min-w-0 items-center gap-2 rounded-lg bg-muted p-3">
-      {wallet && tone ? (
-        <ProfileAvatar
-          walletAddress={wallet}
-          displayName={displayName}
-          avatarImage={avatarImage}
-          className="size-10 shrink-0 rounded-md"
-        />
-      ) : (
-        <Wallet className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-      )}
-      <div className="min-w-0">
-        <p className={`text-xs font-semibold uppercase tracking-wide ${labelToneClass}`}>{label}</p>
-        {wallet ? (
-          <>
-            <p className="truncate font-medium" title={wallet}>
-              {getWalletDisplayLabel(profiles, wallet)}
-            </p>
-            {displayName ? (
-              <p className="truncate text-xs text-muted-foreground" title={wallet}>
-                {shortenWallet(wallet)}
-              </p>
-            ) : null}
-          </>
-        ) : (
-          <p className="truncate font-medium" title={emptyLabel}>
-            {emptyLabel}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ProofHistory({ milestone }: { milestone: SerializedMilestone }) {
-  const { locale, messages } = useLocale();
-  const proofs = milestone.proofSubmissions ?? [];
-
-  if (proofs.length === 0) {
-    return <p className="mt-4 text-sm text-muted-foreground">{messages.contractDetail.noProof}</p>;
-  }
-
-  return (
-    <div className="mt-4 rounded-lg border border-border">
-      {proofs.map((proof) => (
-        <div key={proof.id} className="border-b border-border p-3 last:border-b-0">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold">
-              {messages.contractDetail.proof} v{proof.version}
-            </p>
-            <p className="text-xs text-muted-foreground">{formatDateTime(proof.createdAt, locale)}</p>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">{proof.note}</p>
-          {proof.proofUrl ? (
-            <a
-              href={proof.proofUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-2 inline-flex items-center text-sm font-semibold text-primary"
-            >
-              {messages.contractDetail.openProof}
-              <ExternalLink className="ml-1 size-3" aria-hidden="true" />
-            </a>
-          ) : null}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function MilestoneActions({
-  milestone,
-  contractStatus,
-  role,
-  activeAction,
-  draft,
-  revisionNote,
-  disputeReason,
-  onDraftChange,
-  onRevisionNoteChange,
-  onDisputeReasonChange,
-  onSubmitProof,
-  onApprove,
-  onRequestRevision,
-  onDispute,
-  onRelease
-}: {
-  milestone: SerializedMilestone;
-  contractStatus: string;
-  role: string;
-  activeAction: string;
-  draft: ProofDraft;
-  revisionNote: string;
-  disputeReason: string;
-  onDraftChange: (patch: Partial<ProofDraft>) => void;
-  onRevisionNoteChange: (note: string) => void;
-  onDisputeReasonChange: (reason: string) => void;
-  onSubmitProof: () => void;
-  onApprove: () => void;
-  onRequestRevision: () => void;
-  onDispute: () => void;
-  onRelease: () => void;
-}) {
-  const { messages } = useLocale();
-  const copy = messages.contractDetail;
-  const canDispute =
-    contractStatus === "active" &&
-    ["creator", "worker"].includes(role) &&
-    ["ready", "submitted", "revision_requested", "approved"].includes(milestone.status);
-  const disputeControl = canDispute ? (
-    <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
-      <div className="grid gap-3">
-        <div className="grid gap-2">
-          <Label>{copy.disputeReason}</Label>
-          <Textarea
-            value={disputeReason}
-            onChange={(event) => onDisputeReasonChange(event.target.value)}
-            placeholder={copy.disputePlaceholder}
-          />
-        </div>
-        <Button
-          type="button"
-          variant="danger"
-          className="w-max"
-          onClick={onDispute}
-          disabled={!disputeReason || activeAction === `dispute-${milestone.id}`}
-        >
-          <AlertTriangle className="mr-2 size-4" aria-hidden="true" />
-          {activeAction === `dispute-${milestone.id}` ? copy.openingDispute : copy.openDispute}
-        </Button>
-      </div>
-    </div>
-  ) : null;
-
-  if (role === "worker" && ["ready", "revision_requested"].includes(milestone.status)) {
-    return (
-      <>
-        <div className="mt-5 rounded-lg bg-muted p-4">
-          <div className="grid gap-3">
-            <div className="grid gap-2">
-              <Label>{copy.proofNote}</Label>
-              <Textarea
-                value={draft.note}
-                onChange={(event) => onDraftChange({ note: event.target.value })}
-                placeholder={copy.proofNotePlaceholder}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>{copy.proofUrl}</Label>
-              <Input
-                value={draft.proofUrl}
-                onChange={(event) => onDraftChange({ proofUrl: event.target.value })}
-                placeholder={copy.proofUrlPlaceholder}
-              />
-            </div>
-            <Button
-              type="button"
-              className="w-max"
-              onClick={onSubmitProof}
-              disabled={!draft.note || activeAction === `submit-${milestone.id}`}
-            >
-              <Send className="mr-2 size-4" aria-hidden="true" />
-              {activeAction === `submit-${milestone.id}` ? copy.submittingProof : copy.submitProof}
-            </Button>
-          </div>
-        </div>
-        {disputeControl}
-      </>
-    );
-  }
-
-  if (role === "creator" && milestone.status === "submitted") {
-    return (
-      <>
-        <div className="mt-5 rounded-lg bg-muted p-4">
-          <div className="grid gap-3">
-            <div className="grid gap-2">
-              <Label>{copy.revisionNote}</Label>
-              <Textarea
-                value={revisionNote}
-                onChange={(event) => onRevisionNoteChange(event.target.value)}
-                placeholder={copy.revisionPlaceholder}
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                onClick={onApprove}
-                disabled={activeAction === `approve-${milestone.id}`}
-              >
-                <Check className="mr-2 size-4" aria-hidden="true" />
-                {activeAction === `approve-${milestone.id}` ? copy.approvingMilestone : copy.approveMilestone}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={onRequestRevision}
-                disabled={!revisionNote || activeAction === `revision-${milestone.id}`}
-              >
-                <RotateCcw className="mr-2 size-4" aria-hidden="true" />
-                {activeAction === `revision-${milestone.id}` ? copy.requestingRevision : copy.requestRevision}
-              </Button>
-            </div>
-          </div>
-        </div>
-        {disputeControl}
-      </>
-    );
-  }
-
-  if (role === "creator" && milestone.status === "approved") {
-    return (
-      <>
-        <div className="mt-5">
-          <Button
-            type="button"
-            onClick={onRelease}
-            disabled={activeAction === `release-${milestone.id}`}
-          >
-            <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
-            {activeAction === `release-${milestone.id}` ? copy.releasingPayment : copy.releasePayment}
-          </Button>
-        </div>
-        {disputeControl}
-      </>
-    );
-  }
-
-  return disputeControl;
 }

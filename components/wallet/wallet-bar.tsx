@@ -10,7 +10,7 @@ import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { useWallet } from "./wallet-provider";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
-import { convertImageFileToPixelAvatar } from "@/lib/avatar-client";
+import { convertImageFileToPixelAvatar } from "@/lib/profile/avatar-client";
 import { formatDate, shortenWallet } from "@/lib/utils";
 
 const maxAvatarUploadBytes = 5 * 1024 * 1024;
@@ -110,14 +110,14 @@ export function WalletBar() {
   };
 
   return (
-    <div className="relative flex min-w-0 flex-col items-end gap-1">
-      <div className="flex min-w-0 items-center gap-2">
+    <div className="relative flex min-w-0 max-w-full flex-1 flex-col items-end gap-1 sm:flex-none">
+      <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
         {demoWalletsEnabled ? (
-          <div className="flex min-w-0 max-w-[11rem] items-center gap-2 rounded-md border border-border bg-white px-2 py-1.5 sm:max-w-none">
+          <div className="flex min-w-0 max-w-full items-center gap-2 rounded-md border border-border bg-white px-2 py-1.5 sm:max-w-none">
             <UserRound className="size-4 text-muted-foreground" aria-hidden="true" />
             <Input
               aria-label={messages.wallet.walletAddress}
-              className="h-7 w-28 border-0 px-1 focus:ring-0 sm:w-52"
+              className="h-7 min-w-0 flex-1 border-0 px-1 focus:ring-0 sm:w-52"
               value={walletAddress}
               placeholder={messages.wallet.walletAddress}
               onChange={(event) => setWalletAddress(event.target.value)}
