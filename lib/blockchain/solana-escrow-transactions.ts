@@ -1,8 +1,9 @@
-import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import {
   decimalToTokenUnits,
   deriveSolanaEscrowAccounts,
   parsePublicKey,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
   type SolanaEscrowAccounts
 } from "@/lib/blockchain/solana-escrow-accounts";
@@ -61,6 +62,27 @@ function serializeTransaction(transaction: Transaction) {
     requireAllSignatures: false,
     verifySignatures: false
   }).toString("base64");
+}
+
+function createAssociatedTokenAccountIdempotentInstruction(input: {
+  payer: PublicKey;
+  owner: PublicKey;
+  mint: PublicKey;
+  tokenAccount: PublicKey;
+  tokenProgramId: PublicKey;
+}) {
+  return new TransactionInstruction({
+    programId: ASSOCIATED_TOKEN_PROGRAM_ID,
+    keys: [
+      { pubkey: input.payer, isSigner: true, isWritable: true },
+      { pubkey: input.tokenAccount, isSigner: false, isWritable: true },
+      { pubkey: input.owner, isSigner: false, isWritable: false },
+      { pubkey: input.mint, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      { pubkey: input.tokenProgramId, isSigner: false, isWritable: false }
+    ],
+    data: Buffer.from([1])
+  });
 }
 
 function describePreparedTransaction(input: {
@@ -153,7 +175,25 @@ export async function prepareReleaseEscrowTransaction(input: {
   const transaction = new Transaction({
     feePayer: creator,
     recentBlockhash: blockhash
-  }).add(
+  });
+  const workerTokenAccount = await config.connection.getAccountInfo(
+    accounts.workerTokenAccount,
+    "confirmed"
+  );
+
+  if (!workerTokenAccount) {
+    transaction.add(
+      createAssociatedTokenAccountIdempotentInstruction({
+        payer: creator,
+        owner: worker,
+        mint: config.usdcMint,
+        tokenAccount: accounts.workerTokenAccount,
+        tokenProgramId: accounts.tokenProgramId
+      })
+    );
+  }
+
+  transaction.add(
     createReleaseMilestoneInstruction({
       programId: config.programId,
       accounts,

@@ -17,12 +17,22 @@ export type ReleaseMilestoneParams = {
   amount: Prisma.Decimal;
 };
 
+export type RefundContractParams = {
+  contractId: string;
+  creatorWallet: string;
+  workerWallet: string;
+  amount: Prisma.Decimal;
+};
+
 export type EscrowAdapter = {
   fundContract(params: FundContractParams): Promise<{
     escrowAccount: string;
     txSig: string;
   }>;
   releaseMilestonePayment(params: ReleaseMilestoneParams): Promise<{
+    txSig: string;
+  }>;
+  refundContract(params: RefundContractParams): Promise<{
     txSig: string;
   }>;
 };

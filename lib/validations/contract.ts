@@ -24,7 +24,7 @@ export const createContractSchema = z.object({
 export const listContractsSchema = z.object({
   walletAddress: walletAddressSchema.optional(),
   query: z.string().trim().max(80).optional(),
-  status: z.enum(["open", "claimed", "active", "completed"]).optional()
+  status: z.enum(["open", "claimed", "draft", "active", "disputed", "completed"]).optional()
 });
 
 export const getContractSchema = z.object({
@@ -34,7 +34,8 @@ export const getContractSchema = z.object({
 
 export const fundContractSchema = z.object({
   contractId: z.string().trim().min(1),
-  walletAddress: walletAddressSchema
+  walletAddress: walletAddressSchema,
+  idempotencyKey: z.string().uuid().optional()
 });
 
 export const cancelContractSchema = z.object({

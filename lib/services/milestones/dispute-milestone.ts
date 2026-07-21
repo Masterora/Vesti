@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { getEscrowAdapterMode } from "@/lib/blockchain/escrow-adapter";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
 import { serializeContractWithProfiles } from "@/lib/services/serialize";
@@ -7,6 +8,11 @@ import type { DisputeMilestoneInput } from "@/lib/validations/proof-submission";
 const disputableMilestoneStatuses = ["ready", "submitted", "revision_requested", "approved"];
 
 export async function disputeMilestone(input: DisputeMilestoneInput) {
+  assertState(
+    getEscrowAdapterMode() === "mock",
+    "On-chain disputes are disabled until on-chain settlement is available"
+  );
+
   return db.$transaction(async (tx) => {
     const contract = assertFound(
       await tx.contract.findUnique({
@@ -35,17 +41,29 @@ export async function disputeMilestone(input: DisputeMilestoneInput) {
       "This milestone cannot enter dispute from its current status"
     );
 
-    await tx.contract.update({
-      where: { id: contract.id },
+    const claimedContract = await tx.contract.updateMany({
+      where: { id: contract.id, status: "active" },
       data: {
         status: "disputed"
       }
     });
+    assertState(claimedContract.count === 1, "Contract dispute was already opened");
 
-    await tx.milestone.update({
-      where: { id: milestone.id },
+    const claimedMilestone = await tx.milestone.updateMany({
+      where: { id: milestone.id, status: milestone.status },
       data: {
         status: "disputed"
+      }
+    });
+    assertState(claimedMilestone.count === 1, "Milestone dispute was already opened");
+
+    await tx.dispute.create({
+      data: {
+        contractId: contract.id,
+        milestoneId: milestone.id,
+        openedBy: input.walletAddress,
+        reason: input.reason,
+        previousMilestoneStatus: milestone.status
       }
     });
 
@@ -72,6 +90,9 @@ export async function disputeMilestone(input: DisputeMilestoneInput) {
           }
         },
         events: {
+          orderBy: { createdAt: "desc" }
+        },
+        disputes: {
           orderBy: { createdAt: "desc" }
         }
       }

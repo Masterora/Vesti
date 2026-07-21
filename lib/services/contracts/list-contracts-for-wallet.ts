@@ -2,7 +2,7 @@ import type { ContractStatus, Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { serializeContractListItem } from "@/lib/services/serialize";
-import { getPublicUserProfilesByWallets } from "@/lib/services/user-profiles";
+import { getPublicUserProfilesByWallets } from "@/lib/services/profile/user-profiles";
 import { normalizeContractDisplayIdQuery } from "@/lib/utils";
 import type { ListContractsInput } from "@/lib/validations/contract";
 
@@ -94,6 +94,7 @@ export async function listContractsForWallet(input: ListContractsInput) {
       totalAmount: true,
       fundedAmount: true,
       releasedAmount: true,
+      refundedAmount: true,
       status: true,
       escrowAccount: true,
       createdAt: true,
@@ -123,5 +124,27 @@ export async function listContractsForWallet(input: ListContractsInput) {
     wallets.filter((wallet): wallet is string => Boolean(wallet?.trim()))
   );
 
-  return contracts.map((contract) => serializeContractListItem(contract, profilesByWallet));
+  return contracts.map((contract) => {
+    const serialized = serializeContractListItem(contract, profilesByWallet);
+    const isCreator = walletAddress === contract.creatorWallet;
+    const isApplicant = Boolean(
+      walletAddress && contract.applications.some((application) => application.applicantWallet === walletAddress)
+    );
+    const visibleWallets = new Set(
+      [contract.creatorWallet, contract.workerWallet, isApplicant ? walletAddress : null].filter(
+        (wallet): wallet is string => Boolean(wallet)
+      )
+    );
+
+    return {
+      ...serialized,
+      requestedWorkerWallet: isCreator ? serialized.requestedWorkerWallet : null,
+      pendingApplicantWallets: isCreator
+        ? serialized.pendingApplicantWallets
+        : isApplicant && walletAddress
+          ? [walletAddress]
+          : [],
+      profiles: serialized.profiles?.filter((profile) => visibleWallets.has(profile.walletAddress))
+    };
+  });
 }

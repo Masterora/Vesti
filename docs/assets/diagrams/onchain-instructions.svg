@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="680" viewBox="0 0 1240 680" role="img" aria-labelledby="title desc">
+  <title id="title">On-chain escrow instructions / 链上托管指令</title>
+  <desc id="desc">Four on-chain instructions initialize escrow, fund the vault, release a milestone, or open a dispute.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker>
+    <style>
+      .title{font:700 24px Inter,"Noto Sans SC",Arial,sans-serif;fill:#f8fafc}.instruction{fill:#0c2841;stroke:#38bdf8;stroke-width:2}.effect{fill:#111827;stroke:#64748b;stroke-width:2}.warn{fill:#2a1c12;stroke:#fb923c}.label{font:700 16px ui-monospace,SFMono-Regular,Consolas,monospace;fill:#f8fafc;text-anchor:middle}.sub{font:14px Inter,"Noto Sans SC",Arial,sans-serif;fill:#cbd5e1;text-anchor:middle}.edge{stroke:#64748b;stroke-width:2.4;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1240" height="680" rx="24" fill="#070d19"/>
+  <text class="title" x="40" y="44">On-chain escrow instructions / 链上托管指令</text>
+
+  <rect class="instruction" x="60" y="90" width="470" height="100" rx="16"/><text class="label" x="295" y="126">initialize_escrow</text><text class="sub" x="295" y="155">contract_id · worker · total_amount</text>
+  <rect class="effect" x="710" y="90" width="470" height="100" rx="16"/><text class="sub" x="945" y="126">Create escrow PDA and vault token account</text><text class="sub" x="945" y="155">创建托管 PDA 与金库 Token 账户</text>
+  <line class="edge" x1="530" y1="140" x2="710" y2="140"/>
+
+  <rect class="instruction" x="60" y="230" width="470" height="100" rx="16"/><text class="label" x="295" y="266">mark_funded</text><text class="sub" x="295" y="295">amount</text>
+  <rect class="effect" x="710" y="230" width="470" height="100" rx="16"/><text class="sub" x="945" y="266">Creator token account → vault</text><text class="sub" x="945" y="295">需求方 Token 账户 → 金库</text>
+  <line class="edge" x1="530" y1="280" x2="710" y2="280"/>
+
+  <rect class="instruction" x="60" y="370" width="470" height="100" rx="16"/><text class="label" x="295" y="406">release_milestone</text><text class="sub" x="295" y="435">milestone_id · amount</text>
+  <rect class="effect" x="710" y="370" width="470" height="100" rx="16"/><text class="sub" x="945" y="406">Vault → Worker token account</text><text class="sub" x="945" y="435">金库 → 工作者 Token 账户</text>
+  <line class="edge" x1="530" y1="420" x2="710" y2="420"/>
+
+  <rect class="instruction warn" x="60" y="510" width="470" height="100" rx="16"/><text class="label" x="295" y="546">open_dispute</text><text class="sub" x="295" y="575">milestone_id · reason</text>
+  <rect class="effect warn" x="710" y="510" width="470" height="100" rx="16"/><text class="sub" x="945" y="546">Mark escrow disputed; no settlement yet</text><text class="sub" x="945" y="575">标记争议；尚未实现链上结算</text>
+  <line class="edge" x1="530" y1="560" x2="710" y2="560"/>
+</svg>

@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { getProfileAvatarSrc } from "@/lib/avatar";
+import { getProfileAvatarSrc } from "@/lib/profile/avatar";
 import { cn } from "@/lib/utils";
 
 type ProfileAvatarProps = {

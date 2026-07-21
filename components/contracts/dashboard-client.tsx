@@ -8,11 +8,12 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ContractList } from "@/components/contracts/contract-list";
+import { DashboardSummary } from "@/components/contracts/dashboard-summary";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { postJson } from "@/lib/api/client";
 import type { SerializedContractListItem } from "@/types/contract";
 
-type DashboardStatusFilter = "all" | "open" | "claimed" | "active" | "completed";
+type DashboardStatusFilter = "all" | "open" | "claimed" | "draft" | "active" | "disputed" | "completed";
 
 async function fetchContracts(walletAddress?: string, query?: string, status?: DashboardStatusFilter) {
   return postJson<SerializedContractListItem[]>("/api/contracts/list", {
@@ -38,7 +39,9 @@ export function DashboardClient() {
     { value: "all", label: messages.dashboard.filterAll },
     { value: "open", label: messages.dashboard.filterOpen },
     { value: "claimed", label: messages.dashboard.filterClaimed },
+    { value: "draft", label: messages.dashboard.filterDraft },
     { value: "active", label: messages.dashboard.filterActive },
+    { value: "disputed", label: messages.dashboard.filterDisputed },
     { value: "completed", label: messages.dashboard.filterCompleted }
   ];
 
@@ -89,6 +92,8 @@ export function DashboardClient() {
           </Link>
         </div>
       </div>
+
+      <DashboardSummary contracts={contracts} />
 
       <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center">
         <div className="relative min-w-0 flex-1">

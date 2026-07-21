@@ -3,7 +3,7 @@ import { getContractRole } from "@/lib/auth/wallet-role";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { assertAllowed, assertFound } from "@/lib/services/errors";
 import { serializeContractComment } from "@/lib/services/serialize";
-import { serializePublicUserProfile } from "@/lib/services/user-profiles";
+import { serializePublicUserProfile } from "@/lib/services/profile/user-profiles";
 import type { CreateContractCommentInput } from "@/lib/validations/contract";
 
 export async function createContractComment(input: CreateContractCommentInput) {
@@ -29,8 +29,8 @@ export async function createContractComment(input: CreateContractCommentInput) {
     });
 
     assertAllowed(
-      contract.isPublic || role !== "viewer",
-      "Only public viewers or contract participants can comment on this contract"
+      role === "creator" || role === "worker",
+      "Only contract participants can comment on this contract"
     );
 
     await tx.user.upsert({

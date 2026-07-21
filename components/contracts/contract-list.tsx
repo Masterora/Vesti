@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ProfileAvatar } from "@/components/ui/profile-avatar";
 import { ContractProgress } from "@/components/contracts/contract-progress";
-import { getWalletAvatarImage, getWalletDisplayLabel, getWalletDisplayName } from "@/lib/display-profiles";
+import { getWalletAvatarImage, getWalletDisplayLabel, getWalletDisplayName } from "@/lib/profile/display-profiles";
 import { shortenWallet } from "@/lib/utils";
 import type { SerializedContractListItem } from "@/types/contract";
 
@@ -155,6 +155,7 @@ export function ContractList({
                     totalAmount={contract.totalAmount}
                     fundedAmount={contract.fundedAmount}
                     releasedAmount={contract.releasedAmount}
+                    refundedAmount={contract.refundedAmount}
                   />
                 </div>
               </div>

@@ -2,12 +2,14 @@ import type {
   Contract,
   ContractApplication,
   ContractComment,
+  Dispute,
+  EscrowTransaction,
   Event,
   Milestone,
   ProofSubmission
 } from "@prisma/client";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
-import { getPublicUserProfilesByWallets } from "@/lib/services/user-profiles";
+import { getPublicUserProfilesByWallets } from "@/lib/services/profile/user-profiles";
 import type { SerializedPublicUserProfile } from "@/types/profile";
 
 type MilestoneWithProofs = Milestone & {
@@ -19,6 +21,8 @@ export type ContractWithRelations = Contract & {
   events?: Event[];
   comments?: ContractComment[];
   applications?: ContractApplication[];
+  disputes?: Dispute[];
+  escrowTransactions?: EscrowTransaction[];
 };
 
 export type ContractListRecord = Pick<
@@ -35,6 +39,7 @@ export type ContractListRecord = Pick<
   | "totalAmount"
   | "fundedAmount"
   | "releasedAmount"
+  | "refundedAmount"
   | "status"
   | "escrowAccount"
   | "createdAt"
@@ -110,6 +115,40 @@ export function serializeContractApplication(application: ContractApplication) {
   };
 }
 
+export function serializeDispute(dispute: Dispute) {
+  return {
+    ...dispute,
+    resolvedAt: dispute.resolvedAt?.toISOString() ?? null,
+    createdAt: dispute.createdAt.toISOString(),
+    updatedAt: dispute.updatedAt.toISOString()
+  };
+}
+
+export function serializeEscrowTransaction(transaction: EscrowTransaction) {
+  return {
+    id: transaction.id,
+    contractId: transaction.contractId,
+    milestoneId: transaction.milestoneId,
+    action: transaction.action,
+    mode: transaction.mode,
+    walletAddress: transaction.walletAddress,
+    amount: transaction.amount?.toString() ?? null,
+    txSig: transaction.txSig,
+    status: transaction.status,
+    errorCode: transaction.errorCode,
+    errorMessage: transaction.errorMessage,
+    reconciliationAttempts: transaction.reconciliationAttempts,
+    lastAttemptAt: transaction.lastAttemptAt?.toISOString() ?? null,
+    nextAttemptAt: transaction.nextAttemptAt?.toISOString() ?? null,
+    requiresReviewAt: transaction.requiresReviewAt?.toISOString() ?? null,
+    submittedAt: transaction.submittedAt?.toISOString() ?? null,
+    confirmedAt: transaction.confirmedAt?.toISOString() ?? null,
+    reconciledAt: transaction.reconciledAt?.toISOString() ?? null,
+    createdAt: transaction.createdAt.toISOString(),
+    updatedAt: transaction.updatedAt.toISOString()
+  };
+}
+
 export function serializeContract(
   contract: ContractWithRelations,
   profilesByWallet?: Map<string, SerializedPublicUserProfile>
@@ -124,12 +163,15 @@ export function serializeContract(
     totalAmount: contract.totalAmount.toString(),
     fundedAmount: contract.fundedAmount.toString(),
     releasedAmount: contract.releasedAmount.toString(),
+    refundedAmount: contract.refundedAmount.toString(),
     createdAt: contract.createdAt.toISOString(),
     updatedAt: contract.updatedAt.toISOString(),
     milestones: contract.milestones.map(serializeMilestone),
     events: contract.events?.map(serializeEvent),
     comments: contract.comments?.map(serializeContractComment),
     applications: contract.applications?.map(serializeContractApplication),
+    disputes: contract.disputes?.map(serializeDispute),
+    escrowTransactions: contract.escrowTransactions?.map(serializeEscrowTransaction),
     profiles: profilesByWallet
       ? Array.from(new Set(collectContractWallets(contract))).flatMap((wallet) => {
           const profile = profilesByWallet.get(wallet);
@@ -156,6 +198,7 @@ export function serializeContractListItem(
     totalAmount: contract.totalAmount.toString(),
     fundedAmount: contract.fundedAmount.toString(),
     releasedAmount: contract.releasedAmount.toString(),
+    refundedAmount: contract.refundedAmount.toString(),
     status: contract.status,
     escrowAccount: contract.escrowAccount,
     createdAt: contract.createdAt.toISOString(),

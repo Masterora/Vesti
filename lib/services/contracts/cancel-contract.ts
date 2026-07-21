@@ -17,10 +17,7 @@ export async function cancelContract(input: CancelContractInput) {
       input.walletAddress === contract.creatorWallet,
       "Only the Creator can cancel this contract"
     );
-    assertState(
-      ["open", "claimed", "draft"].includes(contract.status),
-      "Only open, claimed, or draft contracts can be cancelled"
-    );
+    assertState(contract.status === "draft", "Only draft contracts can be cancelled");
 
     await tx.contract.update({
       where: { id: contract.id },

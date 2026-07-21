@@ -11,8 +11,8 @@ export function AppHeader() {
 
   return (
     <header className="border-b border-border bg-white/86 backdrop-blur">
-      <div className="page-shell flex min-h-16 items-center justify-between gap-6 py-3">
-        <Link href="/" className="flex items-center gap-3">
+      <div className="page-shell flex min-h-16 flex-wrap items-center justify-between gap-3 py-3 sm:gap-6">
+        <Link href="/" className="flex min-w-0 items-center gap-3">
           <Image
             src="/brand-mark.svg"
             alt="Vesti"
@@ -34,7 +34,7 @@ export function AppHeader() {
             {messages.header.newContract}
           </Link>
         </nav>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-2 sm:ml-auto sm:w-auto sm:justify-end sm:gap-3">
           <LanguageToggle />
           <WalletBar />
         </div>

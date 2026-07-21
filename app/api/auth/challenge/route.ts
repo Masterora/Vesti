@@ -1,10 +1,28 @@
 import { handleRoute, parseJsonBody } from "@/lib/api/route-helpers";
+import { getRequestClientIdentity } from "@/lib/api/request-security";
 import { createWalletAuthChallenge } from "@/lib/services/auth/create-wallet-auth-challenge";
+import { enforceRateLimit } from "@/lib/services/system/enforce-rate-limit";
 import { createAuthChallengeSchema } from "@/lib/validations/auth";
 
 export async function POST(request: Request) {
   return handleRoute(request, async () => {
     const body = await parseJsonBody(request);
-    return createWalletAuthChallenge(createAuthChallengeSchema.parse(body));
+    const input = createAuthChallengeSchema.parse(body);
+    await Promise.all([
+      enforceRateLimit({
+        scope: "auth-challenge-wallet",
+        identity: input.walletAddress,
+        limit: 5,
+        windowMs: 5 * 60_000
+      }),
+      enforceRateLimit({
+        scope: "auth-challenge-client",
+        identity: getRequestClientIdentity(request),
+        limit: 20,
+        windowMs: 5 * 60_000
+      })
+    ]);
+
+    return createWalletAuthChallenge(input);
   });
 }

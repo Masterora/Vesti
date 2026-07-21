@@ -1,10 +1,11 @@
-import { NewContractForm } from "@/components/contracts/new-contract-form";
-import { getMessages } from "@/lib/i18n/messages";
-import { getServerLocale } from "@/lib/i18n/server-locale";
+"use client";
 
-export default async function NewContractPage() {
-  const locale = await getServerLocale();
-  const copy = getMessages(locale).newContractPage;
+import { NewContractForm } from "@/components/contracts/new-contract-form";
+import { useLocale } from "@/components/i18n/locale-provider";
+
+export default function NewContractPage() {
+  const { locale, messages } = useLocale();
+  const copy = messages.newContractPage;
 
   return (
     <div className="page-shell py-10">

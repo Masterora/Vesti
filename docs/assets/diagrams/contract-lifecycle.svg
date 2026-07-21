@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="620" viewBox="0 0 1400 620" role="img" aria-labelledby="title desc">
+  <title id="title">Contract lifecycle / 合约生命周期</title>
+  <desc id="desc">Contract state transitions from open or draft through active, disputed, completed, or cancelled.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker>
+    <style>
+      .title{font:700 24px Inter,"Noto Sans SC",Arial,sans-serif;fill:#f8fafc}.state{fill:#111827;stroke:#64748b;stroke-width:2}.active{fill:#0c2841;stroke:#38bdf8}.done{fill:#0d2a24;stroke:#34d399}.warn{fill:#2a1c12;stroke:#fb923c}.label{font:700 17px Inter,"Noto Sans SC",Arial,sans-serif;fill:#f8fafc;text-anchor:middle}.sub{font:14px Inter,"Noto Sans SC",Arial,sans-serif;fill:#cbd5e1;text-anchor:middle}.edge{fill:none;stroke:#64748b;stroke-width:2.4;marker-end:url(#arrow)}.edgeLabel{font:13px Inter,"Noto Sans SC",Arial,sans-serif;fill:#cbd5e1;text-anchor:middle}.start{fill:#f8fafc}
+    </style>
+  </defs>
+  <rect width="1400" height="620" rx="24" fill="#070d19"/>
+  <text class="title" x="40" y="44">Contract lifecycle / 合约生命周期</text>
+
+  <circle class="start" cx="55" cy="180" r="10"/>
+  <rect class="state" x="100" y="130" width="180" height="90" rx="15"/><text class="label" x="190" y="168">open</text><text class="sub" x="190" y="195">公开项目</text>
+  <rect class="state" x="340" y="130" width="180" height="90" rx="15"/><text class="label" x="430" y="168">claimed</text><text class="sub" x="430" y="195">已有申请</text>
+  <rect class="state" x="580" y="130" width="180" height="90" rx="15"/><text class="label" x="670" y="168">draft</text><text class="sub" x="670" y="195">已分配，未注资</text>
+  <rect class="state active" x="820" y="130" width="180" height="90" rx="15"/><text class="label" x="910" y="168">active</text><text class="sub" x="910" y="195">进行中</text>
+  <rect class="state done" x="1080" y="130" width="200" height="90" rx="15"/><text class="label" x="1180" y="168">completed</text><text class="sub" x="1180" y="195">全部里程碑已付款</text>
+
+  <rect class="state warn" x="580" y="410" width="180" height="90" rx="15"/><text class="label" x="670" y="448">cancelled</text><text class="sub" x="670" y="475">取消或退款</text>
+  <rect class="state warn" x="820" y="410" width="180" height="90" rx="15"/><text class="label" x="910" y="448">disputed</text><text class="sub" x="910" y="475">争议中</text>
+
+  <path class="edge" d="M65 180 H100"/><text class="edgeLabel" x="82" y="138">No worker / 未分配</text>
+  <path class="edge" d="M280 175 H340"/><text class="edgeLabel" x="310" y="115">Apply / 申请</text>
+  <path class="edge" d="M520 175 H580"/><text class="edgeLabel" x="550" y="115">Accept / 接受</text>
+  <path class="edge" d="M760 175 H820"/><text class="edgeLabel" x="790" y="115">Fund / 注资</text>
+  <path class="edge" d="M1000 175 H1080"/><text class="edgeLabel" x="1040" y="115">All released / 全部付款</text>
+  <path class="edge" d="M670 220 V410"/><text class="edgeLabel" x="585" y="340">Cancel / 取消</text>
+  <path class="edge" d="M910 220 V410"/><text class="edgeLabel" x="990" y="340">Dispute / 争议</text>
+  <path class="edge" d="M865 410 V245 C865 230 880 220 895 220"/><text class="edgeLabel" x="760" y="380">Release and continue / 释放后继续</text>
+  <path class="edge" d="M1000 440 C1120 410 1260 350 1210 220"/><text class="edgeLabel" x="1160" y="355">Release final / 释放最后一项</text>
+  <path class="edge" d="M820 475 H760"/><text class="edgeLabel" x="790" y="520">Refund balance / 退回余额</text>
+  <circle class="start" cx="555" cy="80" r="10"/><path class="edge" d="M555 90 C590 100 625 105 650 130"/><text class="edgeLabel" x="680" y="76">Assigned / 已分配</text>
+</svg>

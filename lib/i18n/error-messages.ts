@@ -62,7 +62,7 @@ const exactZhMessages: Record<string, string> = {
   "Only the Creator can fund this contract": "只有甲方可以为这个合同注资。",
   "Only draft contracts can be funded": "只有草稿状态的合同可以注资。",
   "Only the Creator can cancel this contract": "只有甲方可以取消这个合同。",
-  "Only open, claimed, or draft contracts can be cancelled": "只有待申请、审核中或草稿状态的项目可以取消。",
+  "Only draft contracts can be cancelled": "只有草稿状态的合同可以取消。",
   "Only the Creator can change contract visibility": "只有甲方可以修改合同可见性。",
   "Only the assigned Worker can submit proof": "只有指定的乙方可以提交证明。",
   "Contract must be active before proof submission": "合同必须处于进行中状态后才能提交证明。",
@@ -74,8 +74,12 @@ const exactZhMessages: Record<string, string> = {
   "Contract must be active before revision requests": "合同必须处于进行中状态后才能要求修改。",
   "Only submitted milestones can be sent back for revision": "只有待审核的里程碑可以被退回修改。",
   "Only the Creator or Worker can open a dispute": "只有甲方或乙方可以发起争议。",
-  "Only public viewers or contract participants can comment on this contract":
-    "只有公开合同的访客或当前合同参与方可以留言。",
+  "Only contract participants can comment on this contract": "只有合同参与方可以留言。",
+  "On-chain disputes are disabled until on-chain settlement is available":
+    "链上争议解决尚未完成，当前不能发起链上争议。",
+  "On-chain dispute settlement is not available": "链上争议和解当前不可用。",
+  "This operation was already submitted": "该操作已经提交，请勿重复操作。",
+  "The contract changed during this operation. Please retry.": "操作期间合同状态发生变化，请重试。",
   "Only active contracts can enter dispute": "只有进行中的合同可以进入争议流程。",
   "This milestone cannot enter dispute from its current status": "当前里程碑状态不能发起争议。",
   "Contract must be active before release": "合同必须处于进行中状态后才能放款。",
@@ -86,6 +90,9 @@ const exactZhMessages: Record<string, string> = {
   "Only the Creator can prepare payment release": "只有甲方可以准备放款交易。",
   "Wallet auth challenge is invalid or expired": "钱包登录挑战无效或已过期。",
   "Wallet signature is invalid": "钱包签名无效。",
+  "Too many requests. Please try again later.": "请求过于频繁，请稍后再试。",
+  "Request origin is not allowed": "当前请求来源不受信任。",
+  "NEXT_PUBLIC_APP_URL must be a valid URL": "NEXT_PUBLIC_APP_URL 必须是有效地址。",
   "AUTH_SECRET is required for wallet sessions": "钱包会话缺少密钥配置。",
   "Mock escrow mode does not require a wallet-signed transaction.":
     "模拟托管模式下不需要钱包签名交易。",

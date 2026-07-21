@@ -4,11 +4,12 @@ import {
   verifySolanaMessageSignature
 } from "@/lib/auth/wallet-session";
 import { ServiceError } from "@/lib/services/errors";
-import { serializeSessionUserProfile } from "@/lib/services/user-profiles";
+import { serializeSessionUserProfile } from "@/lib/services/profile/user-profiles";
 import type { VerifyAuthChallengeInput } from "@/lib/validations/auth";
 
 export async function verifyWalletAuthChallenge(input: VerifyAuthChallengeInput) {
   const walletAddress = input.walletAddress.trim();
+  const now = new Date();
 
   const challenge = await db.walletAuthChallenge.findUnique({
     where: { nonce: input.nonce }
@@ -18,7 +19,7 @@ export async function verifyWalletAuthChallenge(input: VerifyAuthChallengeInput)
     !challenge ||
     challenge.walletAddress !== walletAddress ||
     challenge.consumedAt ||
-    challenge.expiresAt <= new Date()
+    challenge.expiresAt <= now
   ) {
     throw new ServiceError("Wallet auth challenge is invalid or expired", 401);
   }
@@ -37,12 +38,21 @@ export async function verifyWalletAuthChallenge(input: VerifyAuthChallengeInput)
     throw new ServiceError("Wallet signature is invalid", 401);
   }
 
-  const [, user] = await db.$transaction([
-    db.walletAuthChallenge.update({
-      where: { id: challenge.id },
-      data: { consumedAt: new Date() }
-    }),
-    db.user.upsert({
+  const user = await db.$transaction(async (tx) => {
+    const consumed = await tx.walletAuthChallenge.updateMany({
+      where: {
+        id: challenge.id,
+        consumedAt: null,
+        expiresAt: { gt: now }
+      },
+      data: { consumedAt: now }
+    });
+
+    if (consumed.count !== 1) {
+      throw new ServiceError("Wallet auth challenge is invalid or expired", 401);
+    }
+
+    return tx.user.upsert({
       where: { walletAddress },
       update: {},
       create: { walletAddress },
@@ -68,8 +78,8 @@ export async function verifyWalletAuthChallenge(input: VerifyAuthChallengeInput)
           }
         }
       }
-    })
-  ]);
+    });
+  });
 
   return {
     walletAddress,

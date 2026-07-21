@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="790" viewBox="0 0 1320 790" role="img" aria-labelledby="title desc">
+  <title id="title">Vesti repository structure / Vesti 仓库结构</title>
+  <desc id="desc">The repository is divided into application runtime, data and chain, and repository support areas.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker>
+    <style>
+      .title{font:700 24px Inter,"Noto Sans SC",Arial,sans-serif;fill:#f8fafc}.root{fill:#1e293b}.group{fill:#0f172a;stroke:#334155;stroke-width:2}.item{fill:#111827;stroke:#475569;stroke-width:1.5}.groupTitle{font:700 18px Inter,"Noto Sans SC",Arial,sans-serif;fill:#f8fafc;text-anchor:middle}.label{font:600 15px Inter,"Noto Sans SC",Arial,sans-serif;fill:#f8fafc;text-anchor:middle}.sub{font:13px Inter,"Noto Sans SC",Arial,sans-serif;fill:#cbd5e1;text-anchor:middle}.rootText{font:700 19px Inter,"Noto Sans SC",Arial,sans-serif;fill:#fff;text-anchor:middle}.edge{fill:none;stroke:#64748b;stroke-width:2;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1320" height="790" rx="24" fill="#070d19"/>
+  <text class="title" x="40" y="44">Repository ownership / 仓库目录职责</text>
+  <rect class="root" x="520" y="70" width="280" height="64" rx="16"/>
+  <text class="rootText" x="660" y="110">Vesti repository / 仓库</text>
+
+  <rect class="group" x="40" y="205" width="390" height="525" rx="20"/>
+  <text class="groupTitle" x="235" y="245">Application runtime / 应用运行时</text>
+  <rect class="item" x="75" y="275" width="320" height="62" rx="12"/><text class="label" x="235" y="301">app/</text><text class="sub" x="235" y="323">Pages and API / 页面与 API</text>
+  <rect class="item" x="75" y="355" width="320" height="62" rx="12"/><text class="label" x="235" y="381">components/</text><text class="sub" x="235" y="403">Feature and shared UI / 业务与共享 UI</text>
+  <rect class="item" x="75" y="435" width="320" height="150" rx="12"/><text class="label" x="235" y="463">lib/</text><text class="sub" x="235" y="489">api · auth · blockchain · domain</text><text class="sub" x="235" y="515">i18n · profile · services · validations</text><text class="sub" x="235" y="545">按职责组织的运行时模块</text>
+  <rect class="item" x="75" y="605" width="320" height="62" rx="12"/><text class="label" x="235" y="631">types/</text><text class="sub" x="235" y="653">Serialized types / 序列化类型</text>
+
+  <rect class="group" x="465" y="205" width="390" height="525" rx="20"/>
+  <text class="groupTitle" x="660" y="245">Data and chain / 数据与链上</text>
+  <rect class="item" x="500" y="275" width="320" height="92" rx="12"/><text class="label" x="660" y="305">prisma/</text><text class="sub" x="660" y="330">Schema, migrations, seed</text><text class="sub" x="660" y="350">结构、迁移与种子数据</text>
+  <rect class="item" x="500" y="390" width="320" height="92" rx="12"/><text class="label" x="660" y="420">programs/</text><text class="sub" x="660" y="445">Solana programs / 链上程序</text>
+  <rect class="item" x="500" y="505" width="320" height="92" rx="12"/><text class="label" x="660" y="535">public/</text><text class="sub" x="660" y="560">Static assets / 浏览器静态资源</text>
+
+  <rect class="group" x="890" y="205" width="390" height="525" rx="20"/>
+  <text class="groupTitle" x="1085" y="245">Repository support / 仓库支持</text>
+  <rect class="item" x="925" y="275" width="320" height="92" rx="12"/><text class="label" x="1085" y="305">scripts/</text><text class="sub" x="1085" y="330">Task runners / 任务运行器</text>
+  <rect class="item" x="925" y="390" width="320" height="92" rx="12"/><text class="label" x="1085" y="420">tests/integration/</text><text class="sub" x="1085" y="445">Database workflows / 数据库工作流</text>
+  <rect class="item" x="925" y="505" width="320" height="130" rx="12"/><text class="label" x="1085" y="535">Root configuration / 根配置</text><text class="sub" x="1085" y="560">Next · Prisma · Docker · Anchor</text><text class="sub" x="1085" y="585">ESLint · Tailwind · Vitest</text><text class="sub" x="1085" y="610">README · environment · CI</text>
+
+  <path class="edge" d="M600 134 C520 165 360 160 235 205"/>
+  <path class="edge" d="M660 134 V205"/>
+  <path class="edge" d="M720 134 C800 165 960 160 1085 205"/>
+</svg>

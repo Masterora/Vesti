@@ -1,5 +1,7 @@
 # Vesti Escrow Program
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 This is the Rust/Anchor program boundary for the Vesti on-chain escrow phase.
 
 The current program stores escrow state, creates a vault token account, and models these
@@ -15,5 +17,6 @@ instructions:
 `release_milestone` transfers approved milestone funds from the vault to the Worker token account.
 `contract_id` is used as a PDA seed and must be 32 bytes or less.
 
-The Web app should continue to use the mocked escrow adapter until the Solana adapter has
-wallet signing and transaction submission wired end to end.
+The Web app defaults to the mocked escrow adapter. The Solana adapter has an experimental
+wallet-signed transaction path, but it is not production-ready until the program is deployed and
+the complete devnet flow is validated end to end.
