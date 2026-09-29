@@ -280,6 +280,10 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
       return "worker";
     }
 
+    if (contract.disputePolicy === "arbitrator" && walletAddress === contract.arbitratorWallet) {
+      return "arbitrator";
+    }
+
     if (getPendingApplicantWallets(contract).includes(walletAddress)) {
       return "applicant";
     }
@@ -966,6 +970,13 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
                   emptyLabel={pendingApplicants.length > 0 ? copy.pendingWorker : copy.unassignedWorker}
                 />
                 <WalletLine label={copy.escrow} wallet={contract.escrowAccount || copy.notFunded} />
+                <div className="rounded-md border border-border p-3">
+                  <p className="text-xs text-muted-foreground">{messages.newContract.disputePolicyLabel}</p>
+                  <p className="mt-1 font-medium">{contract.disputePolicy === "arbitrator" ? messages.newContract.arbitratorPolicy : messages.newContract.bilateralPolicy}</p>
+                </div>
+                {contract.disputePolicy === "arbitrator" && contract.arbitratorWallet ? (
+                  <WalletLine label={messages.newContract.arbitratorWalletLabel} wallet={contract.arbitratorWallet} />
+                ) : null}
               </div>
               {!contract.workerWallet && pendingApplicants.length > 0 ? (
                 <div id="applicants" className="mt-5 scroll-mt-24 rounded-md border border-border bg-surface-raised p-4">
@@ -1106,10 +1117,7 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
                   </div>
                 </div>
               ) : null}
-              {role !== "creator" &&
-              role !== "worker" &&
-              role !== "applicant" &&
-              ["open", "claimed"].includes(contract.status) ? (
+              {role === "viewer" && ["open", "claimed"].includes(contract.status) ? (
                 <div className="mt-6 rounded-lg bg-muted p-4">
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -1154,9 +1162,10 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
               />
             )) : null}
 
-            {contract.status === "disputed" && activeDispute && ["creator", "worker"].includes(role) ? (
+            {contract.status === "disputed" && activeDispute && (["creator", "worker", "arbitrator"].includes(role)) ? (
               <DisputeResolutionPanel
                 canSettle={runtime?.canSettleDispute === true}
+                canArbitrate={role === "arbitrator"}
                 dispute={activeDispute}
                 walletAddress={walletAddress}
                 activeAction={activeAction}
@@ -1179,6 +1188,19 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
                     walletAddress,
                     idempotencyKey: crypto.randomUUID()
                   })
+                }
+                onArbitrate={(outcome) =>
+                  void runAction(
+                    outcome === "release_to_worker" ? "arbitrate-release" : "arbitrate-refund",
+                    "/api/milestones/arbitrate-dispute-resolution",
+                    {
+                      contractId: contract.id,
+                      milestoneId: activeDispute.milestoneId,
+                      walletAddress,
+                      outcome,
+                      idempotencyKey: crypto.randomUUID()
+                    }
+                  )
                 }
               />
             ) : null}
@@ -1348,7 +1370,7 @@ function getSuccessMessage(actionKey: string, copy: ContractDetailCopy) {
     return copy.disputeResolutionProposed;
   }
 
-  if (actionKey === "accept-resolution") {
+  if (actionKey === "accept-resolution" || actionKey.startsWith("arbitrate-")) {
     return copy.disputeResolutionAccepted;
   }
 

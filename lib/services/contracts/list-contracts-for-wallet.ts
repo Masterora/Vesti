@@ -24,6 +24,7 @@ export function buildListContractsWhere(input: ListContractsInput, extraWhere?: 
         ? [
             { creatorWallet: walletAddress },
             { workerWallet: walletAddress },
+            { arbitratorWallet: walletAddress },
             { requestedWorkerWallet: walletAddress },
             {
               applications: {
@@ -94,6 +95,8 @@ export async function listContractsForWallet(
       displayId: true,
       creatorWallet: true,
       workerWallet: true,
+      disputePolicy: true,
+      arbitratorWallet: true,
       requestedWorkerWallet: true,
       title: true,
       description: true,

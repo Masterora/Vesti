@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PublicKey } from "@solana/web3.js";
 import { amountSchema, optionalDateSchema, walletAddressSchema } from "./shared";
 
 const tagSchema = z.string().trim().min(1, "Tag is required").max(24, "Tag is too long");
@@ -13,12 +14,26 @@ export const milestoneInputSchema = z.object({
 export const createContractSchema = z.object({
   creatorWallet: walletAddressSchema,
   workerWallet: walletAddressSchema.optional(),
+  disputePolicy: z.enum(["bilateral", "arbitrator"]).default("bilateral"),
+  arbitratorWallet: walletAddressSchema.refine((value) => {
+    try { return new PublicKey(value).toBase58() === value; } catch { return false; }
+  }, "Arbitrator must be a valid Solana wallet").optional(),
   title: z.string().trim().min(1, "Contract title is required"),
   description: z.string().trim().optional(),
   tags: z.array(tagSchema).max(8, "Use up to 8 tags").optional(),
   isPublic: z.boolean().optional(),
   totalAmount: amountSchema,
   milestones: z.array(milestoneInputSchema).min(1, "At least one milestone is required")
+}).superRefine((input, context) => {
+  if (input.disputePolicy === "arbitrator") {
+    if (!input.arbitratorWallet) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["arbitratorWallet"], message: "Arbitrator wallet is required" });
+    } else if (input.arbitratorWallet === input.creatorWallet || input.arbitratorWallet === input.workerWallet) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ["arbitratorWallet"], message: "Arbitrator must differ from both participants" });
+    }
+  } else if (input.arbitratorWallet) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["arbitratorWallet"], message: "Arbitrator wallet is only allowed for arbitrated contracts" });
+  }
 });
 
 export const listContractsSchema = z.object({
@@ -78,7 +93,7 @@ export const createContractCommentSchema = z.object({
   body: z.string().trim().min(1, "Comment is required").max(1000, "Comment is too long")
 });
 
-export type CreateContractInput = z.infer<typeof createContractSchema>;
+export type CreateContractInput = z.input<typeof createContractSchema>;
 export type ListContractsInput = z.infer<typeof listContractsSchema>;
 export type GetContractInput = z.infer<typeof getContractSchema>;
 export type FundContractInput = z.infer<typeof fundContractSchema>;

@@ -23,6 +23,7 @@ export async function claimContract(input: ClaimContractInput) {
       input.walletAddress !== contract.creatorWallet,
       "Creator cannot claim their own contract"
     );
+    assertAllowed(input.walletAddress !== contract.arbitratorWallet, "Arbitrator cannot claim their contract");
     assertAllowed(contract.isPublic, "Only public contracts can be claimed");
     assertState(
       ["open", "claimed"].includes(contract.status),

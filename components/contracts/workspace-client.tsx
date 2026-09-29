@@ -71,12 +71,16 @@ function getEscrowBalance(contract: SerializedContractListItem) {
 function relationFor(contract: SerializedContractListItem, walletAddress: string) {
   if (contract.creatorWallet === walletAddress) return "creator";
   if (contract.workerWallet === walletAddress) return "worker";
+  if (contract.disputePolicy === "arbitrator" && contract.arbitratorWallet === walletAddress) return "arbitrator";
   if (contract.pendingApplicantWallets.includes(walletAddress)) return "applicant";
   return "viewer";
 }
 
 function nextAction(contract: SerializedContractListItem, relation: string, locale: "en" | "zh", walletAddress: string, canSettle: boolean) {
   const zh = locale === "zh";
+  if (relation === "arbitrator" && contract.status === "disputed") {
+    return canSettle ? (zh ? "裁决争议" : "Decide dispute") : (zh ? "查看争议" : "View dispute");
+  }
   if (contract.status === "disputed") {
     if (!canSettle) return zh ? "查看争议" : "View dispute";
     if (contract.activeDispute?.status === "open") return zh ? "提出争议方案" : "Propose resolution";

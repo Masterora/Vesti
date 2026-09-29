@@ -26,8 +26,31 @@ describe("contract validation", () => {
       })
     ).toMatchObject({
       creatorWallet: "creator_wallet",
-      title: "Open project"
+      title: "Open project",
+      disputePolicy: "bilateral"
     });
+  });
+
+  it("requires an independent valid Solana wallet for named arbitration", () => {
+    const base = {
+      creatorWallet: "11111111111111111111111111111112",
+      workerWallet: "11111111111111111111111111111113",
+      title: "Arbitrated project",
+      totalAmount: "10",
+      milestones: [{ title: "Delivery", amount: "10" }],
+      disputePolicy: "arbitrator" as const
+    };
+    expect(createContractSchema.parse({
+      ...base,
+      arbitratorWallet: "11111111111111111111111111111114"
+    }).arbitratorWallet).toBe("11111111111111111111111111111114");
+    expect(() => createContractSchema.parse(base)).toThrow("Arbitrator wallet is required");
+    expect(() => createContractSchema.parse({ ...base, arbitratorWallet: base.workerWallet })).toThrow(
+      "Arbitrator must differ from both participants"
+    );
+    expect(() => createContractSchema.parse({ ...base, arbitratorWallet: "not-a-solana-wallet" })).toThrow(
+      "Arbitrator must be a valid Solana wallet"
+    );
   });
 
   it("accepts contract list requests without a wallet filter", () => {

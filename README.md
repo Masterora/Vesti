@@ -38,7 +38,7 @@ Wallet addresses identify both roles. A user sees the actions permitted by their
 6. Approved funds are released to the worker.
 7. The same cycle continues until every milestone is released.
 
-If collaboration breaks down, either participant can open a dispute. The mock escrow supports a bilateral release-or-refund agreement: one participant proposes an outcome and the other accepts it. On-chain dispute settlement is intentionally unavailable until that behavior is enforced by the Solana program.
+The Creator chooses a dispute policy before the contract starts: mutual agreement by default, or a separate named arbitrator wallet. In Mock mode, the parties may agree on release or refund; the named arbitrator can also decide. Both policies are implemented in the program and passed local validator tests. The Web on-chain dispute entry point remains disabled until its transaction and database reconciliation flow is complete.
 
 ## System design
 
@@ -54,10 +54,11 @@ The design separates collaboration state from custody state:
 
 ## MVP boundary and readiness
 
-The repository contains a complete mock escrow workflow and an experimental wallet-signed Solana devnet funding and release path. Devnet use still requires a deployed program, a test USDC mint, and end-to-end validation. The product does not currently provide fiat payments, KYC, legal arbitration, multi-chain settlement, or production-grade on-chain dispute resolution.
+The repository contains a Mock escrow workflow and an experimental wallet-signed Solana funding and release path. The new dispute exits have passed local validator tests, but this program version has not been upgraded on Devnet or validated end to end with real wallets. The product does not currently provide fiat payments, KYC, legal arbitration, multi-chain settlement, or production-grade on-chain dispute resolution.
 
 ## Project documentation
 
 - [Technical design](docs/technical-design.md): code structure, domain model, APIs, configuration, and engineering rules.
 - [Operations](docs/operations.md): local setup, database lifecycle, contract workflow, and quality checks.
 - [On-chain escrow](docs/onchain.md): Solana program status, instructions, deployment identifiers, and program commands.
+- [Final delivery plan (Chinese)](docs/final-delivery-plan.zh-CN.md): six iterations and acceptance gates from the current MVP to the first production release.

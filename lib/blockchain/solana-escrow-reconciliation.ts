@@ -5,6 +5,7 @@ import { encodeAnchorInstruction, encodeAnchorString, encodeU64 } from "@/lib/bl
 import {
   TOKEN_PROGRAM_ID,
   decimalToTokenUnits,
+  deriveDisputePolicyPda,
   deriveMilestoneReleaseReceiptPda,
   deriveSolanaEscrowAccounts,
   hashMilestoneId,
@@ -285,11 +286,16 @@ export async function reconcileFundEscrowTransaction(input: {
   contractId: string;
   creatorWallet: string;
   workerWallet: string;
+  disputePolicy: "bilateral" | "arbitrator";
+  arbitratorWallet: string | null;
   totalAmount: DecimalLike | string;
 }) {
   const config = getSolanaEscrowConfig();
   const creator = parsePublicKey(input.creatorWallet, "creatorWallet");
   const worker = parsePublicKey(input.workerWallet, "workerWallet");
+  const arbitrator = input.disputePolicy === "arbitrator"
+    ? parsePublicKey(input.arbitratorWallet ?? "", "arbitratorWallet")
+    : null;
   const accounts = deriveSolanaEscrowAccounts({
     contractId: input.contractId,
     programId: config.programId,
@@ -305,19 +311,25 @@ export async function reconcileFundEscrowTransaction(input: {
     transaction,
     programId: config.programId,
     expected: [
-      {
+      arbitrator ? {
         accounts: [
-          accounts.escrowPda.toBase58(),
-          creator.toBase58(),
-          config.usdcMint.toBase58(),
+          accounts.escrowPda.toBase58(), creator.toBase58(), config.usdcMint.toBase58(),
           accounts.vaultPda.toBase58(),
-          accounts.tokenProgramId.toBase58(),
+          deriveDisputePolicyPda(accounts.escrowPda, config.programId).address.toBase58(),
+          accounts.tokenProgramId.toBase58(), SystemProgram.programId.toBase58()
+        ],
+        data: encodeAnchorInstruction("initialize_escrow_with_arbitrator", [
+          encodeAnchorString(input.contractId), Buffer.from(worker.toBytes()),
+          encodeU64(totalAmountUnits), Buffer.from(arbitrator.toBytes())
+        ])
+      } : {
+        accounts: [
+          accounts.escrowPda.toBase58(), creator.toBase58(), config.usdcMint.toBase58(),
+          accounts.vaultPda.toBase58(), accounts.tokenProgramId.toBase58(),
           SystemProgram.programId.toBase58()
         ],
         data: encodeAnchorInstruction("initialize_escrow", [
-          encodeAnchorString(input.contractId),
-          Buffer.from(worker.toBytes()),
-          encodeU64(totalAmountUnits)
+          encodeAnchorString(input.contractId), Buffer.from(worker.toBytes()), encodeU64(totalAmountUnits)
         ])
       },
       {
@@ -351,6 +363,21 @@ export async function reconcileFundEscrowTransaction(input: {
     releasedAmount: BigInt(0),
     status: ESCROW_STATUS_FUNDED
   });
+
+  const policyAddress = deriveDisputePolicyPda(accounts.escrowPda, config.programId).address;
+  const policyAccount = await config.connection.getAccountInfo(policyAddress, "confirmed");
+  if (arbitrator) {
+    if (!policyAccount || !policyAccount.owner.equals(config.programId) ||
+        policyAccount.data.length < 74 ||
+        !policyAccount.data.subarray(0, 8).equals(accountDiscriminator("DisputePolicy")) ||
+        !new PublicKey(policyAccount.data.subarray(8, 40)).equals(accounts.escrowPda) ||
+        !new PublicKey(policyAccount.data.subarray(40, 72)).equals(arbitrator) ||
+        policyAccount.data[72] !== 1) {
+      reconciliationError("the on-chain dispute policy does not match the selected arbitrator");
+    }
+  } else if (policyAccount) {
+    reconciliationError("the on-chain dispute policy differs from bilateral agreement");
+  }
 
   await assertVaultBalance({
     connection: config.connection,

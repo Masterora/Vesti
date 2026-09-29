@@ -6,29 +6,23 @@ This document tracks the Rust/Solana phase for Vesti.
 
 ## Current Status
 
-The repository contains an Anchor-style Rust program scaffold in:
+The repository contains an Anchor escrow program in:
 
 ```text
 programs/vesti-escrow/
 ```
 
-The scaffold defines escrow state, vault token accounts, and Token/Token-2022 compatible program
-boundaries. It builds with Anchor CLI 1.0.2 and Agave/Solana CLI 3.1.14. The current Web path uses
-the classic SPL Token Program and can derive the matching PDAs, associated token accounts, USDC token units, and base64 unsigned transactions
-for funding and release. The frontend now deserializes prepared transactions, asks the connected
-wallet to sign them, submits them to Solana, and reconciles both the committed instruction payload
-and resulting escrow account state before local contract state advances. The program still needs a
-real devnet deployment and end-to-end validation with a funded mint.
+The program accepts only the classic SPL Token Program and preserves the existing escrow account layout. It now supports dispute release, refund, and an optional named arbitrator. Local builds and real token transfers on a validator pass with Anchor CLI 1.0.2 and Agave/Solana CLI 3.1.14. Web funding creates either the default escrow or a policy PDA for the selected arbitrator, then reconciles instructions, accounts, and balances before advancing the database. The Web on-chain dispute entry point remains disabled pending its wallet and reconciliation flow.
 
 ## Program ID
 
-Current local program id:
+Program ID (an older version is deployed on Devnet; this iteration did not upgrade it):
 
 ```text
 ErFsmiKY7WxjD9ArYmpqjCCUKnTcfzLm6tFpmWdFU9ck
 ```
 
-Before devnet deployment, use the deployment keypair and keep these files in sync:
+Before a Devnet upgrade, verify upgrade authority, existing accounts, and exact build output. Keep these files in sync:
 
 - `Anchor.toml`
 - `programs/vesti-escrow/src/lib.rs`
@@ -50,16 +44,19 @@ Before devnet deployment, use the deployment keypair and keep these files in syn
 `release_milestone` transfers the approved milestone amount from the vault to the Worker token
 account, signed by the escrow PDA.
 
+Mutual agreement is the default. `initialize_escrow` creates no policy account. Either party may freeze a funded escrow with `open_dispute`. `propose_resolution` records a versioned release or refund proposal, and only the other party may accept it through `accept_release_resolution` or `accept_refund_resolution`. Funds remain frozen if there is no agreement.
+
+The named arbitrator choice uses `initialize_escrow_with_arbitrator` and an immutable `["policy", escrow_pubkey]` PDA. The arbitrator must differ from both parties. The parties retain their mutual settlement path; the named wallet may also use `arbitrate_release_resolution` or `arbitrate_refund_resolution`. Old escrows without a policy PDA use the default. An unavailable arbitrator does not create an automatic exit.
+
+The dispute PDA is `["dispute", escrow_pubkey, SHA256(UTF8(milestone_id))]` and stores a reason hash only. The program cannot verify database milestone membership. Dispute releases and ordinary payments share a `["release", escrow_pubkey, SHA256(UTF8(milestone_id))]` receipt. Refunds send `funded_amount - released_amount` to the Creator and set `CANCELLED`; outstanding principal is then zero. Extra tokens sent to the vault are not part of the principal ledger. The program permits an agreed or arbitrated release up to the remaining principal; the later Web dispute integration must bind that amount to the database milestone.
+
 The Web-side derivation helpers live in:
 
 ```text
 lib/blockchain/solana-escrow-accounts.ts
 ```
 
-The current Web path creates the Worker's classic SPL associated token account during release when
-it does not already exist. Token-2022 account detection is not yet implemented in the Web builder.
-On-chain dispute actions are disabled until a matching settlement instruction and reconciliation
-flow are implemented.
+The Web path creates a missing classic SPL associated token account for the Worker. The program rejects Token-2022 mints at initialization. On-chain dispute actions remain disabled in the Web app. Mock mode honors the selected arbitrator policy.
 
 Web-side Anchor instruction and transaction builders live in:
 
@@ -71,9 +68,8 @@ lib/blockchain/solana-escrow-transactions.ts
 
 ## Next On-chain Tasks
 
-- Add Anchor tests for initialize, fund, release, and dispute.
-- Add on-chain dispute settlement and refund instructions before enabling the Web dispute action.
-- Generate and deploy a real program keypair on localnet/devnet.
+- Add Web on-chain dispute preparation, signing, submission, confirmation, and reconciliation before enabling its entry point.
+- Verify the Devnet upgrade authority and existing accounts, then upgrade the exact tested build and validate with test funds. This iteration does not deploy.
 - Validate the end-to-end devnet flow with a real test mint, Phantom, and explorer-confirmed signatures.
 - Persist or surface explorer links and richer reconciliation diagnostics in the UI.
 
@@ -99,9 +95,11 @@ Anchor is required for program builds.
 ```bash
 cargo fmt --manifest-path programs/vesti-escrow/Cargo.toml
 cargo check --manifest-path programs/vesti-escrow/Cargo.toml
-anchor build
-anchor test
+anchor build --ignore-keys --provider.cluster localnet
+corepack pnpm test:onchain
 ```
+
+The repository test keypair differs from the deployed program ID. `--ignore-keys` is for local builds, and the validator loads the declared ID explicitly. Do not run `anchor keys sync` over the deployed ID. The `Anchor.toml` test script uses a local validator, not Devnet.
 
 If Anchor is not installed, keep validating the Web app with:
 

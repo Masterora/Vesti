@@ -78,6 +78,11 @@ enum DisputeOutcome {
   refund_to_creator
 }
 
+enum DisputePolicy {
+  bilateral
+  arbitrator
+}
+
 model User {
   id              String    @id @default(cuid())
   walletAddress   String    @unique
@@ -123,6 +128,8 @@ model Contract {
   displayId             String         @unique
   creatorWallet         String
   workerWallet          String?
+  disputePolicy         DisputePolicy  @default(bilateral)
+  arbitratorWallet      String?
   requestedWorkerWallet String?
   title                 String
   description           String?

@@ -15,6 +15,6 @@ cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "echo \"Add Anchor tests in a later on-chain iteration\""
+test = "corepack pnpm test:onchain"
 
 [hooks]

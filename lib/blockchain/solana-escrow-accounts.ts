@@ -81,6 +81,14 @@ export function deriveVaultPda(contractId: string, programId: PublicKey) {
   return { address, bump };
 }
 
+export function deriveDisputePolicyPda(escrow: PublicKey, programId: PublicKey) {
+  const [address, bump] = PublicKey.findProgramAddressSync(
+    [Buffer.from("policy"), escrow.toBuffer()],
+    programId
+  );
+  return { address, bump };
+}
+
 export function deriveMilestoneReleaseReceiptPda(
   escrow: PublicKey,
   milestoneId: string,

@@ -122,6 +122,8 @@ export async function prepareFundTransaction(input: PrepareFundTransactionInput)
       contractId: contract.id,
       creatorWallet: contract.creatorWallet,
       workerWallet: contract.workerWallet!,
+      disputePolicy: contract.disputePolicy,
+      arbitratorWallet: contract.arbitratorWallet,
       amount: contract.totalAmount
     });
   } catch (error) {

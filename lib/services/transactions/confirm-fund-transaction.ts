@@ -74,6 +74,8 @@ export async function confirmFundTransaction(input: ConfirmFundTransactionInput)
     contractId: contract.id,
     creatorWallet: contract.creatorWallet,
     workerWallet: contract.workerWallet!,
+    disputePolicy: contract.disputePolicy,
+    arbitratorWallet: contract.arbitratorWallet,
     totalAmount: contract.totalAmount
   });
 

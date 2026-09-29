@@ -11,6 +11,7 @@ import {
 import { decodeEscrowStateAccount } from "@/lib/blockchain/solana-escrow-reconciliation";
 import {
   createInitializeEscrowInstruction,
+  createInitializeEscrowWithArbitratorInstruction,
   createMarkFundedInstruction,
   createReleaseMilestoneInstruction
 } from "@/lib/blockchain/solana-escrow-instructions";
@@ -109,10 +110,18 @@ export async function prepareFundEscrowTransaction(input: {
   creatorWallet: string;
   workerWallet: string;
   amount: DecimalLike | string;
+  disputePolicy: "bilateral" | "arbitrator";
+  arbitratorWallet: string | null;
 }) {
   const config = getSolanaEscrowTransactionConfig();
   const creator = parsePublicKey(input.creatorWallet, "creatorWallet");
   const worker = parsePublicKey(input.workerWallet, "workerWallet");
+  const arbitrator = input.disputePolicy === "arbitrator"
+    ? parsePublicKey(input.arbitratorWallet ?? "", "arbitratorWallet")
+    : null;
+  if (arbitrator && (arbitrator.equals(creator) || arbitrator.equals(worker))) {
+    throw new Error("Arbitrator must differ from both participants");
+  }
   const amountUnits = decimalToTokenUnits(input.amount);
   const accounts = deriveSolanaEscrowAccounts({
     contractId: input.contractId,
@@ -127,7 +136,16 @@ export async function prepareFundEscrowTransaction(input: {
     feePayer: creator,
     recentBlockhash: blockhash
   }).add(
-    createInitializeEscrowInstruction({
+    arbitrator ? createInitializeEscrowWithArbitratorInstruction({
+      programId: config.programId,
+      accounts,
+      creator,
+      worker,
+      usdcMint: config.usdcMint,
+      contractId: input.contractId,
+      totalAmountUnits: amountUnits,
+      arbitrator
+    }) : createInitializeEscrowInstruction({
       programId: config.programId,
       accounts,
       creator,

@@ -6,6 +6,7 @@ import {
 } from "@/lib/blockchain/anchor-encoding";
 import {
   TOKEN_PROGRAM_ID,
+  deriveDisputePolicyPda,
   deriveMilestoneReleaseReceiptPda,
   hashMilestoneId,
   type SolanaEscrowAccounts
@@ -45,6 +46,40 @@ export function createInitializeEscrowInstruction({
       encodeAnchorString(contractId),
       Buffer.from(worker.toBytes()),
       encodeU64(totalAmountUnits)
+    ])
+  });
+}
+
+export function createInitializeEscrowWithArbitratorInstruction({
+  programId,
+  accounts,
+  creator,
+  worker,
+  usdcMint,
+  contractId,
+  totalAmountUnits,
+  arbitrator
+}: CommonInstructionParams & {
+  contractId: string;
+  totalAmountUnits: bigint;
+  arbitrator: PublicKey;
+}) {
+  return new TransactionInstruction({
+    programId,
+    keys: [
+      { pubkey: accounts.escrowPda, isSigner: false, isWritable: true },
+      { pubkey: creator, isSigner: true, isWritable: true },
+      { pubkey: usdcMint, isSigner: false, isWritable: false },
+      { pubkey: accounts.vaultPda, isSigner: false, isWritable: true },
+      { pubkey: deriveDisputePolicyPda(accounts.escrowPda, programId).address, isSigner: false, isWritable: true },
+      { pubkey: accounts.tokenProgramId, isSigner: false, isWritable: false },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
+    ],
+    data: encodeAnchorInstruction("initialize_escrow_with_arbitrator", [
+      encodeAnchorString(contractId),
+      Buffer.from(worker.toBytes()),
+      encodeU64(totalAmountUnits),
+      Buffer.from(arbitrator.toBytes())
     ])
   });
 }

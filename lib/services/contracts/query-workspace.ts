@@ -81,7 +81,7 @@ export async function queryWorkspace(input: WorkspaceQueryInput, walletAddress?:
       ? { creatorWallet: walletAddress }
       : input.relation === "working"
         ? { workerWallet: walletAddress }
-        : { OR: [{ creatorWallet: walletAddress }, { workerWallet: walletAddress }] };
+        : { OR: [{ creatorWallet: walletAddress }, { workerWallet: walletAddress }, { arbitratorWallet: walletAddress }] };
   const filters: Prisma.ContractWhereInput[] = [relationWhere];
   if (input.kind === "contracts" && input.visibility && input.visibility !== "all") filters.push({ isPublic: input.visibility === "public" });
   if (input.kind === "marketplace" && input.tag) filters.push({ tags: { has: input.tag.toLowerCase() } });

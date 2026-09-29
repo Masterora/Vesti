@@ -74,3 +74,42 @@ jobs:
 
       - name: Build production application
         run: pnpm build
+
+  onchain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Solana and Anchor
+        uses: solana-foundation/github-actions/setup-all@2a02b58f6989d9fa9a568aa03f558156984663de
+        with:
+          solana_version: 3.1.14
+          anchor_version: 1.0.2
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path programs/vesti-escrow/Cargo.toml --check
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path programs/vesti-escrow/Cargo.toml --locked
+
+      - name: Build Solana program and IDL
+        run: anchor build --ignore-keys --provider.cluster localnet
+
+      - name: Test real token transfers on local validator
+        run: pnpm test:onchain

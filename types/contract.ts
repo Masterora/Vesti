@@ -96,6 +96,8 @@ export type SerializedContractListItem = {
   displayId: string;
   creatorWallet: string;
   workerWallet: string | null;
+  disputePolicy: "bilateral" | "arbitrator";
+  arbitratorWallet: string | null;
   requestedWorkerWallet: string | null;
   title: string;
   description: string | null;
@@ -124,6 +126,8 @@ export type SerializedContract = {
   displayId: string;
   creatorWallet: string;
   workerWallet: string | null;
+  disputePolicy: "bilateral" | "arbitrator";
+  arbitratorWallet: string | null;
   requestedWorkerWallet: string | null;
   title: string;
   description: string | null;

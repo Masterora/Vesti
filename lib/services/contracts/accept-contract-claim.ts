@@ -28,6 +28,10 @@ export async function acceptContractClaim(input: AcceptContractClaimInput) {
       getPendingApplicantWallets(contract).includes(input.applicantWallet),
       "Selected applicant was not found on this contract"
     );
+    assertAllowed(
+      input.applicantWallet !== contract.arbitratorWallet,
+      "Arbitrator cannot be the Worker"
+    );
 
     await tx.contractApplication.deleteMany({
       where: { contractId: contract.id }

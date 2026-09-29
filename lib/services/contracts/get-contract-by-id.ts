@@ -4,6 +4,7 @@ import { assertAllowed, assertFound } from "@/lib/services/errors";
 import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { filterWorkerContract } from "@/lib/services/contracts/filter-worker-contract";
+import { filterArbitratorContract } from "@/lib/services/contracts/filter-arbitrator-contract";
 import type { GetContractInput } from "@/lib/validations/contract";
 
 export async function getContractById(input: GetContractInput) {
@@ -46,10 +47,12 @@ export async function getContractById(input: GetContractInput) {
     applicantWallets: getPendingApplicantWallets(contract),
     requestedWorkerWallet: contract.requestedWorkerWallet
   });
+  const isArbitrator = contract.disputePolicy === "arbitrator" &&
+    input.walletAddress === contract.arbitratorWallet;
 
   assertAllowed(
-    contract.isPublic || role !== "viewer",
-    "Only the Creator or Worker can view this contract"
+    contract.isPublic || role !== "viewer" || isArbitrator,
+    "Only a contract participant or its arbitrator can view this contract"
   );
 
   const serialized = await serializeContractWithProfiles(contract);
@@ -60,6 +63,10 @@ export async function getContractById(input: GetContractInput) {
 
   if (role === "worker") {
     return filterWorkerContract(serialized);
+  }
+
+  if (isArbitrator) {
+    return filterArbitratorContract(serialized);
   }
 
   return {

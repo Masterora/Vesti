@@ -31,6 +31,8 @@ export type ContractListRecord = Pick<
   | "displayId"
   | "creatorWallet"
   | "workerWallet"
+  | "disputePolicy"
+  | "arbitratorWallet"
   | "requestedWorkerWallet"
   | "title"
   | "description"
@@ -161,6 +163,8 @@ export function serializeContract(
     isPublic: contract.isPublic,
     tags: contract.tags,
     workerWallet: contract.workerWallet,
+    disputePolicy: contract.disputePolicy,
+    arbitratorWallet: contract.arbitratorWallet,
     requestedWorkerWallet: contract.requestedWorkerWallet,
     totalAmount: contract.totalAmount.toString(),
     fundedAmount: contract.fundedAmount.toString(),
@@ -198,6 +202,8 @@ export function serializeContractListItem(
     displayId: contract.displayId,
     creatorWallet: contract.creatorWallet,
     workerWallet: contract.workerWallet,
+    disputePolicy: contract.disputePolicy,
+    arbitratorWallet: contract.arbitratorWallet,
     requestedWorkerWallet: contract.requestedWorkerWallet,
     title: contract.title,
     description: contract.description,

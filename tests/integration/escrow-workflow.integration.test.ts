@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Keypair } from "@solana/web3.js";
 import { beforeAll, describe, expect, it } from "vitest";
 import { db } from "@/lib/db";
 import { createContract } from "@/lib/services/contracts/create-contract";
@@ -15,6 +16,7 @@ import { submitMilestoneProof } from "@/lib/services/milestones/submit-milestone
 import { disputeMilestone } from "@/lib/services/milestones/dispute-milestone";
 import { proposeDisputeResolution } from "@/lib/services/milestones/propose-dispute-resolution";
 import { acceptDisputeResolution } from "@/lib/services/milestones/accept-dispute-resolution";
+import { arbitrateDisputeResolution } from "@/lib/services/milestones/arbitrate-dispute-resolution";
 
 const creatorWallet = "creator_integration_wallet";
 const workerWallet = "worker_integration_wallet";
@@ -385,5 +387,146 @@ describe("escrow workflow", () => {
 
     expect(refunded.status).toBe("cancelled");
     expect(refunded.refundedAmount).toBe("15");
+  });
+
+  it("locks the selected arbitrator before funding and allows only that wallet to decide", async () => {
+    const creator = `${creatorWallet}_arb_${randomUUID()}`;
+    const worker = `${workerWallet}_arb_${randomUUID()}`;
+    const arbitrator = Keypair.generate().publicKey.toBase58();
+    const created = await createContract({
+      creatorWallet: creator,
+      workerWallet: worker,
+      arbitratorWallet: arbitrator,
+      disputePolicy: "arbitrator",
+      title: "Named arbitration",
+      totalAmount: "20",
+      milestones: [{ title: "Delivery", amount: "20" }]
+    });
+    expect(created.disputePolicy).toBe("arbitrator");
+    expect(created.arbitratorWallet).toBe(arbitrator);
+    const privateView = await getContractById({ contractId: created.id, walletAddress: arbitrator });
+    expect(privateView.id).toBe(created.id);
+    expect(privateView.applications).toBeUndefined();
+    const listed = await listContractsForWallet({ walletAddress: arbitrator });
+    expect(listed.some((contract) => contract.id === created.id)).toBe(true);
+    const workspace = await queryWorkspace({ kind: "contracts", q: "Named arbitration" }, arbitrator);
+    if (workspace.kind !== "contracts") throw new Error("Unexpected workspace response");
+    expect(workspace.items.map((contract) => contract.id)).toContain(created.id);
+
+    await fundContract({ contractId: created.id, walletAddress: creator });
+    await disputeMilestone({
+      contractId: created.id,
+      milestoneId: created.milestones[0].id,
+      walletAddress: worker,
+      reason: "Needs independent decision"
+    });
+    await expect(arbitrateDisputeResolution({
+      contractId: created.id,
+      milestoneId: created.milestones[0].id,
+      walletAddress: creator,
+      outcome: "release_to_worker"
+    })).rejects.toThrow();
+    const resolved = await arbitrateDisputeResolution({
+      contractId: created.id,
+      milestoneId: created.milestones[0].id,
+      walletAddress: arbitrator,
+      outcome: "release_to_worker",
+      idempotencyKey: randomUUID()
+    });
+    expect(resolved.status).toBe("completed");
+    expect(resolved.releasedAmount).toBe("20");
+    expect(resolved.disputes?.[0].proposedBy).toBeNull();
+    expect(resolved.events).toBeUndefined();
+
+    const refund = await createContract({
+      creatorWallet: creator,
+      workerWallet: worker,
+      arbitratorWallet: arbitrator,
+      disputePolicy: "arbitrator",
+      title: "Arbitrated refund",
+      totalAmount: "10",
+      milestones: [{ title: "Delivery", amount: "10" }]
+    });
+    await fundContract({ contractId: refund.id, walletAddress: creator });
+    await disputeMilestone({
+      contractId: refund.id,
+      milestoneId: refund.milestones[0].id,
+      walletAddress: creator,
+      reason: "Needs refund"
+    });
+    const refunded = await arbitrateDisputeResolution({
+      contractId: refund.id,
+      milestoneId: refund.milestones[0].id,
+      walletAddress: arbitrator,
+      outcome: "refund_to_creator",
+      idempotencyKey: randomUUID()
+    });
+    expect(refunded.status).toBe("cancelled");
+    expect(refunded.refundedAmount).toBe("10");
+  });
+
+  it("hides applicant identities from the arbitrator in lists, details, and settlement responses", async () => {
+    const creator = `privacy_creator_${randomUUID()}`;
+    const selected = `privacy_selected_${randomUUID()}`;
+    const other = `privacy_other_${randomUUID()}`;
+    const arbitrator = Keypair.generate().publicKey.toBase58();
+    const created = await createContract({
+      creatorWallet: creator,
+      disputePolicy: "arbitrator",
+      arbitratorWallet: arbitrator,
+      title: "Applicant privacy under arbitration",
+      isPublic: true,
+      totalAmount: "10",
+      milestones: [{ title: "Delivery", amount: "10" }]
+    });
+    await claimContract({ contractId: created.id, walletAddress: selected });
+    await claimContract({ contractId: created.id, walletAddress: other });
+    await db.user.update({ where: { walletAddress: other }, data: { displayName: "Hidden applicant" } });
+
+    const workspace = await queryWorkspace({ kind: "contracts", q: created.title }, arbitrator);
+    if (workspace.kind !== "contracts") throw new Error("Unexpected workspace response");
+    expect(workspace.items.map((contract) => contract.id)).toContain(created.id);
+    const item = workspace.items.find((contract) => contract.id === created.id)!;
+    expect(item.requestedWorkerWallet).toBeNull();
+    expect(item.pendingApplicantWallets).toEqual([]);
+    expect(item.profiles?.some((profile) => profile.walletAddress === other)).toBe(false);
+
+    const beforeSelection = await getContractById({ contractId: created.id, walletAddress: arbitrator });
+    expect(beforeSelection.requestedWorkerWallet).toBeNull();
+    expect(beforeSelection.applications).toBeUndefined();
+    expect(beforeSelection.events).toBeUndefined();
+    expect(beforeSelection.profiles?.some((profile) => profile.walletAddress === other)).toBe(false);
+    expect(JSON.stringify(beforeSelection)).not.toContain(other);
+
+    await acceptContractClaim({ contractId: created.id, walletAddress: creator, applicantWallet: selected });
+    await fundContract({ contractId: created.id, walletAddress: creator });
+    await disputeMilestone({
+      contractId: created.id,
+      milestoneId: created.milestones[0].id,
+      walletAddress: selected,
+      reason: "Needs arbitration"
+    });
+    const idempotencyKey = randomUUID();
+    const resolved = await arbitrateDisputeResolution({
+      contractId: created.id,
+      milestoneId: created.milestones[0].id,
+      walletAddress: arbitrator,
+      outcome: "release_to_worker",
+      idempotencyKey
+    });
+    expect(resolved.status).toBe("completed");
+    expect(resolved.events).toBeUndefined();
+    expect(resolved.profiles?.some((profile) => profile.walletAddress === other)).toBe(false);
+    expect(JSON.stringify(resolved)).not.toContain(other);
+
+    const repeated = await arbitrateDisputeResolution({
+      contractId: created.id,
+      milestoneId: created.milestones[0].id,
+      walletAddress: arbitrator,
+      outcome: "release_to_worker",
+      idempotencyKey
+    });
+    expect(repeated.events).toBeUndefined();
+    expect(JSON.stringify(repeated)).not.toContain(other);
   });
 });

@@ -4,6 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PublicKey } from "@solana/web3.js";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -80,6 +81,9 @@ export function NewContractForm() {
   const [tagsInput, setTagsInput] = useState<string>("");
   const [collaborationMode, setCollaborationMode] = useState<"public" | "direct">("public");
   const [workerWallet, setWorkerWallet] = useState("");
+  const [disputePolicy, setDisputePolicy] = useState<"bilateral" | "arbitrator">("bilateral");
+  const [arbitratorWallet, setArbitratorWallet] = useState("");
+  const [arbitratorTouched, setArbitratorTouched] = useState(false);
   const [totalAmount, setTotalAmount] = useState<string>("");
   const [milestones, setMilestones] = useState<MilestoneDraft[]>(() => [createEmptyMilestone()]);
   const [error, setError] = useState<string>("");
@@ -99,6 +103,12 @@ export function NewContractForm() {
     safeAmountsEqual(totalAmount || "0", milestoneTotal);
   const hasAmountInput =
     totalAmount.trim() !== "" || milestones.some((milestone) => milestone.amount.trim() !== "");
+  const arbitratorIsValid = useMemo(() => {
+    if (disputePolicy === "bilateral") return true;
+    const address = arbitratorWallet.trim();
+    if (!address || address === walletAddress.trim() || address === workerWallet.trim()) return false;
+    try { return new PublicKey(address).toBase58() === address; } catch { return false; }
+  }, [disputePolicy, arbitratorWallet, walletAddress, workerWallet]);
 
   const updateMilestone = (index: number, patch: Partial<MilestoneDraft>) => {
     setMilestones((current) =>
@@ -131,6 +141,8 @@ export function NewContractForm() {
       const contract = await postJson<SerializedContract>("/api/contracts/create", {
         creatorWallet: walletAddress,
         workerWallet: collaborationMode === "direct" ? workerWallet.trim() : undefined,
+        disputePolicy,
+        arbitratorWallet: disputePolicy === "arbitrator" ? arbitratorWallet.trim() : undefined,
         title,
         description,
         tags: Array.from(
@@ -188,6 +200,27 @@ export function NewContractForm() {
               </div>
             </fieldset>
             {collaborationMode === "direct" ? <div className="grid gap-2"><Label htmlFor="worker-wallet">{contractCopy.workerWalletLabel}</Label><Input id="worker-wallet" value={workerWallet} placeholder={contractCopy.workerWalletPlaceholder} onChange={(event) => setWorkerWallet(event.target.value)} aria-invalid={workerWallet.trim() === walletAddress.trim()} />{workerWallet.trim() === walletAddress.trim() && workerWallet.trim() ? <p className="text-sm text-danger">{locale === "zh" ? "不能将自己指定为工作者。" : "You cannot assign yourself as the worker."}</p> : null}</div> : null}
+            <fieldset className="grid gap-3">
+              <legend className="text-sm font-medium">{contractCopy.disputePolicyLabel}</legend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(["bilateral", "arbitrator"] as const).map((policy) => (
+                  <label key={policy} className={`flex min-h-24 cursor-pointer items-start gap-3 rounded-md border p-4 ${disputePolicy === policy ? "border-focus bg-selected" : "border-border bg-surface"}`}>
+                    <input type="radio" name="dispute-policy" className="mt-1 accent-primary" checked={disputePolicy === policy} onChange={() => setDisputePolicy(policy)} />
+                    <span>
+                      <span className="block text-sm font-semibold">{policy === "bilateral" ? contractCopy.bilateralPolicy : contractCopy.arbitratorPolicy}</span>
+                      <span className="mt-1 block text-xs leading-5 text-muted-foreground">{policy === "bilateral" ? contractCopy.bilateralPolicyDescription : contractCopy.arbitratorPolicyDescription}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {disputePolicy === "arbitrator" ? (
+              <div className="grid gap-2">
+                <Label htmlFor="arbitrator-wallet">{contractCopy.arbitratorWalletLabel}</Label>
+                <Input id="arbitrator-wallet" value={arbitratorWallet} placeholder={contractCopy.arbitratorWalletPlaceholder} onChange={(event) => setArbitratorWallet(event.target.value)} onBlur={() => setArbitratorTouched(true)} aria-invalid={arbitratorTouched && !arbitratorIsValid} aria-describedby={arbitratorTouched && !arbitratorIsValid ? "arbitrator-wallet-error" : undefined} />
+                {arbitratorTouched && !arbitratorIsValid ? <p id="arbitrator-wallet-error" className="text-sm text-danger">{contractCopy.arbitratorWalletError}</p> : null}
+              </div>
+            ) : null}
             <div className="grid gap-2">
               <Label htmlFor="description">{contractCopy.descriptionLabel}</Label>
               <Textarea
@@ -333,7 +366,7 @@ export function NewContractForm() {
             <Button
               type="submit"
               className="w-full"
-              disabled={connectRequired || !totalMatches || isSubmitting || (collaborationMode === "direct" && (!workerWallet.trim() || workerWallet.trim() === walletAddress.trim()))}
+              disabled={connectRequired || !totalMatches || !arbitratorIsValid || isSubmitting || (collaborationMode === "direct" && (!workerWallet.trim() || workerWallet.trim() === walletAddress.trim()))}
             >
               {isSubmitting ? contractCopy.submitting : contractCopy.submit}
             </Button>

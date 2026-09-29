@@ -11,17 +11,21 @@ type DisputeOutcome = "release_to_worker" | "refund_to_creator";
 export function DisputeResolutionPanel({
   dispute,
   canSettle,
+  canArbitrate,
   walletAddress,
   activeAction,
   onPropose,
-  onAccept
+  onAccept,
+  onArbitrate
 }: {
   dispute: SerializedDispute;
   canSettle: boolean;
+  canArbitrate: boolean;
   walletAddress: string;
   activeAction: string;
   onPropose: (outcome: DisputeOutcome) => void;
   onAccept: () => void;
+  onArbitrate: (outcome: DisputeOutcome) => void;
 }) {
   const { messages } = useLocale();
   const copy = messages.contractDetail;
@@ -32,11 +36,16 @@ export function DisputeResolutionPanel({
         <AlertTriangle className="mt-0.5 size-5 text-danger" aria-hidden="true" />
         <div className="min-w-0 flex-1">
           <h2 className="font-semibold">{copy.disputeResolutionTitle}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{copy.disputeResolutionDescription}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{canArbitrate ? copy.arbitratorResolutionDescription : copy.disputeResolutionDescription}</p>
           <p className="mt-3 text-sm">{dispute.reason}</p>
           {!canSettle ? <p className="mt-3 text-sm text-warning">{messages.contractDetail.disputeUnavailable}</p> : null}
 
-          {dispute.status === "open" ? (
+          {canArbitrate ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button type="button" onClick={() => onArbitrate("release_to_worker")} disabled={!canSettle || activeAction.startsWith("arbitrate-")}>{copy.arbitrateRelease}</Button>
+              <Button type="button" variant="secondary" onClick={() => onArbitrate("refund_to_creator")} disabled={!canSettle || activeAction.startsWith("arbitrate-")}>{copy.arbitrateRefund}</Button>
+            </div>
+          ) : dispute.status === "open" ? (
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
                 type="button"

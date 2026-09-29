@@ -4,7 +4,7 @@ import { recordEvent } from "@/lib/services/events/record-event";
 import { ServiceError } from "@/lib/services/errors";
 import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import { generateContractDisplayId } from "@/lib/utils";
-import type { CreateContractInput } from "@/lib/validations/contract";
+import { createContractSchema, type CreateContractInput } from "@/lib/validations/contract";
 
 function decimal(value: string) {
   return new Prisma.Decimal(value);
@@ -30,7 +30,8 @@ async function generateUniqueContractDisplayId(tx: Prisma.TransactionClient) {
   throw new ServiceError("Failed to generate a unique contract ID");
 }
 
-export async function createContract(input: CreateContractInput) {
+export async function createContract(rawInput: CreateContractInput) {
+  const input = createContractSchema.parse(rawInput);
   const creatorWallet = input.creatorWallet.trim();
   const workerWallet = input.workerWallet?.trim() || null;
   const hasAssignedWorker = Boolean(workerWallet);
@@ -44,6 +45,11 @@ export async function createContract(input: CreateContractInput) {
 
   if (workerWallet && creatorWallet === workerWallet) {
     throw new ServiceError("Creator and Worker wallets must be different");
+  }
+  if (input.disputePolicy === "arbitrator" && (
+    input.arbitratorWallet === creatorWallet || input.arbitratorWallet === workerWallet
+  )) {
+    throw new ServiceError("Arbitrator must differ from both participants");
   }
 
   const totalAmount = decimal(input.totalAmount);
@@ -78,6 +84,8 @@ export async function createContract(input: CreateContractInput) {
         displayId,
         creatorWallet,
         workerWallet,
+        disputePolicy: input.disputePolicy,
+        arbitratorWallet: input.disputePolicy === "arbitrator" ? input.arbitratorWallet : null,
         title: input.title,
         description: input.description || null,
         tags,
@@ -111,7 +119,9 @@ export async function createContract(input: CreateContractInput) {
         milestoneCount: contract.milestones.length,
         tags: contract.tags,
         isPublic: contract.isPublic,
-        status: contract.status
+        status: contract.status,
+        disputePolicy: contract.disputePolicy,
+        arbitratorWallet: contract.arbitratorWallet
       }
     });
 
