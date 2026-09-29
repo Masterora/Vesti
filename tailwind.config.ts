@@ -19,9 +19,14 @@ const config: Config = {
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         danger: "hsl(var(--danger))"
+        ,sidebar: "hsl(var(--sidebar))"
+        ,surface: "hsl(var(--surface))"
+        ,"surface-raised": "hsl(var(--surface-raised))"
+        ,selected: "hsl(var(--selected))"
+        ,focus: "hsl(var(--focus))"
       },
       boxShadow: {
-        soft: "0 18px 50px rgb(15 23 42 / 0.08)"
+        soft: "0 12px 32px rgb(0 0 0 / 0.18)"
       }
     }
   },

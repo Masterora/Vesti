@@ -1,6 +1,9 @@
 import { db } from "@/lib/db";
 import { getEscrowAdapterMode } from "@/lib/blockchain/escrow-adapter";
-import { prepareReleaseEscrowTransaction } from "@/lib/blockchain/solana-escrow-transactions";
+import {
+  inspectPreparedRelease,
+  prepareReleaseEscrowTransaction
+} from "@/lib/blockchain/solana-escrow-transactions";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
 import {
   assertEscrowTransactionMatches,
@@ -32,6 +35,10 @@ export async function prepareReleaseTransaction(input: PrepareReleaseTransaction
   assertState(contract.status === "active", "Contract must be active before release");
   assertState(Boolean(contract.workerWallet), "Assigned Worker wallet is required before release");
   assertState(milestone.status === "approved", "Only approved milestones can be released");
+  assertState(
+    contract.releasedAmount.plus(milestone.amount).lessThanOrEqualTo(contract.fundedAmount),
+    "Released amount cannot exceed funded amount"
+  );
 
   const mode = getEscrowAdapterMode();
 
@@ -58,25 +65,70 @@ export async function prepareReleaseTransaction(input: PrepareReleaseTransaction
     amount: milestone.amount,
     idempotencyKey: input.idempotencyKey
   };
-  const existing = await db.escrowTransaction.findUnique({
-    where: { idempotencyKey: input.idempotencyKey }
-  });
+  const existing =
+    (await db.escrowTransaction.findUnique({
+      where: { idempotencyKey: input.idempotencyKey }
+    })) ??
+    (await db.escrowTransaction.findUnique({
+      where: { operationKey: `release:${milestone.id}` }
+    }));
 
   if (existing) {
     assertEscrowTransactionMatches(existing, transactionInput);
     assertState(existing.status !== "failed", "Previous release preparation failed; use a new idempotency key");
+    assertState(existing.status === "prepared" && !existing.txSig, "Payment was already submitted; resume confirmation instead");
     assertState(Boolean(existing.preparedTransaction), "Prepared release transaction is unavailable");
-    return {
-      mode,
-      action: "release_milestone" as const,
+    assertState(!existing.requiresReviewAt, "Payment requires manual review before another signature");
+    assertState(Boolean(existing.recentBlockhash), "Prepared payment blockhash is unavailable");
+
+    const inspection = await inspectPreparedRelease({
       contractId: contract.id,
-      milestoneId: milestone.id,
-      transactionId: existing.id,
-      idempotencyKey: existing.idempotencyKey,
-      transaction: existing.preparedTransaction,
-      canUseDirectAction: false,
-      recentBlockhash: existing.recentBlockhash
-    };
+      creatorWallet: contract.creatorWallet,
+      workerWallet: contract.workerWallet!,
+      fundedAmount: contract.fundedAmount,
+      releasedAmountBefore: contract.releasedAmount,
+      recentBlockhash: existing.recentBlockhash!
+    });
+    if (inspection === "valid") {
+      return {
+        mode,
+        action: "release_milestone" as const,
+        contractId: contract.id,
+        milestoneId: milestone.id,
+        transactionId: existing.id,
+        idempotencyKey: existing.idempotencyKey,
+        transaction: existing.preparedTransaction,
+        canUseDirectAction: false,
+        recentBlockhash: existing.recentBlockhash
+      };
+    }
+    if (inspection === "review") {
+      await db.escrowTransaction.updateMany({
+        where: { id: existing.id, status: "prepared", txSig: null },
+        data: {
+          requiresReviewAt: new Date(),
+          errorCode: "RELEASE_STATE_AMBIGUOUS",
+          errorMessage: "Escrow state differs from the recorded payment amount; manual review required"
+        }
+      });
+      assertState(false, "Payment requires manual review before another signature");
+    }
+
+    assertState(
+      Date.now() - existing.updatedAt.getTime() >= 5 * 60_000,
+      "Prepared payment expired; wait for finality before preparing again"
+    );
+    const expired = await db.escrowTransaction.updateMany({
+      where: { id: existing.id, status: "prepared", txSig: null, requiresReviewAt: null },
+      data: {
+        status: "failed",
+        operationKey: null,
+        errorCode: "PREPARATION_EXPIRED",
+        errorMessage: "Prepared payment expired without an on-chain release; safe to prepare again"
+      }
+    });
+    assertState(expired.count === 1, "Payment state changed while checking the prepared transaction; refresh and retry");
+    assertState(existing.idempotencyKey !== input.idempotencyKey, "Prepared payment expired; use a new idempotency key");
   }
 
   const transactionRecord = await db.$transaction((tx) =>

@@ -98,6 +98,7 @@ pub mod vesti_escrow {
         ctx: Context<ReleaseMilestonePayment>,
         milestone_id: String,
         amount: u64,
+        milestone_hash: [u8; 32],
     ) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
 
@@ -107,6 +108,10 @@ pub mod vesti_escrow {
             VestiEscrowError::MilestoneIdTooLong
         );
         require!(amount > 0, VestiEscrowError::InvalidAmount);
+        require!(
+            milestone_hash == solana_sha256_hasher::hash(milestone_id.as_bytes()).to_bytes(),
+            VestiEscrowError::InvalidMilestoneHash
+        );
         require!(
             escrow.status == STATUS_FUNDED,
             VestiEscrowError::InvalidStatus
@@ -140,6 +145,10 @@ pub mod vesti_escrow {
         )?;
 
         escrow.released_amount = next_released;
+        let receipt = &mut ctx.accounts.release_receipt;
+        receipt.escrow = escrow.key();
+        receipt.milestone_hash = milestone_hash;
+        receipt.amount = amount;
 
         if escrow.released_amount == escrow.total_amount {
             escrow.status = STATUS_COMPLETED;
@@ -260,6 +269,7 @@ pub struct FundEscrow<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(milestone_id: String, amount: u64, milestone_hash: [u8; 32])]
 pub struct ReleaseMilestonePayment<'info> {
     #[account(
         mut,
@@ -271,6 +281,7 @@ pub struct ReleaseMilestonePayment<'info> {
         has_one = vault @ VestiEscrowError::InvalidVault
     )]
     pub escrow: Account<'info, EscrowState>,
+    #[account(mut)]
     pub creator: Signer<'info>,
     /// CHECK: The worker wallet is constrained by `has_one = worker` and token ownership checks.
     pub worker: UncheckedAccount<'info>,
@@ -290,6 +301,19 @@ pub struct ReleaseMilestonePayment<'info> {
     )]
     pub worker_token_account: InterfaceAccount<'info, TokenAccount>,
     pub token_program: Interface<'info, TokenInterface>,
+    #[account(
+        init,
+        payer = creator,
+        space = 8 + MilestoneReleaseReceipt::INIT_SPACE,
+        seeds = [
+            b"release",
+            escrow.key().as_ref(),
+            milestone_hash.as_ref()
+        ],
+        bump
+    )]
+    pub release_receipt: Account<'info, MilestoneReleaseReceipt>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -318,6 +342,14 @@ pub struct EscrowState {
     pub status: u8,
     pub bump: u8,
     pub vault_bump: u8,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct MilestoneReleaseReceipt {
+    pub escrow: Pubkey,
+    pub milestone_hash: [u8; 32],
+    pub amount: u64,
 }
 
 impl EscrowState {
@@ -378,6 +410,8 @@ pub enum VestiEscrowError {
     EmptyMilestoneId,
     #[msg("Milestone id is too long.")]
     MilestoneIdTooLong,
+    #[msg("Milestone hash does not match the milestone id.")]
+    InvalidMilestoneHash,
     #[msg("Creator and Worker must be different.")]
     InvalidParticipants,
     #[msg("Amount is invalid.")]

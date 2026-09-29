@@ -1,6 +1,9 @@
 import { db } from "@/lib/db";
 import { getEscrowAdapterMode } from "@/lib/blockchain/escrow-adapter";
-import { prepareFundEscrowTransaction } from "@/lib/blockchain/solana-escrow-transactions";
+import {
+  inspectPreparedFunding,
+  prepareFundEscrowTransaction
+} from "@/lib/blockchain/solana-escrow-transactions";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
 import {
   assertEscrowTransactionMatches,
@@ -46,24 +49,67 @@ export async function prepareFundTransaction(input: PrepareFundTransactionInput)
     amount: contract.totalAmount,
     idempotencyKey: input.idempotencyKey
   };
-  const existing = await db.escrowTransaction.findUnique({
-    where: { idempotencyKey: input.idempotencyKey }
-  });
+  const existing =
+    (await db.escrowTransaction.findUnique({
+      where: { idempotencyKey: input.idempotencyKey }
+    })) ??
+    (await db.escrowTransaction.findUnique({
+      where: { operationKey: `fund:${contract.id}` }
+    }));
 
   if (existing) {
     assertEscrowTransactionMatches(existing, transactionInput);
     assertState(existing.status !== "failed", "Previous funding preparation failed; use a new idempotency key");
+    assertState(existing.status === "prepared" && !existing.txSig, "Funding was already submitted; resume confirmation instead");
     assertState(Boolean(existing.preparedTransaction), "Prepared funding transaction is unavailable");
-    return {
-      mode,
-      action: "fund_contract" as const,
+    assertState(!existing.requiresReviewAt, "Funding requires manual review before another signature");
+    assertState(Boolean(existing.recentBlockhash), "Prepared funding blockhash is unavailable");
+
+    // Recent blockhashes expire quickly. Reuse a live preparation, but do not
+    // release its lock merely because no signature reached this database.
+    const inspection = await inspectPreparedFunding({
       contractId: contract.id,
-      transactionId: existing.id,
-      idempotencyKey: existing.idempotencyKey,
-      transaction: existing.preparedTransaction,
-      canUseDirectAction: false,
-      recentBlockhash: existing.recentBlockhash
-    };
+      recentBlockhash: existing.recentBlockhash!
+    });
+    if (inspection === "valid") {
+      return {
+        mode,
+        action: "fund_contract" as const,
+        contractId: contract.id,
+        transactionId: existing.id,
+        idempotencyKey: existing.idempotencyKey,
+        transaction: existing.preparedTransaction,
+        canUseDirectAction: false,
+        recentBlockhash: existing.recentBlockhash
+      };
+    }
+    if (inspection === "review") {
+      await db.escrowTransaction.updateMany({
+        where: { id: existing.id, status: "prepared", txSig: null },
+        data: { requiresReviewAt: new Date(), errorCode: "FUNDING_ACCOUNT_PRESENT", errorMessage: "Escrow account exists without a recorded signature; manual review required" }
+      });
+      assertState(false, "Funding requires manual review before another signature");
+    }
+
+    assertState(
+      Date.now() - existing.updatedAt.getTime() >= 5 * 60_000,
+      "Prepared funding expired; wait for finality before preparing again"
+    );
+
+    const expired = await db.escrowTransaction.updateMany({
+      where: { id: existing.id, status: "prepared", txSig: null, requiresReviewAt: null },
+      data: {
+        status: "failed",
+        operationKey: null,
+        errorCode: "PREPARATION_EXPIRED",
+        errorMessage: "Prepared transaction expired without an escrow account; safe to prepare again"
+      }
+    });
+    assertState(expired.count === 1, "Funding state changed while checking the prepared transaction; refresh and retry");
+    assertState(
+      existing.idempotencyKey !== input.idempotencyKey,
+      "Prepared funding expired; use a new idempotency key"
+    );
   }
 
   const transactionRecord = await db.$transaction((tx) =>

@@ -60,7 +60,7 @@ describe("wallet sessions", () => {
     expect(decodeWalletSession(encoded, new Date("2031-01-01T00:00:00.000Z"))).toBeNull();
   });
 
-  it("resolves request wallets from session before demo fallback", () => {
+  it("uses the authenticated session instead of the body wallet", () => {
     vi.stubEnv("AUTH_SECRET", "test-secret");
     const cookie = createWalletSessionCookie("session_wallet", new Date("2029-01-01T00:00:00.000Z"));
     const request = new Request("http://localhost/api/contracts/list", {
@@ -72,29 +72,15 @@ describe("wallet sessions", () => {
     expect(resolveRequestWallet(request, "body_wallet")).toBe("session_wallet");
   });
 
-  it("can disable the demo wallet fallback", () => {
-    vi.stubEnv("DEMO_WALLET_AUTH_ENABLED", "false");
+  it("rejects body wallets without an authenticated session", () => {
     const request = new Request("http://localhost/api/contracts/list");
-
+    expect(resolveOptionalRequestWallet(request, "body_wallet")).toBeNull();
     expect(() => resolveRequestWallet(request, "body_wallet")).toThrow("Wallet session is required");
   });
 
-  it("requires an explicit true flag before using the demo wallet fallback", () => {
-    vi.stubEnv("DEMO_WALLET_AUTH_ENABLED", undefined);
-    const request = new Request("http://localhost/api/contracts/list");
-
-    expect(resolveOptionalRequestWallet(request, "body_wallet")).toBeNull();
-
-    vi.stubEnv("DEMO_WALLET_AUTH_ENABLED", "true");
-
-    expect(resolveOptionalRequestWallet(request, "body_wallet")).toBe("body_wallet");
-  });
-
-  it("never enables the demo wallet fallback in production", () => {
+  it("rejects body wallets in production", () => {
     vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("DEMO_WALLET_AUTH_ENABLED", "true");
     const request = new Request("http://localhost/api/contracts/list");
-
     expect(resolveOptionalRequestWallet(request, "body_wallet")).toBeNull();
   });
 });

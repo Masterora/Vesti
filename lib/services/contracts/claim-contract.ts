@@ -1,12 +1,12 @@
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContractWithProfiles } from "@/lib/services/serialize";
+import { getContractById } from "@/lib/services/contracts/get-contract-by-id";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import type { ClaimContractInput } from "@/lib/validations/contract";
 
 export async function claimContract(input: ClaimContractInput) {
-  return db.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     const contract = assertFound(
       await tx.contract.findUnique({
         where: { id: input.contractId },
@@ -62,27 +62,7 @@ export async function claimContract(input: ClaimContractInput) {
         requestedWorkerWallet: input.walletAddress
       }
     });
-
-    const updated = await tx.contract.findUniqueOrThrow({
-      where: { id: contract.id },
-      include: {
-        milestones: {
-          orderBy: { index: "asc" },
-          include: {
-            proofSubmissions: {
-              orderBy: { version: "desc" }
-            }
-          }
-        },
-        events: {
-          orderBy: { createdAt: "desc" }
-        },
-        applications: {
-          orderBy: { createdAt: "asc" }
-        }
-      }
-    });
-
-    return serializeContractWithProfiles(updated);
   });
+
+  return getContractById({ contractId: input.contractId, walletAddress: input.walletAddress });
 }

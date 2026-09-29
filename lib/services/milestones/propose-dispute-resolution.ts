@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { getEscrowAdapterMode } from "@/lib/blockchain/escrow-adapter";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContractWithProfiles } from "@/lib/services/serialize";
+import { serializeParticipantContract } from "@/lib/services/contracts/filter-worker-contract";
 import type { ProposeDisputeResolutionInput } from "@/lib/validations/proof-submission";
 
 export async function proposeDisputeResolution(input: ProposeDisputeResolutionInput) {
@@ -45,7 +45,7 @@ export async function proposeDisputeResolution(input: ProposeDisputeResolutionIn
       payload: { outcome: input.outcome }
     });
 
-    return serializeContractWithProfiles(
+    return serializeParticipantContract(
       await tx.contract.findUniqueOrThrow({
         where: { id: contract.id },
         include: {
@@ -56,7 +56,8 @@ export async function proposeDisputeResolution(input: ProposeDisputeResolutionIn
           events: { orderBy: { createdAt: "desc" } },
           disputes: { orderBy: { createdAt: "desc" } }
         }
-      })
+      }),
+      input.walletAddress
     );
   });
 }

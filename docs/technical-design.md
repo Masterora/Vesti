@@ -15,7 +15,7 @@ Vesti uses a layered Next.js application with a separate Solana escrow program:
 - `lib/domain/` contains shared domain rules and view-model helpers.
 - `lib/blockchain/` defines the escrow adapter and Solana transaction integration.
 - `lib/profile/` contains reusable avatar and participant-display helpers.
-- `prisma/` defines the PostgreSQL model, migrations, and seed data.
+- `prisma/` defines the PostgreSQL model and migrations.
 - `programs/vesti-escrow/` contains the Anchor-compatible Rust escrow program.
 - `scripts/` contains repository-level task runners rather than application runtime code.
 - `tests/integration/` contains cross-domain, database-backed workflow tests.
@@ -108,11 +108,10 @@ The browser persists a transaction signature immediately after submission and ca
 
 ## Authentication and authorization
 
-Production-style authentication uses a wallet challenge and signed-message verification. The verified session is stored in an HTTP-only cookie. The server derives the acting wallet from that session and ignores request-body wallet fallbacks while a valid session exists. A body wallet is accepted only when the explicit, non-production demo bypass is enabled.
+Production-style authentication uses a wallet challenge and signed-message verification. The verified session is stored in an HTTP-only cookie. The server derives the acting wallet from that session and ignores request-body wallet fallbacks while a valid session exists. Unauthenticated body-supplied wallets are rejected.
 
 Wallet challenges are consumed with a conditional database update so concurrent verification attempts cannot reuse one signature. Challenge and verification endpoints use database-backed limits for both the wallet and the proxy-provided client address. Browser POST requests with an `Origin` header must match the application origin.
 
-The demo wallet bypass is disabled by default and is only for explicit local demos. It must not be enabled in a production deployment.
 
 Authorization is role- and state-based:
 
@@ -217,8 +216,6 @@ Copy `.env.example` to `.env` for local development.
 | `RECONCILIATION_BATCH_SIZE` | Maximum submitted transactions claimed by one reconciliation run. |
 | `RECONCILIATION_MAX_ATTEMPTS` | Retry attempts before a submitted transaction requires operations review. |
 | `AUTH_SECRET` | Server secret used to protect wallet sessions. |
-| `DEMO_WALLET_AUTH_ENABLED` | Server-side local demo bypass switch. |
-| `NEXT_PUBLIC_DEMO_WALLET_AUTH_ENABLED` | Client-side local demo wallet switch. |
 
 The current program identifier is documented in [onchain.md](onchain.md) so deployment-specific information has one source of truth.
 
@@ -231,7 +228,7 @@ The current program identifier is documented in [onchain.md](onchain.md) so depl
 - Persist idempotency before invoking an external financial operation.
 - Keep API handlers thin and return explicit validation, authorization, state, and infrastructure errors.
 - Preserve request IDs across API boundaries so production errors can be traced without exposing internal details.
-- Add migrations for schema changes and keep seed data aligned with the current model.
+- Add migrations for schema changes.
 - Do not add marketplace, chat, fiat, KYC, legal arbitration, multi-chain, reputation, or public-profile features to the MVP without a separate product decision.
 
 ## Development commands
@@ -253,7 +250,6 @@ corepack pnpm prisma validate
 corepack pnpm prisma generate
 corepack pnpm prisma migrate dev
 corepack pnpm prisma studio
-corepack pnpm seed
 ```
 
-Use [operations.md](operations.md) for the ordered local startup, Docker database commands, demo data, and quality-check procedure.
+Use [operations.md](operations.md) for the ordered local startup, Docker database commands, and quality-check procedure.

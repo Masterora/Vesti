@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { getIntlLocale } from "@/lib/i18n/locale";
+import { amountToUnits, formatAmountUnits } from "@/lib/domain/amount";
 import type { Locale } from "@/lib/i18n/messages";
 
 export function cn(...inputs: ClassValue[]) {
@@ -7,13 +8,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatUsdc(value: string | number, locale: Locale = "en") {
-  const amount = Number(value);
-  const formatted = new Intl.NumberFormat(getIntlLocale(locale), {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 6
-  }).format(Number.isFinite(amount) ? amount : 0);
-
-  return `$${formatted}`;
+  try {
+    const normalized = formatAmountUnits(amountToUnits(value));
+    const [whole, fraction] = normalized.split(".");
+    const groupedWhole = BigInt(whole).toLocaleString(getIntlLocale(locale));
+    return `${groupedWhole}${fraction ? `.${fraction}` : ""} USDC`;
+  } catch {
+    return locale === "zh" ? "金额不可用" : "Amount unavailable";
+  }
 }
 
 export function shortenWallet(wallet: string) {

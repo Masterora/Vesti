@@ -38,13 +38,7 @@ corepack pnpm prisma generate
 corepack pnpm prisma migrate dev --name init
 ```
 
-6. Optional: create a funded demo contract.
-
-```bash
-corepack pnpm seed
-```
-
-7. Start the app.
+6. Start the app.
 
 ```bash
 corepack pnpm dev
@@ -72,19 +66,10 @@ Use this only when you want to reset all local database data:
 docker compose down -v
 ```
 
-## Demo Wallets
-
-The app still includes a demo wallet switcher for local mock-mode demos.
-
-```text
-Creator: creator_demo_wallet_8pQ7n2
-Worker:  worker_demo_wallet_5kL9s1
-```
-
-## Demo Flow
+## Contract Workflow
 
 1. Open `/dashboard` as Creator.
-2. Create a contract, or run `corepack pnpm seed`.
+2. Connect and sign in with a wallet, then create a contract.
 3. Fund the contract as Creator, or cancel it while it is still a draft.
 4. Switch to Worker after funding.
 5. Open the contract detail page and submit proof for a ready milestone.
@@ -127,6 +112,8 @@ corepack pnpm reconcile:transactions
 ```
 
 Each run atomically leases up to `RECONCILIATION_BATCH_SIZE` submitted transactions. Failed reconciliation uses exponential backoff. After `RECONCILIATION_MAX_ATTEMPTS`, the record remains submitted and is marked for manual review rather than being silently discarded or reported as failed on-chain.
+
+Users recover unsigned `prepared` funding or payment from contract details. The server releases the old operation lock only after the blockhash expires, at least five minutes have passed since the preparation was written, and finalized chain state shows no corresponding funds movement. For records marked `requiresReviewAt`, inspect the escrow account, chain transactions, and local events before taking action; do not clear the operation lock or resend payment directly. RPC failures leave the record in place for a later retry.
 
 Schedule operational cleanup daily:
 

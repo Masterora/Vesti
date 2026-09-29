@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { PublicKey } from "@solana/web3.js";
 import { describe, expect, it } from "vitest";
 import {
@@ -5,7 +6,7 @@ import {
   createMarkFundedInstruction,
   createReleaseMilestoneInstruction
 } from "./solana-escrow-instructions";
-import { deriveSolanaEscrowAccounts, TOKEN_PROGRAM_ID } from "./solana-escrow-accounts";
+import { deriveMilestoneReleaseReceiptPda, deriveSolanaEscrowAccounts, TOKEN_PROGRAM_ID } from "./solana-escrow-accounts";
 
 const programId = new PublicKey("ErFsmiKY7WxjD9ArYmpqjCCUKnTcfzLm6tFpmWdFU9ck");
 const usdcMint = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
@@ -86,8 +87,13 @@ describe("Solana escrow instructions", () => {
       usdcMint.toBase58(),
       accounts.vaultPda.toBase58(),
       accounts.workerTokenAccount.toBase58(),
-      TOKEN_PROGRAM_ID.toBase58()
+      TOKEN_PROGRAM_ID.toBase58(),
+      deriveMilestoneReleaseReceiptPda(accounts.escrowPda, milestoneId, programId).address.toBase58(),
+      "11111111111111111111111111111111"
     ]);
     expect(instruction.data.subarray(0, 8).toString("hex")).toBe("3802c7a4b86ca7de");
+    expect(instruction.data.subarray(-32).toString("hex")).toBe(createHash("sha256").update(milestoneId).digest("hex"));
+    expect(instruction.keys[1]).toMatchObject({ isSigner: true, isWritable: true });
+    expect(instruction.keys[7]).toMatchObject({ isSigner: false, isWritable: true });
   });
 });

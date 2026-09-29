@@ -165,24 +165,15 @@ export function createClearWalletSessionCookie() {
     .join("; ");
 }
 
-export function isDemoWalletAuthFallbackEnabled() {
-  if (process.env.NODE_ENV === "production") {
-    return false;
-  }
-
-  return process.env.DEMO_WALLET_AUTH_ENABLED === "true";
-}
-
 export function resolveOptionalRequestWallet(request: Request, fallbackWalletAddress?: string | null) {
+  // Body-supplied identities never establish authentication.
+  void fallbackWalletAddress;
   const session = getWalletSession(request);
 
   if (session) {
     return session.walletAddress;
   }
 
-  if (isDemoWalletAuthFallbackEnabled() && fallbackWalletAddress?.trim()) {
-    return fallbackWalletAddress.trim();
-  }
 
   return null;
 }

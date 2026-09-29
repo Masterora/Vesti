@@ -110,6 +110,11 @@ export type SerializedContractListItem = {
   createdAt: string;
   updatedAt: string;
   milestoneCount: number;
+  currentMilestone: Pick<
+    SerializedMilestone,
+    "id" | "index" | "title" | "amount" | "dueAt" | "status"
+  > | null;
+  activeDispute: { status: "open" | "proposed" | "resolved"; proposedBy: string | null } | null;
   pendingApplicantWallets: string[];
   profiles?: SerializedPublicUserProfile[];
 };

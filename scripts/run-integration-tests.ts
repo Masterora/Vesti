@@ -15,7 +15,6 @@ const environment = {
   ...process.env,
   DATABASE_URL: testDatabaseUrl.toString(),
   ESCROW_ADAPTER_MODE: "mock",
-  DEMO_WALLET_AUTH_ENABLED: "true"
 };
 
 function run(command: string, args: string[]) {

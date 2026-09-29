@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Check, CircleDollarSign, ExternalLink, RotateCcw, Send } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useRuntimeConfig } from "@/components/layout/runtime-config";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { formatDateTime } from "@/lib/utils";
@@ -60,6 +61,7 @@ export function MilestoneActions({
   onDraftChange,
   onRevisionNoteChange,
   onDisputeReasonChange,
+  releasePending,
   onSubmitProof,
   onApprove,
   onRequestRevision,
@@ -77,6 +79,7 @@ export function MilestoneActions({
   onDraftChange: (patch: Partial<ProofDraft>) => void;
   onRevisionNoteChange: (note: string) => void;
   onDisputeReasonChange: (reason: string) => void;
+  releasePending: boolean;
   onSubmitProof: () => void;
   onApprove: () => void;
   onRequestRevision: () => void;
@@ -84,13 +87,16 @@ export function MilestoneActions({
   onRelease: () => void;
 }) {
   const { messages } = useLocale();
+  const runtime = useRuntimeConfig();
   const copy = messages.contractDetail;
-  const canDispute =
-    contractStatus === "active" &&
+  const disputeEligible = contractStatus === "active" &&
     ["creator", "worker"].includes(role) &&
     ["ready", "submitted", "revision_requested", "approved"].includes(milestone.status);
+  const canDispute =
+    disputeEligible &&
+    runtime?.canOpenDispute === true;
   const disputeControl = canDispute ? (
-    <div className="mt-5 rounded-lg border border-red-200 bg-red-50 p-4">
+    <div className="mt-5 rounded-md border border-danger/30 bg-danger/10 p-4">
       <div className="grid gap-3">
         <div className="grid gap-2">
           <Label>{copy.disputeReason}</Label>
@@ -112,6 +118,8 @@ export function MilestoneActions({
         </Button>
       </div>
     </div>
+  ) : disputeEligible && runtime?.escrowMode === "onchain" ? (
+    <p className="mt-5 text-sm text-muted-foreground">{copy.disputeUnavailable}</p>
   ) : null;
 
   if (
@@ -122,9 +130,9 @@ export function MilestoneActions({
     return (
       <>
         {milestone.status === "revision_requested" && requestedRevisionNote ? (
-          <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm font-semibold text-amber-900">{copy.requestedRevisionNote}</p>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-amber-800">{requestedRevisionNote}</p>
+          <div className="mt-5 rounded-md border border-warning/30 bg-warning/10 p-4">
+            <p className="text-sm font-semibold text-warning">{copy.requestedRevisionNote}</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-warning">{requestedRevisionNote}</p>
           </div>
         ) : null}
         <div className="mt-5 rounded-lg bg-muted p-4">
@@ -200,7 +208,7 @@ export function MilestoneActions({
     return (
       <>
         <div className="mt-5">
-          <Button type="button" onClick={onRelease} disabled={activeAction === `release-${milestone.id}`}>
+          <Button type="button" onClick={onRelease} disabled={releasePending || Boolean(activeAction)}>
             <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
             {activeAction === `release-${milestone.id}` ? copy.releasingPayment : copy.releasePayment}
           </Button>

@@ -15,6 +15,8 @@ instructions:
 `initialize_escrow` creates the escrow PDA and a Token/Token-2022 compatible vault account.
 `mark_funded` transfers the full contract amount from the Creator token account into the vault.
 `release_milestone` transfers approved milestone funds from the vault to the Worker token account.
+It creates a receipt PDA keyed by the escrow and milestone ID hash; another release for the same
+milestone fails even if funds remain. The Creator pays the receipt account rent.
 `contract_id` is used as a PDA seed and must be 32 bytes or less.
 
 The Web app defaults to the mocked escrow adapter. The Solana adapter has an experimental

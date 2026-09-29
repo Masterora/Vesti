@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { getEscrowAdapterMode } from "@/lib/blockchain/escrow-adapter";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
-import { serializeContractWithProfiles } from "@/lib/services/serialize";
+import { serializeParticipantContract } from "@/lib/services/contracts/filter-worker-contract";
 import type { DisputeMilestoneInput } from "@/lib/validations/proof-submission";
 
 const disputableMilestoneStatuses = ["ready", "submitted", "revision_requested", "approved"];
@@ -98,6 +98,6 @@ export async function disputeMilestone(input: DisputeMilestoneInput) {
       }
     });
 
-    return serializeContractWithProfiles(updated);
+    return serializeParticipantContract(updated, input.walletAddress);
   });
 }

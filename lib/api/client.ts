@@ -1,6 +1,6 @@
 import { translateErrorMessage } from "@/lib/i18n/error-messages";
 
-export async function postJson<T>(url: string, body: unknown): Promise<T> {
+export async function postJson<T>(url: string, body: unknown, options?: { signal?: AbortSignal }): Promise<T> {
   const locale =
     typeof document !== "undefined" && document.documentElement.lang.toLowerCase().startsWith("zh")
       ? "zh"
@@ -13,6 +13,7 @@ export async function postJson<T>(url: string, body: unknown): Promise<T> {
       "Content-Type": "application/json",
       "x-vesti-locale": locale
     },
+    signal: options?.signal,
     body: JSON.stringify(body)
   });
 

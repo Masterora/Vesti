@@ -59,5 +59,5 @@ The repository contains a complete mock escrow workflow and an experimental wall
 ## Project documentation
 
 - [Technical design](docs/technical-design.md): code structure, domain model, APIs, configuration, and engineering rules.
-- [Operations](docs/operations.md): local setup, database lifecycle, demo flow, and quality checks.
+- [Operations](docs/operations.md): local setup, database lifecycle, contract workflow, and quality checks.
 - [On-chain escrow](docs/onchain.md): Solana program status, instructions, deployment identifiers, and program commands.

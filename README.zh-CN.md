@@ -59,5 +59,5 @@ Vesti 是面向远程协作的里程碑式 USDC 托管产品，为需求方与�
 ## 项目文档
 
 - [技术设计](docs/technical-design.zh-CN.md)：代码结构、领域模型、API、配置和工程规范。
-- [运行指南](docs/operations.zh-CN.md)：本地启动、数据库生命周期、演示流程和质量检查。
+- [运行指南](docs/operations.zh-CN.md)：本地启动、数据库生命周期、合约流程和质量检查。
 - [链上托管](docs/onchain.zh-CN.md)：Solana 程序状态、指令、部署标识和程序命令。

@@ -6,7 +6,7 @@ import { getPublicUserProfilesByWallets } from "@/lib/services/profile/user-prof
 import { normalizeContractDisplayIdQuery } from "@/lib/utils";
 import type { ListContractsInput } from "@/lib/validations/contract";
 
-export async function listContractsForWallet(input: ListContractsInput) {
+export function buildListContractsWhere(input: ListContractsInput, extraWhere?: Prisma.ContractWhereInput) {
   const walletAddress = input.walletAddress?.trim();
   const query = input.query?.trim();
   const status = input.status;
@@ -79,8 +79,16 @@ export async function listContractsForWallet(input: ListContractsInput) {
         AND: [where, { status }]
       }
     : where;
+  return extraWhere ? { AND: [filteredWhere, extraWhere] } : filteredWhere;
+}
+
+export async function listContractsForWallet(
+  input: ListContractsInput,
+  options?: { where?: Prisma.ContractWhereInput; skip?: number; take?: number; orderBy?: Prisma.ContractOrderByWithRelationInput[] }
+) {
+  const walletAddress = input.walletAddress?.trim();
   const contracts = await db.contract.findMany({
-    where: filteredWhere,
+    where: buildListContractsWhere(input, options?.where),
     select: {
       id: true,
       displayId: true,
@@ -105,13 +113,31 @@ export async function listContractsForWallet(input: ListContractsInput) {
           applicantWallet: true
         }
       },
+      milestones: {
+        orderBy: { index: "asc" },
+        select: {
+          id: true,
+          index: true,
+          title: true,
+          amount: true,
+          dueAt: true,
+          status: true
+        }
+      },
+      disputes: {
+        where: { status: { in: ["open", "proposed"] } },
+        select: { status: true, proposedBy: true },
+        take: 1
+      },
       _count: {
         select: {
           milestones: true
         }
       }
     },
-    orderBy: { updatedAt: "desc" }
+    orderBy: options?.orderBy ?? [{ updatedAt: "desc" }, { id: "desc" }],
+    skip: options?.skip,
+    take: options?.take
   });
 
   const wallets = contracts.flatMap((contract) => [

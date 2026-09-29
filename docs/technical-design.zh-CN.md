@@ -108,11 +108,10 @@ Web 交易链路当前仅面向经典 SPL Token Program；Token-2022 支持不�
 
 ## 认证与授权
 
-正式认证流程使用钱包挑战和签名消息校验。验证后的会话保存在仅限 HTTP 访问的 Cookie 中。存在有效会话时，服务端从会话取得操作钱包，并忽略请求体中的钱包回退值。只有显式开启非生产 Demo 绕过模式时，才允许使用请求体钱包。
+正式认证流程使用钱包挑战和签名消息校验。验证后的会话保存在仅限 HTTP 访问的 Cookie 中。存在有效会话时，服务端从会话取得操作钱包，并忽略请求体中的钱包回退值。未认证时不接受请求体传入的钱包作为身份。
 
 钱包挑战通过带条件的数据库更新完成消费，并发验证无法重复使用同一签名。挑战和验证接口同时按钱包以及代理提供的客户端地址执行数据库限流。浏览器 POST 请求携带 `Origin` 时，其来源必须与应用来源一致。
 
-Demo 钱包绕过默认关闭，仅用于明确的本地演示，生产部署不得启用。
 
 授权同时基于角色和状态：
 
@@ -217,8 +216,6 @@ Web 应用不得从链上模式静默回退到 Mock 行为。不受支持的链�
 | `RECONCILIATION_BATCH_SIZE` | 单次对账任务最多租用的已提交交易数。 |
 | `RECONCILIATION_MAX_ATTEMPTS` | 已提交交易进入运营检查前的最大重试次数。 |
 | `AUTH_SECRET` | 用于保护钱包会话的服务端密钥。 |
-| `DEMO_WALLET_AUTH_ENABLED` | 服务端本地 Demo 绕过开关。 |
-| `NEXT_PUBLIC_DEMO_WALLET_AUTH_ENABLED` | 客户端本地 Demo 钱包开关。 |
 
 当前程序标识记录在 [onchain.zh-CN.md](onchain.zh-CN.md)，确保部署相关信息只有一个事实来源。
 
@@ -253,7 +250,6 @@ corepack pnpm prisma validate
 corepack pnpm prisma generate
 corepack pnpm prisma migrate dev
 corepack pnpm prisma studio
-corepack pnpm seed
 ```
 
-有序的本地启动流程、Docker 数据库命令、演示数据和质量检查步骤见 [operations.zh-CN.md](operations.zh-CN.md)。
+有序的本地启动流程、Docker 数据库命令、质量检查步骤见 [operations.zh-CN.md](operations.zh-CN.md)。

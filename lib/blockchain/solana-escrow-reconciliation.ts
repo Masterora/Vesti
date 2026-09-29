@@ -5,7 +5,9 @@ import { encodeAnchorInstruction, encodeAnchorString, encodeU64 } from "@/lib/bl
 import {
   TOKEN_PROGRAM_ID,
   decimalToTokenUnits,
+  deriveMilestoneReleaseReceiptPda,
   deriveSolanaEscrowAccounts,
+  hashMilestoneId,
   parsePublicKey
 } from "@/lib/blockchain/solana-escrow-accounts";
 import { ServiceError } from "@/lib/services/errors";
@@ -405,11 +407,14 @@ export async function reconcileReleaseEscrowTransaction(input: {
           config.usdcMint.toBase58(),
           accounts.vaultPda.toBase58(),
           accounts.workerTokenAccount.toBase58(),
-          accounts.tokenProgramId.toBase58()
+          accounts.tokenProgramId.toBase58(),
+          deriveMilestoneReleaseReceiptPda(accounts.escrowPda, input.milestoneId, config.programId).address.toBase58(),
+          SystemProgram.programId.toBase58()
         ],
         data: encodeAnchorInstruction("release_milestone", [
           encodeAnchorString(input.milestoneId),
-          encodeU64(milestoneAmountUnits)
+          encodeU64(milestoneAmountUnits),
+          hashMilestoneId(input.milestoneId)
         ])
       }
     ]

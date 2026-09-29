@@ -1,12 +1,14 @@
 import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import {
   decimalToTokenUnits,
+  deriveEscrowPda,
   deriveSolanaEscrowAccounts,
   parsePublicKey,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
   type SolanaEscrowAccounts
 } from "@/lib/blockchain/solana-escrow-accounts";
+import { decodeEscrowStateAccount } from "@/lib/blockchain/solana-escrow-reconciliation";
 import {
   createInitializeEscrowInstruction,
   createMarkFundedInstruction,
@@ -150,6 +152,71 @@ export async function prepareFundEscrowTransaction(input: {
     amountUnits,
     recentBlockhash: blockhash
   });
+}
+
+export async function inspectPreparedFunding(input: {
+  contractId: string;
+  recentBlockhash: string;
+}): Promise<"valid" | "expired_without_escrow" | "review"> {
+  const config = getSolanaEscrowTransactionConfig();
+  // A missing local signature does not prove the transaction was never broadcast.
+  // Only release its operation lock after the hash is unusable and the
+  // finalized chain has no escrow account for this contract.
+  const escrowPda = deriveEscrowPda(input.contractId, config.programId).address;
+  const account = await config.connection.getAccountInfo(escrowPda, "finalized");
+  if (account) return "review";
+
+  const valid = await config.connection.isBlockhashValid(input.recentBlockhash, { commitment: "processed" });
+  if (valid.value) return "valid";
+
+  const finalAccount = await config.connection.getAccountInfo(escrowPda, "finalized");
+  return finalAccount ? "review" : "expired_without_escrow";
+}
+
+export async function inspectPreparedRelease(input: {
+  contractId: string;
+  creatorWallet: string;
+  workerWallet: string;
+  fundedAmount: DecimalLike | string;
+  releasedAmountBefore: DecimalLike | string;
+  recentBlockhash: string;
+}): Promise<"valid" | "expired_without_release" | "review"> {
+  const config = getSolanaEscrowTransactionConfig();
+  const accounts = deriveSolanaEscrowAccounts({
+    contractId: input.contractId,
+    programId: config.programId,
+    usdcMint: config.usdcMint,
+    creator: parsePublicKey(input.creatorWallet, "creatorWallet"),
+    worker: parsePublicKey(input.workerWallet, "workerWallet")
+  });
+  const expectedReleased = decimalToTokenUnits(input.releasedAmountBefore);
+  const expectedFunded = decimalToTokenUnits(input.fundedAmount);
+
+  const releaseStateIsUnchanged = async () => {
+    const info = await config.connection.getAccountInfo(accounts.escrowPda, "finalized");
+    if (!info || !info.owner.equals(config.programId)) return false;
+    try {
+      const state = decodeEscrowStateAccount(info.data);
+      return state.contractId === input.contractId &&
+        state.creator === input.creatorWallet &&
+        state.worker === input.workerWallet &&
+        state.usdcMint === config.usdcMint.toBase58() &&
+        state.vault === accounts.vaultPda.toBase58() &&
+        state.totalAmount === expectedFunded &&
+        state.fundedAmount === expectedFunded &&
+        state.releasedAmount === expectedReleased &&
+        state.status === 1;
+    } catch {
+      return false;
+    }
+  };
+
+  // An account already advanced past the database amount may include an
+  // unrecorded release. Never replace the preparation in that case.
+  if (!(await releaseStateIsUnchanged())) return "review";
+  const valid = await config.connection.isBlockhashValid(input.recentBlockhash, { commitment: "processed" });
+  if (valid.value) return "valid";
+  return (await releaseStateIsUnchanged()) ? "expired_without_release" : "review";
 }
 
 export async function prepareReleaseEscrowTransaction(input: {

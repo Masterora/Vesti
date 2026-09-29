@@ -46,6 +46,8 @@ export type ContractListRecord = Pick<
   | "updatedAt"
 > & {
   applications?: Array<Pick<ContractApplication, "applicantWallet">>;
+  milestones?: Array<Pick<Milestone, "id" | "index" | "title" | "amount" | "dueAt" | "status">>;
+  disputes?: Array<Pick<Dispute, "status" | "proposedBy">>;
   _count: {
     milestones: number;
   };
@@ -185,6 +187,12 @@ export function serializeContractListItem(
   contract: ContractListRecord,
   profilesByWallet?: Map<string, SerializedPublicUserProfile>
 ) {
+  const orderedMilestones = [...(contract.milestones ?? [])].sort((left, right) => left.index - right.index);
+  const currentMilestone =
+    (contract.status === "disputed"
+      ? orderedMilestones.find((milestone) => milestone.status === "disputed")
+      : orderedMilestones.find((milestone) => milestone.status !== "released")) ?? null;
+
   return {
     id: contract.id,
     displayId: contract.displayId,
@@ -204,6 +212,17 @@ export function serializeContractListItem(
     createdAt: contract.createdAt.toISOString(),
     updatedAt: contract.updatedAt.toISOString(),
     milestoneCount: contract._count.milestones,
+    currentMilestone: currentMilestone
+      ? {
+          id: currentMilestone.id,
+          index: currentMilestone.index,
+          title: currentMilestone.title,
+          amount: currentMilestone.amount.toString(),
+          dueAt: currentMilestone.dueAt?.toISOString() ?? null,
+          status: currentMilestone.status
+        }
+      : null,
+    activeDispute: contract.disputes?.[0] ?? null,
     pendingApplicantWallets: getPendingApplicantWallets(contract),
     profiles: profilesByWallet
       ? Array.from(new Set(collectContractListWallets(contract))).flatMap((wallet) => {

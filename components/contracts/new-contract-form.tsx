@@ -15,6 +15,7 @@ import { formatUsdc } from "@/lib/utils";
 import type { SerializedContract } from "@/types/contract";
 
 type MilestoneDraft = {
+  key: string;
   title: string;
   description: string;
   amount: string;
@@ -23,6 +24,7 @@ type MilestoneDraft = {
 
 function createEmptyMilestone(): MilestoneDraft {
   return {
+    key: crypto.randomUUID(),
     title: "",
     description: "",
     amount: "",
@@ -71,12 +73,13 @@ function normalizeDueAt(value: string) {
 export function NewContractForm() {
   const router = useRouter();
   const { locale, messages } = useLocale();
-  const { walletAddress, isAuthenticated, demoWalletsEnabled } = useWallet();
+  const { walletAddress, isAuthenticated } = useWallet();
   const contractCopy = messages.newContract;
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [tagsInput, setTagsInput] = useState<string>("");
-  const [isPublic, setIsPublic] = useState(true);
+  const [collaborationMode, setCollaborationMode] = useState<"public" | "direct">("public");
+  const [workerWallet, setWorkerWallet] = useState("");
   const [totalAmount, setTotalAmount] = useState<string>("");
   const [milestones, setMilestones] = useState<MilestoneDraft[]>(() => [createEmptyMilestone()]);
   const [error, setError] = useState<string>("");
@@ -127,6 +130,7 @@ export function NewContractForm() {
     try {
       const contract = await postJson<SerializedContract>("/api/contracts/create", {
         creatorWallet: walletAddress,
+        workerWallet: collaborationMode === "direct" ? workerWallet.trim() : undefined,
         title,
         description,
         tags: Array.from(
@@ -137,10 +141,11 @@ export function NewContractForm() {
               .filter(Boolean)
           )
         ),
-        isPublic,
+        isPublic: collaborationMode === "public",
         totalAmount,
         milestones: milestones.map((milestone) => ({
-          ...milestone,
+          title: milestone.title,
+          amount: milestone.amount,
           description: milestone.description || undefined,
           dueAt: normalizeDueAt(milestone.dueAt) || undefined
         }))
@@ -154,7 +159,7 @@ export function NewContractForm() {
     }
   };
 
-  const connectRequired = !isAuthenticated && !demoWalletsEnabled;
+  const connectRequired = !isAuthenticated;
 
   return (
     <form className="grid gap-6 lg:grid-cols-[1fr_360px]" onSubmit={submit}>
@@ -171,6 +176,18 @@ export function NewContractForm() {
                 onChange={(event) => setTitle(event.target.value)}
               />
             </div>
+            <fieldset className="grid gap-3">
+              <legend className="text-sm font-medium">{locale === "zh" ? "合作方式" : "Collaboration"}</legend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(["public", "direct"] as const).map((mode) => (
+                  <label key={mode} className={`flex min-h-20 cursor-pointer items-start gap-3 rounded-md border p-4 ${collaborationMode === mode ? "border-focus bg-selected" : "border-border bg-surface"}`}>
+                    <input type="radio" name="collaboration-mode" className="mt-1 accent-primary" checked={collaborationMode === mode} onChange={() => setCollaborationMode(mode)} />
+                    <span><span className="block text-sm font-semibold">{mode === "public" ? (locale === "zh" ? "公开招募" : "Public recruiting") : (locale === "zh" ? "指定工作者" : "Direct assignment")}</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">{mode === "public" ? (locale === "zh" ? "公开展示项目，接收工作者申请。" : "Publish the project and receive applications.") : (locale === "zh" ? "直接指定钱包，创建后等待注资。" : "Assign a wallet and continue to funding.")}</span></span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {collaborationMode === "direct" ? <div className="grid gap-2"><Label htmlFor="worker-wallet">{contractCopy.workerWalletLabel}</Label><Input id="worker-wallet" value={workerWallet} placeholder={contractCopy.workerWalletPlaceholder} onChange={(event) => setWorkerWallet(event.target.value)} aria-invalid={workerWallet.trim() === walletAddress.trim()} />{workerWallet.trim() === walletAddress.trim() && workerWallet.trim() ? <p className="text-sm text-danger">{locale === "zh" ? "不能将自己指定为工作者。" : "You cannot assign yourself as the worker."}</p> : null}</div> : null}
             <div className="grid gap-2">
               <Label htmlFor="description">{contractCopy.descriptionLabel}</Label>
               <Textarea
@@ -198,18 +215,6 @@ export function NewContractForm() {
                 readOnly
               />
             </div>
-            <label className="flex items-start gap-3 rounded-lg border border-border p-3">
-              <input
-                type="checkbox"
-                className="mt-1 size-4 accent-primary"
-                checked={isPublic}
-                onChange={(event) => setIsPublic(event.target.checked)}
-              />
-              <div>
-                <p className="text-sm font-medium">{contractCopy.publicTitle}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{contractCopy.publicDescription}</p>
-              </div>
-            </label>
           </div>
         </Card>
 
@@ -223,7 +228,7 @@ export function NewContractForm() {
           </div>
           <div className="mt-5 space-y-4">
             {milestones.map((milestone, index) => (
-              <div key={index} className="rounded-lg border border-border p-4">
+              <div key={milestone.key} className="rounded-lg border border-border p-4">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <h3 className="font-semibold">
                     {messages.contractDetail.milestoneItem} {index + 1}
@@ -315,20 +320,20 @@ export function NewContractForm() {
               </div>
             </div>
             {connectRequired ? (
-              <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-800">
+              <p className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
                 {contractCopy.connectNotice}
               </p>
             ) : null}
             {!totalMatches && hasAmountInput ? (
-              <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-800">
+              <p className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
                 {contractCopy.mismatchError}
               </p>
             ) : null}
-            {error ? <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
+            {error ? <p className="rounded-md border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{error}</p> : null}
             <Button
               type="submit"
               className="w-full"
-              disabled={connectRequired || !totalMatches || isSubmitting}
+              disabled={connectRequired || !totalMatches || isSubmitting || (collaborationMode === "direct" && (!workerWallet.trim() || workerWallet.trim() === walletAddress.trim()))}
             >
               {isSubmitting ? contractCopy.submitting : contractCopy.submit}
             </Button>

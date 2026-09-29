@@ -4,7 +4,7 @@ import { getEscrowAdapter, getEscrowAdapterMode } from "@/lib/blockchain/escrow-
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
 import { applyMilestoneRelease } from "@/lib/services/milestones/apply-milestone-release";
-import { serializeContractWithProfiles } from "@/lib/services/serialize";
+import { serializeParticipantContract } from "@/lib/services/contracts/filter-worker-contract";
 import {
   assertEscrowTransactionMatches,
   getOrCreateEscrowTransaction
@@ -65,8 +65,9 @@ export async function acceptDisputeResolution(input: AcceptDisputeResolutionInpu
   if (existingTransaction) {
     assertEscrowTransactionMatches(existingTransaction, transactionInput);
     if (existingTransaction.status === "reconciled") {
-      return serializeContractWithProfiles(
-        await db.contract.findUniqueOrThrow({ where: { id: contract.id }, include: contractInclude })
+      return serializeParticipantContract(
+        await db.contract.findUniqueOrThrow({ where: { id: contract.id }, include: contractInclude }),
+        input.walletAddress
       );
     }
   }
@@ -147,8 +148,9 @@ export async function acceptDisputeResolution(input: AcceptDisputeResolutionInpu
       }
     });
 
-    return serializeContractWithProfiles(
-      await tx.contract.findUniqueOrThrow({ where: { id: contract.id }, include: contractInclude })
+    return serializeParticipantContract(
+      await tx.contract.findUniqueOrThrow({ where: { id: contract.id }, include: contractInclude }),
+      input.walletAddress
     );
   });
 }

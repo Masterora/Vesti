@@ -25,26 +25,18 @@ import { translateErrorMessage } from "@/lib/i18n/error-messages";
 import type { Locale } from "@/lib/i18n/messages";
 import type { SerializedSessionUserProfile } from "@/types/profile";
 
-const defaultWallets = {
-  creator: "creator_demo_wallet_8pQ7n2",
-  worker: "worker_demo_wallet_5kL9s1"
-};
-
-const demoWalletsEnabled = process.env.NEXT_PUBLIC_DEMO_WALLET_AUTH_ENABLED === "true";
 const walletStorageKey = "vesti.walletAddress";
 const walletChangeEvent = "vesti.walletAddress.changed";
 
 type WalletContextValue = {
   walletAddress: string;
   setWalletAddress: (wallet: string) => void;
-  selectDemoWallet: (wallet: string) => Promise<void>;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => Promise<void>;
   signAndSendPreparedTransaction: (
     serializedTransaction: string,
     onSubmitted?: (signature: string) => Promise<void>
   ) => Promise<string>;
-  defaultWallets: typeof defaultWallets;
   authError: string;
   hasInjectedWallet: boolean;
   isAuthenticated: boolean;
@@ -57,7 +49,6 @@ type WalletContextValue = {
     bio?: string;
     avatarImage?: string;
   }) => Promise<SerializedSessionUserProfile>;
-  demoWalletsEnabled: boolean;
 };
 
 const WalletContext = createContext<WalletContextValue | null>(null);
@@ -217,7 +208,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
         if (session.walletAddress) {
           setWalletAddress(session.walletAddress);
-        } else if (!demoWalletsEnabled) {
+        } else {
           setWalletAddress("");
         }
       } catch {
@@ -241,6 +232,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
     try {
       await postJson<{ ok: boolean }>("/api/auth/logout", {});
+    } catch (caught) {
+      setAuthError(
+        caught instanceof Error
+          ? translateErrorMessage(locale, caught.message)
+          : translateErrorMessage(locale, "Wallet disconnect failed")
+      );
+      return;
+    }
+
+    try {
       await wallet?.disconnect?.();
       setAuthError("");
     } catch (caught) {
@@ -255,19 +256,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setWalletAddress(getDefaultWalletAddress());
     }
   }, [locale, setWalletAddress]);
-
-  const selectDemoWallet = useCallback(
-    async (wallet: string) => {
-      try {
-        await disconnectWallet();
-      } catch {
-        setSessionWalletAddress(null);
-      }
-
-      setWalletAddress(wallet);
-    },
-    [disconnectWallet, setWalletAddress]
-  );
 
   const connectWallet = useCallback(async () => {
     setIsConnecting(true);
@@ -374,13 +362,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      walletAddress,
+      walletAddress: walletAddress === sessionWalletAddress ? walletAddress : "",
       setWalletAddress,
-      selectDemoWallet,
+
       connectWallet,
       disconnectWallet,
       signAndSendPreparedTransaction,
-      defaultWallets,
+
       authError,
       hasInjectedWallet,
       isAuthenticated: Boolean(sessionWalletAddress),
@@ -388,7 +376,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       sessionWalletAddress,
       sessionProfile,
       updateProfile,
-      demoWalletsEnabled
+
     }),
     [
       authError,
@@ -396,7 +384,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       disconnectWallet,
       hasInjectedWallet,
       isConnecting,
-      selectDemoWallet,
+
       sessionWalletAddress,
       sessionProfile,
       setWalletAddress,

@@ -10,8 +10,8 @@ export function LanguageToggle() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const options = useMemo(
     () => [
-      { value: "en" as const, label: "English" },
-      { value: "zh" as const, label: "Chinese" }
+      { value: "en" as const, label: "EN" },
+      { value: "zh" as const, label: "简体中文" }
     ],
     []
   );
@@ -46,10 +46,9 @@ export function LanguageToggle() {
         aria-haspopup="menu"
         aria-expanded={isOpen}
         aria-label="Language"
-        className="flex h-8 items-center gap-2 rounded-md border border-border bg-white px-3 text-sm text-foreground shadow-sm transition hover:border-foreground/20"
+        className="flex min-h-10 items-center gap-2 rounded-md px-2.5 text-sm text-foreground transition hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         onClick={() => setIsOpen((current) => !current)}
       >
-        <span className="text-muted-foreground">Language</span>
         <span>{activeOption.label}</span>
         <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
       </button>
@@ -57,7 +56,7 @@ export function LanguageToggle() {
         <div
           role="menu"
           aria-label="Language"
-          className="absolute right-0 top-full z-50 mt-2 min-w-40 rounded-md border border-border bg-white p-1 shadow-lg"
+          className="absolute right-0 top-full z-50 mt-2 min-w-40 rounded-md border border-border bg-surface-raised p-1 shadow-lg"
         >
           {options.map((option) => (
             <button

@@ -56,6 +56,15 @@ export function sumAmountStrings(values: Array<string | number>, decimals = DEFA
   return formatAmountUnits(total, decimals);
 }
 
+export function escrowBalance(funded: string, released: string, refunded: string): string | null {
+  try {
+    const units = amountToUnits(funded) - amountToUnits(released) - amountToUnits(refunded);
+    return units < BigInt(0) ? null : formatAmountUnits(units);
+  } catch {
+    return null;
+  }
+}
+
 export function amountsEqual(
   left: string | number,
   right: string | number,

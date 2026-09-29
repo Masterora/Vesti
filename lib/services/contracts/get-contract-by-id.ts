@@ -3,6 +3,7 @@ import { getContractRole } from "@/lib/auth/wallet-role";
 import { assertAllowed, assertFound } from "@/lib/services/errors";
 import { serializeContractWithProfiles } from "@/lib/services/serialize";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
+import { filterWorkerContract } from "@/lib/services/contracts/filter-worker-contract";
 import type { GetContractInput } from "@/lib/validations/contract";
 
 export async function getContractById(input: GetContractInput) {
@@ -58,11 +59,7 @@ export async function getContractById(input: GetContractInput) {
   }
 
   if (role === "worker") {
-    return {
-      ...serialized,
-      requestedWorkerWallet: null,
-      applications: undefined
-    };
+    return filterWorkerContract(serialized);
   }
 
   return {

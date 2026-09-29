@@ -4,6 +4,7 @@ import {
   amountRatioPercent,
   amountToUnits,
   amountsEqual,
+  escrowBalance,
   formatAmountUnits,
   safeAmountsEqual,
   sumAmountStrings
@@ -19,6 +20,12 @@ describe("amount helpers", () => {
   it("sums decimal strings without floating point drift", () => {
     expect(sumAmountStrings(["0.1", "0.2"])).toBe("0.3");
     expect(sumAmountStrings(["250", "749.999999", "0.000001"])).toBe("1000");
+  });
+
+  it("does not disguise invalid or negative escrow balances as zero", () => {
+    expect(escrowBalance("100.000001", "30", "20")).toBe("50.000001");
+    expect(escrowBalance("10", "11", "0")).toBeNull();
+    expect(escrowBalance("invalid", "0", "0")).toBeNull();
   });
 
   it("compares normalized amounts", () => {

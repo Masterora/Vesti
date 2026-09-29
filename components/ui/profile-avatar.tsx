@@ -24,7 +24,7 @@ export function ProfileAvatar({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-lg border border-border/70 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.85)]",
+        "relative overflow-hidden rounded-lg border border-border bg-surface-raised",
         className
       )}
     >

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { AppHeader } from "@/components/layout/app-header";
+import { AppShell } from "@/components/layout/app-shell";
 import { getSiteUrl, siteDescription, siteKeywords, siteName, siteTagline } from "@/lib/site";
 import { getServerLocale } from "@/lib/i18n/server-locale";
 import { Providers } from "./providers";
@@ -55,8 +55,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f172a",
-  colorScheme: "light"
+  themeColor: "#17191c",
+  colorScheme: "dark"
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -66,8 +66,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang={locale === "zh" ? "zh-CN" : "en"} suppressHydrationWarning>
       <body suppressHydrationWarning>
         <Providers initialLocale={locale}>
-          <AppHeader />
-          <main>{children}</main>
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>

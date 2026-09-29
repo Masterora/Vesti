@@ -38,13 +38,7 @@ corepack pnpm prisma generate
 corepack pnpm prisma migrate dev --name init
 ```
 
-6. 可选：创建已注资的演示合约。
-
-```bash
-corepack pnpm seed
-```
-
-7. 启动应用。
+6. 启动应用。
 
 ```bash
 corepack pnpm dev
@@ -72,19 +66,10 @@ docker compose down
 docker compose down -v
 ```
 
-## Demo 钱包
-
-应用仍保留 Demo 钱包切换器，用于本地 Mock 模式演示。
-
-```text
-需求方：creator_demo_wallet_8pQ7n2
-工作者：worker_demo_wallet_5kL9s1
-```
-
-## Demo 流程
+## 合约流程
 
 1. 以需求方身份打开 `/dashboard`。
-2. 创建合约，或运行 `corepack pnpm seed`。
+2. 连接钱包并签名登录，然后创建合约。
 3. 以需求方身份为合约注资；也可以在草稿状态取消合约。
 4. 注资后切换到工作者。
 5. 打开合约详情页，为已就绪的里程碑提交证明。
@@ -125,6 +110,8 @@ corepack pnpm reconcile:transactions
 ```
 
 每次运行会原子租用最多 `RECONCILIATION_BATCH_SIZE` 条已提交交易。对账失败后按指数退避重试；达到 `RECONCILIATION_MAX_ATTEMPTS` 后，记录继续保持已提交状态并标记为人工检查，不会被静默丢弃，也不会错误报告为链上失败。
+
+无签名的 `prepared` 注资或付款由用户在详情页恢复。服务端只有在原区块哈希失效、准备记录写入已满 5 分钟，并核实 finalized 链上状态仍未发生对应资金变化后，才释放旧操作锁。若标记 `requiresReviewAt`，先核对托管账户、链上交易和本地事件；不要直接清除操作锁或重发付款。RPC 检查失败时保留原记录，稍后重试。
 
 每日调度运营数据清理：
 

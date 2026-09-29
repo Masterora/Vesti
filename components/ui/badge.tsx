@@ -5,27 +5,26 @@ import { getBadgeLabel } from "@/lib/i18n/messages";
 import { cn } from "@/lib/utils";
 
 const toneByStatus: Record<string, string> = {
-  creator: "bg-blue-100 text-blue-800",
-  worker: "bg-emerald-100 text-emerald-800",
-  applicant: "bg-amber-100 text-amber-800",
-  viewer: "bg-zinc-100 text-zinc-700",
-  public: "bg-fuchsia-100 text-fuchsia-800",
-  private: "bg-slate-200 text-slate-800",
-  connected: "bg-indigo-100 text-indigo-800",
-  demo: "bg-zinc-100 text-zinc-700",
-  open: "bg-sky-100 text-sky-800",
-  claimed: "bg-amber-100 text-amber-800",
+  creator: "bg-focus/10 text-focus",
+  worker: "bg-success/10 text-success",
+  applicant: "bg-warning/10 text-warning",
+  viewer: "bg-muted text-muted-foreground",
+  public: "bg-focus/10 text-focus",
+  private: "bg-muted text-muted-foreground",
+  connected: "bg-focus/10 text-focus",
+  open: "bg-focus/10 text-focus",
+  claimed: "bg-warning/10 text-warning",
   draft: "bg-muted text-muted-foreground",
-  active: "bg-teal-100 text-teal-800",
-  completed: "bg-emerald-100 text-emerald-800",
-  cancelled: "bg-zinc-200 text-zinc-700",
-  disputed: "bg-red-100 text-red-800",
+  active: "bg-success/10 text-success",
+  completed: "bg-success/10 text-success",
+  cancelled: "bg-muted text-muted-foreground",
+  disputed: "bg-danger/10 text-danger",
   pending: "bg-muted text-muted-foreground",
-  ready: "bg-cyan-100 text-cyan-800",
-  submitted: "bg-violet-100 text-violet-800",
-  revision_requested: "bg-orange-100 text-orange-800",
-  approved: "bg-lime-100 text-lime-800",
-  released: "bg-emerald-100 text-emerald-800"
+  ready: "bg-focus/10 text-focus",
+  submitted: "bg-warning/10 text-warning",
+  revision_requested: "bg-warning/10 text-warning",
+  approved: "bg-success/10 text-success",
+  released: "bg-success/10 text-success"
 };
 
 export function Badge({

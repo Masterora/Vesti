@@ -6,6 +6,8 @@ import {
 } from "@/lib/blockchain/anchor-encoding";
 import {
   TOKEN_PROGRAM_ID,
+  deriveMilestoneReleaseReceiptPda,
+  hashMilestoneId,
   type SolanaEscrowAccounts
 } from "@/lib/blockchain/solana-escrow-accounts";
 
@@ -86,16 +88,19 @@ export function createReleaseMilestoneInstruction({
     programId,
     keys: [
       { pubkey: accounts.escrowPda, isSigner: false, isWritable: true },
-      { pubkey: creator, isSigner: true, isWritable: false },
+      { pubkey: creator, isSigner: true, isWritable: true },
       { pubkey: worker, isSigner: false, isWritable: false },
       { pubkey: usdcMint, isSigner: false, isWritable: false },
       { pubkey: accounts.vaultPda, isSigner: false, isWritable: true },
       { pubkey: accounts.workerTokenAccount, isSigner: false, isWritable: true },
-      { pubkey: accounts.tokenProgramId ?? TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }
+      { pubkey: accounts.tokenProgramId ?? TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: deriveMilestoneReleaseReceiptPda(accounts.escrowPda, milestoneId, programId).address, isSigner: false, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
     ],
     data: encodeAnchorInstruction("release_milestone", [
       encodeAnchorString(milestoneId),
-      encodeU64(amountUnits)
+      encodeU64(amountUnits),
+      hashMilestoneId(milestoneId)
     ])
   });
 }

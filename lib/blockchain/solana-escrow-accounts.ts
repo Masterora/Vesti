@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { createHash } from "node:crypto";
 import { PublicKey } from "@solana/web3.js";
 import { amountToUnits } from "@/lib/domain/amount";
 
@@ -78,6 +79,24 @@ export function deriveVaultPda(contractId: string, programId: PublicKey) {
   );
 
   return { address, bump };
+}
+
+export function deriveMilestoneReleaseReceiptPda(
+  escrow: PublicKey,
+  milestoneId: string,
+  programId: PublicKey
+) {
+  const milestoneHash = hashMilestoneId(milestoneId);
+  const [address, bump] = PublicKey.findProgramAddressSync(
+    [Buffer.from("release"), escrow.toBuffer(), milestoneHash],
+    programId
+  );
+
+  return { address, bump };
+}
+
+export function hashMilestoneId(milestoneId: string) {
+  return createHash("sha256").update(milestoneId, "utf8").digest();
 }
 
 export function deriveAssociatedTokenAccount(

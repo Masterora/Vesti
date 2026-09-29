@@ -5,7 +5,10 @@ import { createContract } from "@/lib/services/contracts/create-contract";
 import { fundContract } from "@/lib/services/contracts/fund-contract";
 import { cancelContract } from "@/lib/services/contracts/cancel-contract";
 import { getContractById } from "@/lib/services/contracts/get-contract-by-id";
+import { listContractsForWallet } from "@/lib/services/contracts/list-contracts-for-wallet";
+import { queryWorkspace } from "@/lib/services/contracts/query-workspace";
 import { claimContract } from "@/lib/services/contracts/claim-contract";
+import { acceptContractClaim } from "@/lib/services/contracts/accept-contract-claim";
 import { approveMilestone } from "@/lib/services/milestones/approve-milestone";
 import { releaseMilestonePayment } from "@/lib/services/milestones/release-milestone-payment";
 import { submitMilestoneProof } from "@/lib/services/milestones/submit-milestone-proof";
@@ -21,6 +24,128 @@ beforeAll(() => {
 });
 
 describe("escrow workflow", () => {
+  it("sorts all worker tasks before showing the first ten", async () => {
+    const owner = `task_sort_creator_${randomUUID()}`;
+    const worker = `task_sort_worker_${randomUUID()}`;
+    for (let index = 0; index < 11; index += 1) {
+      const contract = await createContract({
+        creatorWallet: owner,
+        workerWallet: worker,
+        title: `Task sorting ${index}`,
+        totalAmount: "1",
+        milestones: [{ title: "Delivery", amount: "1", dueAt: index === 10 ? "2027-01-01T00:00:00.000Z" : "2027-12-01T00:00:00.000Z" }]
+      });
+      await fundContract({ contractId: contract.id, walletAddress: owner });
+    }
+
+    const dashboard = await queryWorkspace({ kind: "dashboard", view: "worker" }, worker);
+    if (dashboard.kind !== "dashboard") throw new Error("Unexpected workspace response");
+    expect(dashboard.totalTasks).toBe(11);
+    expect(dashboard.tasks).toHaveLength(10);
+    expect(dashboard.tasks[0].title).toBe("Task sorting 10");
+  });
+
+  it("does not expose other applicants through the selected worker's profiles", async () => {
+    const owner = `profile_creator_${randomUUID()}`;
+    const selected = `profile_worker_${randomUUID()}`;
+    const other = `profile_other_${randomUUID()}`;
+    const contract = await createContract({
+      creatorWallet: owner,
+      title: "Private applicant profiles",
+      isPublic: true,
+      totalAmount: "1",
+      milestones: [{ title: "Delivery", amount: "1" }]
+    });
+    await claimContract({ contractId: contract.id, walletAddress: selected });
+    const otherClaim = await claimContract({ contractId: contract.id, walletAddress: other });
+    expect(otherClaim.applications?.map((application) => application.applicantWallet)).toEqual([other]);
+    expect(otherClaim.events).toBeUndefined();
+    await db.user.update({ where: { walletAddress: other }, data: { displayName: "Another applicant" } });
+    await acceptContractClaim({ contractId: contract.id, walletAddress: owner, applicantWallet: selected });
+
+    const detail = await getContractById({ contractId: contract.id, walletAddress: selected });
+    expect(detail.applications).toBeUndefined();
+    expect(detail.profiles?.map((profile) => profile.walletAddress)).toContain(owner);
+    expect(detail.profiles?.map((profile) => profile.walletAddress)).not.toContain(other);
+    expect(detail.events?.some((event) => event.actorWallet === other)).toBe(false);
+
+    await fundContract({ contractId: contract.id, walletAddress: owner });
+    const submitted = await submitMilestoneProof({
+      contractId: contract.id,
+      milestoneId: contract.milestones[0].id,
+      walletAddress: selected,
+      note: "Done"
+    });
+    expect(submitted.events?.some((event) => event.actorWallet === other)).toBe(false);
+  });
+
+  it("paginates public and personal contracts within their visibility scopes", async () => {
+    const owner = "workspace_query_creator";
+    const assignedWorker = "workspace_query_worker";
+    for (const title of ["Query fixture public one", "Query fixture public two"]) {
+      await createContract({
+        creatorWallet: owner,
+        title,
+        isPublic: true,
+        tags: title.endsWith("one") ? ["design"] : ["engineering"],
+        totalAmount: "10",
+        milestones: [{ title: "Delivery", amount: "10" }]
+      });
+    }
+    const privateContract = await createContract({
+      creatorWallet: owner,
+      workerWallet: assignedWorker,
+      title: "Query fixture private",
+      isPublic: false,
+      totalAmount: "10",
+      milestones: [{ title: "Delivery", amount: "10" }]
+    });
+
+    const market = await queryWorkspace({ kind: "marketplace", q: "Query fixture", page: 1, pageSize: 1 });
+    expect(market).toMatchObject({ kind: "marketplace", total: 2, page: 1, pageSize: 1 });
+    if (market.kind !== "marketplace") throw new Error("Unexpected workspace response");
+    expect(market.items).toHaveLength(1);
+    expect(market.items[0].isPublic).toBe(true);
+    const taggedMarket = await queryWorkspace({ kind: "marketplace", q: "Query fixture", tag: "design" });
+    if (taggedMarket.kind !== "marketplace") throw new Error("Unexpected workspace response");
+    expect(taggedMarket.total).toBe(1);
+    const lastPage = await queryWorkspace({ kind: "marketplace", q: "Query fixture", page: 99, pageSize: 1 });
+    if (lastPage.kind !== "marketplace") throw new Error("Unexpected workspace response");
+    expect(lastPage.page).toBe(2);
+    expect(lastPage.items).toHaveLength(1);
+
+    const mine = await queryWorkspace({ kind: "contracts", q: "Query fixture", page: 2, pageSize: 2 }, owner);
+    expect(mine).toMatchObject({ kind: "contracts", total: 3, page: 2, pageSize: 2 });
+    if (mine.kind !== "contracts") throw new Error("Unexpected workspace response");
+    expect(mine.items).toHaveLength(1);
+    expect(mine.statusCounts.open).toBe(2);
+    expect(mine.statusCounts.draft).toBe(1);
+    const privateOnly = await queryWorkspace({ kind: "contracts", q: "Query fixture", visibility: "private" }, owner);
+    if (privateOnly.kind !== "contracts") throw new Error("Unexpected workspace response");
+    expect(privateOnly.total).toBe(1);
+
+    const worker = await queryWorkspace({ kind: "contracts", relation: "working", q: "Query fixture" }, assignedWorker);
+    if (worker.kind !== "contracts") throw new Error("Unexpected workspace response");
+    expect(worker.total).toBe(1);
+    expect(worker.items[0].title).toBe("Query fixture private");
+
+    const dashboard = await queryWorkspace({ kind: "dashboard", view: "creator" }, owner);
+    if (dashboard.kind !== "dashboard") throw new Error("Unexpected workspace response");
+    expect(dashboard.relatedCount).toBe(3);
+    expect(dashboard.totalTasks).toBe(1);
+    expect(dashboard.tasks[0].title).toBe("Query fixture private");
+    expect(dashboard.tasks[0].taskType).toBe("fund");
+    await expect(queryWorkspace({ kind: "dashboard" })).rejects.toThrow("Wallet session is required");
+
+    await db.contract.update({
+      where: { id: privateContract.id },
+      data: { status: "active", fundedAmount: "0", releasedAmount: "1" }
+    });
+    const invalidBalanceOverview = await queryWorkspace({ kind: "dashboard", view: "creator" }, owner);
+    if (invalidBalanceOverview.kind !== "dashboard") throw new Error("Unexpected workspace response");
+    expect(invalidBalanceOverview.escrowBalance).toBeNull();
+  });
+
   it("keeps funding and release idempotent and supports bilateral dispute settlement", async () => {
     const created = await createContract({
       creatorWallet,
@@ -57,6 +182,9 @@ describe("escrow workflow", () => {
       milestoneId: firstMilestone.id,
       walletAddress: creatorWallet
     });
+    const paymentOverview = await queryWorkspace({ kind: "dashboard", view: "creator" }, creatorWallet);
+    if (paymentOverview.kind !== "dashboard") throw new Error("Unexpected workspace response");
+    expect(paymentOverview.tasks[0].taskType).toBe("release");
 
     const releaseKey = randomUUID();
     await releaseMilestonePayment({
@@ -79,12 +207,27 @@ describe("escrow workflow", () => {
       walletAddress: creatorWallet,
       reason: "Need a bilateral settlement"
     });
+    const creatorDisputedItem = (await listContractsForWallet({ walletAddress: creatorWallet }))
+      .find((contract) => contract.id === created.id);
+    expect(creatorDisputedItem?.currentMilestone?.index).toBe(2);
+    expect(creatorDisputedItem?.activeDispute).toEqual({ status: "open", proposedBy: null });
     await proposeDisputeResolution({
       contractId: created.id,
       milestoneId: secondMilestone.id,
       walletAddress: creatorWallet,
       outcome: "release_to_worker"
     });
+    const workerDisputedItem = (await listContractsForWallet({ walletAddress: workerWallet }))
+      .find((contract) => contract.id === created.id);
+    expect(workerDisputedItem?.activeDispute).toEqual({ status: "proposed", proposedBy: creatorWallet });
+    const creatorOverview = await queryWorkspace({ kind: "dashboard", view: "creator" }, creatorWallet);
+    const workerOverview = await queryWorkspace({ kind: "dashboard", view: "worker" }, workerWallet);
+    if (creatorOverview.kind !== "dashboard" || workerOverview.kind !== "dashboard") {
+      throw new Error("Unexpected workspace response");
+    }
+    expect(creatorOverview.totalTasks).toBe(0);
+    expect(workerOverview.totalTasks).toBe(0);
+    expect(workerOverview.disputeResponses.map((item) => item.id)).toContain(created.id);
     const settled = await acceptDisputeResolution({
       contractId: created.id,
       milestoneId: secondMilestone.id,
@@ -94,6 +237,13 @@ describe("escrow workflow", () => {
 
     expect(settled.status).toBe("completed");
     expect(settled.releasedAmount).toBe("100");
+    const monthlyOverview = await queryWorkspace({ kind: "dashboard", view: "worker" }, workerWallet);
+    if (monthlyOverview.kind !== "dashboard") throw new Error("Unexpected workspace response");
+    expect(monthlyOverview.receivedThisMonth).toBe("100");
+    await db.milestone.update({ where: { id: firstMilestone.id }, data: { releasedAt: new Date("2020-01-15T00:00:00.000Z") } });
+    const adjustedOverview = await queryWorkspace({ kind: "dashboard", view: "worker" }, workerWallet);
+    if (adjustedOverview.kind !== "dashboard") throw new Error("Unexpected workspace response");
+    expect(adjustedOverview.receivedThisMonth).toBe("40");
     expect(
       await db.event.count({ where: { contractId: created.id, eventType: "contract_funded" } })
     ).toBe(1);
@@ -136,6 +286,12 @@ describe("escrow workflow", () => {
     expect(applicantContract.applications).toHaveLength(1);
     expect(applicantContract.applications?.[0].applicantWallet).toBe(applicantWallet);
     expect(applicantContract.events).toBeUndefined();
+    const applicantContracts = await queryWorkspace({ kind: "contracts", q: "Public integration project" }, applicantWallet);
+    if (applicantContracts.kind !== "contracts") throw new Error("Unexpected workspace response");
+    expect(applicantContracts.total).toBe(0);
+    const applicantOverview = await queryWorkspace({ kind: "dashboard", view: "worker" }, applicantWallet);
+    if (applicantOverview.kind !== "dashboard") throw new Error("Unexpected workspace response");
+    expect(applicantOverview.applications.map((item) => item.id)).toContain(created.id);
   });
 
   it("allows only one concurrent release for a milestone", async () => {
