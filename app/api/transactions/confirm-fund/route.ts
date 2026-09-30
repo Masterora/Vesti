@@ -4,10 +4,16 @@ import { confirmFundTransaction } from "@/lib/services/transactions/confirm-fund
 import { confirmFundTransactionSchema } from "@/lib/validations/transaction";
 
 export async function POST(request: Request) {
-  return handleRoute(request, async () => {
-    const body = await parseJsonBody(request);
-    return confirmFundTransaction(
-      confirmFundTransactionSchema.parse(withAuthenticatedWallet(request, body))
-    );
-  });
+  return handleRoute(
+    request,
+    async () => {
+      const body = await parseJsonBody(request);
+      return confirmFundTransaction(
+        confirmFundTransactionSchema.parse(
+          withAuthenticatedWallet(request, body),
+        ),
+      );
+    },
+    { status: (result) => (result.confirmed ? 200 : 202) },
+  );
 }

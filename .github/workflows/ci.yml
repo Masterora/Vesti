@@ -78,6 +78,23 @@ jobs:
   onchain:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vesti
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vesti"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vesti
+      AUTH_SECRET: ci-only-secret-with-at-least-thirty-two-characters
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -113,3 +130,12 @@ jobs:
 
       - name: Test real token transfers on local validator
         run: pnpm test:onchain
+
+      - name: Generate Prisma client for chain integration
+        run: pnpm prisma:generate
+
+      - name: Install browser for page and wallet acceptance
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Test durable Web chain protocol and browser dispute exits
+        run: pnpm test:chain-integration

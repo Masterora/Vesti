@@ -1,3 +1,7 @@
+import {
+  lockContract,
+  advanceBusinessRevision,
+} from "@/lib/services/contracts/contract-lock";
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
@@ -6,24 +10,29 @@ import type { CancelContractInput } from "@/lib/validations/contract";
 
 export async function cancelContract(input: CancelContractInput) {
   return db.$transaction(async (tx) => {
+    await lockContract(tx, input.contractId, true);
+    await advanceBusinessRevision(tx, input.contractId);
     const contract = assertFound(
       await tx.contract.findUnique({
-        where: { id: input.contractId }
+        where: { id: input.contractId },
       }),
-      "Contract not found"
+      "Contract not found",
     );
 
     assertAllowed(
       input.walletAddress === contract.creatorWallet,
-      "Only the Creator can cancel this contract"
+      "Only the Creator can cancel this contract",
     );
-    assertState(contract.status === "draft", "Only draft contracts can be cancelled");
+    assertState(
+      contract.status === "draft",
+      "Only draft contracts can be cancelled",
+    );
 
     await tx.contract.update({
       where: { id: contract.id },
       data: {
-        status: "cancelled"
-      }
+        status: "cancelled",
+      },
     });
 
     await recordEvent(tx, {
@@ -31,8 +40,8 @@ export async function cancelContract(input: CancelContractInput) {
       actorWallet: input.walletAddress,
       eventType: "contract_cancelled",
       payload: {
-        reason: input.reason || null
-      }
+        reason: input.reason || null,
+      },
     });
 
     const updated = await tx.contract.findUniqueOrThrow({
@@ -42,17 +51,17 @@ export async function cancelContract(input: CancelContractInput) {
           orderBy: { index: "asc" },
           include: {
             proofSubmissions: {
-              orderBy: { version: "desc" }
-            }
-          }
+              orderBy: { version: "desc" },
+            },
+          },
         },
         events: {
-          orderBy: { createdAt: "desc" }
+          orderBy: { createdAt: "desc" },
         },
         applications: {
-          orderBy: { createdAt: "asc" }
-        }
-      }
+          orderBy: { createdAt: "asc" },
+        },
+      },
     });
 
     return serializeContractWithProfiles(updated);

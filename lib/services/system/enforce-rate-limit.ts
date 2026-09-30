@@ -23,7 +23,7 @@ export function getRateLimitWindow(now: Date, windowMs: number) {
   };
 }
 
-export async function enforceRateLimit(policy: RateLimitPolicy) {
+export async function enforceRateLimit(policy: RateLimitPolicy, client: Pick<typeof db, "apiRateLimitBucket"> = db) {
   if (!Number.isInteger(policy.limit) || policy.limit <= 0) {
     throw new Error("Rate limit must be a positive integer");
   }
@@ -33,7 +33,7 @@ export async function enforceRateLimit(policy: RateLimitPolicy) {
   const bucketKey = createHash("sha256")
     .update(`${policy.scope}:${policy.identity.trim().toLowerCase()}`)
     .digest("hex");
-  const bucket = await db.apiRateLimitBucket.upsert({
+  const bucket = await client.apiRateLimitBucket.upsert({
     where: {
       bucketKey_windowStart: {
         bucketKey,

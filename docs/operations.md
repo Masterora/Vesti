@@ -113,7 +113,7 @@ corepack pnpm reconcile:transactions
 
 Each run atomically leases up to `RECONCILIATION_BATCH_SIZE` submitted transactions. Failed reconciliation uses exponential backoff. After `RECONCILIATION_MAX_ATTEMPTS`, the record remains submitted and is marked for manual review rather than being silently discarded or reported as failed on-chain.
 
-Users recover unsigned `prepared` funding or payment from contract details. The server releases the old operation lock only after the blockhash expires, at least five minutes have passed since the preparation was written, and finalized chain state shows no corresponding funds movement. For records marked `requiresReviewAt`, inspect the escrow account, chain transactions, and local events before taking action; do not clear the operation lock or resend payment directly. RPC failures leave the record in place for a later retry.
+Users recover unsigned `prepared` funding or payment from contract details. The server releases the old operation lock only after the finalized block height exceeds lastValidBlockHeight, the original chain identity still matches, and complete finalized history shows no corresponding funds movement. For records marked `requiresReviewAt`, inspect the escrow account, chain transactions, and local events before taking action; do not clear the operation lock or resend payment directly. RPC failures leave the record in place for a later retry.
 
 Schedule operational cleanup daily:
 
@@ -123,7 +123,17 @@ corepack pnpm cleanup:operational
 
 Cleanup only removes expired rate-limit buckets and authentication challenges older than the retention window. It does not delete contracts, events, proofs, disputes, or financial transaction records. The deployment scheduler must prevent overlapping cleanup runs and alert on non-zero exit codes from both commands.
 
-Authentication rate limiting reads `CF-Connecting-IP`, `X-Real-IP`, and `X-Forwarded-For` in that order. Only expose the application through a reverse proxy that overwrites these headers; never append or pass through client-supplied values. Wallet-level limits remain the primary control when the deployment cannot guarantee that boundary.
+Authentication rate limiting reads `CF-Connecting-IP`, `X-Real-IP`, and `X-Forwarded-For` in that order. Only expose the application through a reverse proxy that overwrites these headers; never append or pass through client-supplied values. Anonymous challenge/verify requests consume client budgets only. Wallet budgets are consumed after a valid signature and atomic challenge claim. Configure a trusted proxy to avoid sharing the fallback client budget.
+
+### Security upgrade boundaries
+
+New initialization uses `initialize_escrow_v2` / `initialize_escrow_with_arbitrator_v2` with creator-bound `[escrow_v2, creator, contractId]` and `[vault_v2, creator, contractId]` seeds. Initialization commits an immutable plan of at most 8 milestones whose amounts sum to the contract total. Unknown milestones and partial milestone releases are rejected. Deploy the matching program and explicitly update the identity pin before enabling new Web transactions.
+
+Existing account layouts and legacy signer seeds remain compatible for funding and settlement. Legacy accounts retain their original protocol without an immutable plan; existing unknown-milestone or partial-amount ledger conflicts still require manual review. Legacy derivation is selected only by a persisted legacy escrow binding, never as an automatic initialization fallback. Drain or explicitly account for pending transactions before upgrading; old initialization instructions are retired.
+
+For `RECONCILIATION_RETRY_LIMIT`, the original signing wallet can retry after the server revalidates original chain identity and finalized history. Other review reasons remain locked. Network, Mint, program or code changes cannot authorize rebroadcast or expiration using a different chain.
+
+Avatar storage and delivery decode PNG/JPEG/WebP and re-encode bounded PNG. Historical SVG or spoofed content returns 404. Purge old `/api/profile/avatar` CDN/proxy caches, including immutable versioned URLs, during rollout. Cache invalidation and external deployment have not been performed locally.
 
 Stop the dev server before running `corepack pnpm build`, then restart it afterward. If a page suddenly renders without CSS during local development, stop the dev server, clear `.next`, and start it again.
 
@@ -159,3 +169,11 @@ anchor build
 ```
 
 See `docs/onchain.md` for the current on-chain status and next tasks.
+
+## Durable Web chain protocol
+
+Apply the additive `20260930090000_web_chain_disputes` migration and regenerate Prisma before starting this version. On-chain funding and release now require explicit `ESCROW_NETWORK_GENESIS_HASH` and `ESCROW_PROGRAM_SHA256` pins. `pnpm chain:identity` reads the deployed identifiers; approve the intended deployment before configuring them. Upgradeable-program hashes cover the entire ProgramData payload after its metadata, including capacity padding. Never automatically refresh a pin after a network reset or upgrade.
+
+Disputes remain disabled by default. They open only on approved `localnet` with `ESCROW_CHAIN_DISPUTES_ENABLED=true` and a classic six-decimal Mint. Run `pnpm exec playwright install chromium` then `pnpm test:chain-integration` for isolated PostgreSQL, validator, real signed transaction, and browser acceptance. This uses injected test wallets; extension compatibility and Devnet deployment are later gates. See the [Chinese runbook](operations.zh-CN.md) for configuration, legacy quarantine, bounded history scans, and rollback handling.
+
+`pnpm reconcile:transactions` now recovers all operation kinds, broadcasts saved signed bytes, checks prepared expiry, and scans contracts for direct operations. Finalized evidence alone advances the principal ledger. Unknown history is quarantined; extra vault tokens are recorded separately. Disable new preparation before rollback and continue recovering previously signed operations; do not delete their state.

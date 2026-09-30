@@ -11,7 +11,11 @@ const requestIdHeader = "x-request-id";
 export function getRequestId(request: Request) {
   const suppliedRequestId = request.headers.get(requestIdHeader)?.trim();
 
-  if (suppliedRequestId && suppliedRequestId.length <= 128 && /^[\x21-\x7e]+$/.test(suppliedRequestId)) {
+  if (
+    suppliedRequestId &&
+    suppliedRequestId.length <= 128 &&
+    /^[\x21-\x7e]+$/.test(suppliedRequestId)
+  ) {
     return suppliedRequestId;
   }
 
@@ -23,7 +27,7 @@ function createJsonResponse(
   body: unknown,
   status = 200,
   requestId = getRequestId(request),
-  headers?: HeadersInit
+  headers?: HeadersInit,
 ) {
   const response = NextResponse.json(body, { status, headers });
   response.headers.set(requestIdHeader, requestId);
@@ -34,14 +38,14 @@ function createJsonResponse(
 export function createRouteSuccessResponse(
   request: Request,
   data: unknown,
-  options?: { status?: number; headers?: HeadersInit }
+  options?: { status?: number; headers?: HeadersInit },
 ) {
   return createJsonResponse(
     request,
     { data },
     options?.status ?? 200,
     getRequestId(request),
-    options?.headers
+    options?.headers,
   );
 }
 
@@ -60,9 +64,13 @@ export function createRouteErrorResponse(request: Request, error: unknown) {
   if (error instanceof ServiceError) {
     return createJsonResponse(
       request,
-      { error: translateErrorMessage(locale, error.message), requestId },
+      {
+        error: translateErrorMessage(locale, error.message),
+        code: error.code,
+        requestId,
+      },
       error.status,
-      requestId
+      requestId,
     );
   }
 
@@ -72,10 +80,10 @@ export function createRouteErrorResponse(request: Request, error: unknown) {
       {
         error: translateErrorMessage(locale, "Invalid request body"),
         details: error.flatten(),
-        requestId
+        requestId,
       },
       400,
-      requestId
+      requestId,
     );
   }
 
@@ -90,11 +98,14 @@ export function createRouteErrorResponse(request: Request, error: unknown) {
       return createJsonResponse(
         request,
         {
-          error: translateErrorMessage(locale, "Email address is already in use"),
-          requestId
+          error: translateErrorMessage(
+            locale,
+            "Email address is already in use",
+          ),
+          requestId,
         },
         409,
-        requestId
+        requestId,
       );
     }
 
@@ -102,11 +113,14 @@ export function createRouteErrorResponse(request: Request, error: unknown) {
       return createJsonResponse(
         request,
         {
-          error: translateErrorMessage(locale, "This operation was already submitted"),
-          requestId
+          error: translateErrorMessage(
+            locale,
+            "This operation was already submitted",
+          ),
+          requestId,
         },
         409,
-        requestId
+        requestId,
       );
     }
 
@@ -114,11 +128,14 @@ export function createRouteErrorResponse(request: Request, error: unknown) {
       return createJsonResponse(
         request,
         {
-          error: translateErrorMessage(locale, "The contract changed during this operation. Please retry."),
-          requestId
+          error: translateErrorMessage(
+            locale,
+            "The contract changed during this operation. Please retry.",
+          ),
+          requestId,
         },
         409,
-        requestId
+        requestId,
       );
     }
   }
@@ -128,11 +145,14 @@ export function createRouteErrorResponse(request: Request, error: unknown) {
       request,
       {
         error: translateErrorMessage(locale, "Database is unavailable"),
-        details: translateErrorMessage(locale, "Check DATABASE_URL and make sure PostgreSQL is running."),
-        requestId
+        details: translateErrorMessage(
+          locale,
+          "Check DATABASE_URL and make sure PostgreSQL is running.",
+        ),
+        requestId,
       },
       503,
-      requestId
+      requestId,
     );
   }
 
@@ -140,21 +160,32 @@ export function createRouteErrorResponse(request: Request, error: unknown) {
     requestId,
     method: request.method,
     path: new URL(request.url).pathname,
-    error
+    error,
   });
   return createJsonResponse(
     request,
-    { error: translateErrorMessage(locale, "Internal server error"), requestId },
+    {
+      error: translateErrorMessage(locale, "Internal server error"),
+      requestId,
+    },
     500,
-    requestId
+    requestId,
   );
 }
 
-export async function handleRoute<T>(request: Request, handler: () => Promise<T>) {
+export async function handleRoute<T>(
+  request: Request,
+  handler: () => Promise<T>,
+  options?: { status: (data: T) => number },
+) {
   try {
     assertTrustedRequestOrigin(request);
     const data = await handler();
-    return createRouteSuccessResponse(request, data);
+    return createRouteSuccessResponse(
+      request,
+      data,
+      options ? { status: options.status(data) } : undefined,
+    );
   } catch (error) {
     return createRouteErrorResponse(request, error);
   }

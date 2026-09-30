@@ -59,7 +59,20 @@ enum EscrowTransactionMode {
   onchain
 }
 
+enum EscrowTransactionKind {
+  fund
+  release
+  dispute_open
+  dispute_propose
+  dispute_accept_release
+  dispute_accept_refund
+  dispute_arbitrate_release
+  dispute_arbitrate_refund
+}
+
 enum EscrowTransactionStatus {
+  building
+  signed
   prepared
   submitted
   confirmed
@@ -140,6 +153,16 @@ model Contract {
   releasedAmount        Decimal        @default(0) @db.Decimal(18, 6)
   refundedAmount        Decimal        @default(0) @db.Decimal(18, 6)
   status                ContractStatus @default(draft)
+  chainSyncStatus       String         @default("uninitialized")
+  chainBaselineKind     String         @default("absent")
+  chainBaselineEvidence Json?
+  chainReviewAt         DateTime?
+  chainReviewCode       String?
+  chainReviewEvidence   Json?
+  chainLastSyncedSlot   BigInt?
+  chainLastSyncedTransactionIndex Int?
+  chainLastSyncedInstructionIndex Int?
+  businessRevision      BigInt         @default(0)
   escrowAccount         String?
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
@@ -150,6 +173,7 @@ model Contract {
   applications       ContractApplication[]
   escrowTransactions EscrowTransaction[]
   disputes           Dispute[]
+  chainInstructions  ChainAppliedInstruction[]
   creatorUser        User?                 @relation("UserCreatedContracts", fields: [creatorWallet], references: [walletAddress], onDelete: NoAction, onUpdate: Cascade)
   workerUser         User?                 @relation("UserWorkedContracts", fields: [workerWallet], references: [walletAddress], onDelete: SetNull, onUpdate: Cascade)
 
@@ -253,6 +277,20 @@ model EscrowTransaction {
   id                           String                  @id @default(cuid())
   contractId                   String
   milestoneId                  String?
+  kind                         EscrowTransactionKind?
+  contextVersion               Int                     @default(0)
+  operationContext             Json?
+  logicalOperationKey          String?
+  attempt                      Int                     @default(0)
+  contractLockKey              String?                 @unique
+  buildToken                   String?
+  buildExpiresAt               DateTime?
+  signedTransaction            String?
+  signedAt                     DateTime?
+  messageHash                  String?
+  lastValidBlockHeight         BigInt?
+  finalizedSlot                BigInt?
+  finalizedTransactionIndex    Int?
   action                       EscrowTransactionAction
   mode                         EscrowTransactionMode
   walletAddress                String
@@ -283,6 +321,7 @@ model EscrowTransaction {
   @@index([contractId, createdAt])
   @@index([milestoneId, createdAt])
   @@index([status])
+  @@unique([logicalOperationKey, attempt])
   @@index([status, nextAttemptAt])
   @@index([status, reconciliationLeaseExpiresAt])
   @@index([requiresReviewAt])
@@ -293,7 +332,16 @@ model Dispute {
   contractId              String
   milestoneId             String          @unique
   openedBy                String
-  reason                  String
+  source                  String          @default("web")
+  chainAddress            String?
+  milestoneHash           String?
+  reasonHash              String?
+  proposalVersion         BigInt          @default(0)
+  proposedAmountUnits     String?
+  settledAmountUnits      String?
+  resolvedBy              String?
+  resolutionKind          String?
+  reason                  String?
   previousMilestoneStatus MilestoneStatus
   status                  DisputeStatus   @default(open)
   proposedOutcome         DisputeOutcome?
@@ -307,4 +355,22 @@ model Dispute {
 
   @@index([contractId, createdAt])
   @@index([status])
+}
+
+model ChainAppliedInstruction {
+  id                    String   @id @default(cuid())
+  networkGenesisHash    String
+  programId             String
+  contractId            String
+  txSig                 String
+  slot                  BigInt
+  transactionIndex      Int
+  instructionIndex      Int
+  kind                  String
+  parameters            Json
+  evidenceHash          String
+  appliedAt             DateTime @default(now())
+  contract              Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  @@unique([networkGenesisHash, programId, txSig, instructionIndex])
+  @@index([contractId, slot, transactionIndex, instructionIndex])
 }

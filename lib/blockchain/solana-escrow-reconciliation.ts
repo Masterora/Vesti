@@ -1,16 +1,14 @@
 import { createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
-import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
-import { encodeAnchorInstruction, encodeAnchorString, encodeU64 } from "@/lib/blockchain/anchor-encoding";
+import { Connection, PublicKey } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
   decimalToTokenUnits,
   deriveDisputePolicyPda,
-  deriveMilestoneReleaseReceiptPda,
   deriveSolanaEscrowAccounts,
-  hashMilestoneId,
   parsePublicKey
 } from "@/lib/blockchain/solana-escrow-accounts";
+import { createInitializeEscrowInstruction, createInitializeEscrowWithArbitratorInstruction, createMarkFundedInstruction, createReleaseMilestoneInstruction } from "@/lib/blockchain/solana-escrow-instructions";
 import { ServiceError } from "@/lib/services/errors";
 
 type DecimalLike = {
@@ -289,6 +287,7 @@ export async function reconcileFundEscrowTransaction(input: {
   disputePolicy: "bilateral" | "arbitrator";
   arbitratorWallet: string | null;
   totalAmount: DecimalLike | string;
+  milestones?: { id: string; amountUnits: string }[];
 }) {
   const config = getSolanaEscrowConfig();
   const creator = parsePublicKey(input.creatorWallet, "creatorWallet");
@@ -311,39 +310,10 @@ export async function reconcileFundEscrowTransaction(input: {
     transaction,
     programId: config.programId,
     expected: [
-      arbitrator ? {
-        accounts: [
-          accounts.escrowPda.toBase58(), creator.toBase58(), config.usdcMint.toBase58(),
-          accounts.vaultPda.toBase58(),
-          deriveDisputePolicyPda(accounts.escrowPda, config.programId).address.toBase58(),
-          accounts.tokenProgramId.toBase58(), SystemProgram.programId.toBase58()
-        ],
-        data: encodeAnchorInstruction("initialize_escrow_with_arbitrator", [
-          encodeAnchorString(input.contractId), Buffer.from(worker.toBytes()),
-          encodeU64(totalAmountUnits), Buffer.from(arbitrator.toBytes())
-        ])
-      } : {
-        accounts: [
-          accounts.escrowPda.toBase58(), creator.toBase58(), config.usdcMint.toBase58(),
-          accounts.vaultPda.toBase58(), accounts.tokenProgramId.toBase58(),
-          SystemProgram.programId.toBase58()
-        ],
-        data: encodeAnchorInstruction("initialize_escrow", [
-          encodeAnchorString(input.contractId), Buffer.from(worker.toBytes()), encodeU64(totalAmountUnits)
-        ])
-      },
-      {
-        accounts: [
-          accounts.escrowPda.toBase58(),
-          creator.toBase58(),
-          accounts.creatorTokenAccount.toBase58(),
-          config.usdcMint.toBase58(),
-          accounts.vaultPda.toBase58(),
-          accounts.tokenProgramId.toBase58()
-        ],
-        data: encodeAnchorInstruction("mark_funded", [encodeU64(totalAmountUnits)])
-      }
-    ]
+      arbitrator ? createInitializeEscrowWithArbitratorInstruction({ programId: config.programId, accounts, creator, worker, usdcMint: config.usdcMint, contractId: input.contractId, totalAmountUnits, arbitrator, milestones: input.milestones })
+        : createInitializeEscrowInstruction({ programId: config.programId, accounts, creator, worker, usdcMint: config.usdcMint, contractId: input.contractId, totalAmountUnits, milestones: input.milestones }),
+      createMarkFundedInstruction({ programId: config.programId, accounts, creator, worker, usdcMint: config.usdcMint, amountUnits: totalAmountUnits }),
+    ].map((instruction) => ({ accounts: instruction.keys.map((key) => key.pubkey.toBase58()), data: instruction.data }))
   });
 
   const escrowState = await fetchEscrowState({
@@ -425,26 +395,7 @@ export async function reconcileReleaseEscrowTransaction(input: {
   assertExpectedProgramInstructions({
     transaction,
     programId: config.programId,
-    expected: [
-      {
-        accounts: [
-          accounts.escrowPda.toBase58(),
-          creator.toBase58(),
-          worker.toBase58(),
-          config.usdcMint.toBase58(),
-          accounts.vaultPda.toBase58(),
-          accounts.workerTokenAccount.toBase58(),
-          accounts.tokenProgramId.toBase58(),
-          deriveMilestoneReleaseReceiptPda(accounts.escrowPda, input.milestoneId, config.programId).address.toBase58(),
-          SystemProgram.programId.toBase58()
-        ],
-        data: encodeAnchorInstruction("release_milestone", [
-          encodeAnchorString(input.milestoneId),
-          encodeU64(milestoneAmountUnits),
-          hashMilestoneId(input.milestoneId)
-        ])
-      }
-    ]
+    expected: [createReleaseMilestoneInstruction({ programId: config.programId, accounts, creator, worker, usdcMint: config.usdcMint, milestoneId: input.milestoneId, amountUnits: milestoneAmountUnits })].map((instruction) => ({ accounts: instruction.keys.map((key) => key.pubkey.toBase58()), data: instruction.data }))
   });
 
   const escrowState = await fetchEscrowState({

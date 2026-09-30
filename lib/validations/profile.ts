@@ -21,7 +21,7 @@ const optionalAvatarImage = z
   .trim()
   .max(200_000, "Avatar image is too large")
   .refine(
-    (value) => !value || /^data:image\/[a-zA-Z0-9.+-]+;base64,[a-zA-Z0-9+/=\s]+$/.test(value),
+    (value) => !value || /^data:image\/(?:png|jpeg|webp);base64,[a-zA-Z0-9+/=\s]+$/.test(value),
     "Avatar image must be a valid image data URL"
   )
   .optional()

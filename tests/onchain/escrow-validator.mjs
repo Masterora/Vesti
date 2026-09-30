@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import {
   Connection, Keypair, PublicKey, SystemProgram, Transaction,
   TransactionInstruction, sendAndConfirmTransaction,
@@ -21,13 +22,17 @@ const u64 = (value) => { const bytes = Buffer.alloc(8); bytes.writeBigUInt64LE(B
 const string = (value) => { const bytes = Buffer.from(value); const len = Buffer.alloc(4); len.writeUInt32LE(bytes.length); return Buffer.concat([len, bytes]); };
 const meta = (pubkey, isWritable = false, isSigner = false) => ({ pubkey, isWritable, isSigner });
 const pda = (...seeds) => PublicKey.findProgramAddressSync(seeds, programId)[0];
-const escrowPda = (id) => pda(Buffer.from("escrow"), Buffer.from(id));
-const vaultPda = (id) => pda(Buffer.from("vault"), Buffer.from(id));
+const escrowPda = (id, creator) => pda(Buffer.from("escrow_v2"), creator.toBuffer(), Buffer.from(id));
+const vaultPda = (id, creator) => pda(Buffer.from("vault_v2"), creator.toBuffer(), Buffer.from(id));
 const disputePda = (escrow, milestoneHash) => pda(Buffer.from("dispute"), escrow.toBuffer(), milestoneHash);
 const receiptPda = (escrow, milestoneHash) => pda(Buffer.from("release"), escrow.toBuffer(), milestoneHash);
+const planPda = (escrow) => pda(Buffer.from("plan"), escrow.toBuffer());
 const policyPda = (escrow) => pda(Buffer.from("policy"), escrow.toBuffer());
+const legacyFixtures = JSON.parse(readFileSync(process.env.VESTI_LEGACY_FIXTURES, "utf8"));
+const legacyEscrows = new Set(legacyFixtures.map((f) => f.escrow));
 
 function ix(name, keys, ...args) {
+  if (["mark_funded", "release_milestone", "open_dispute", "propose_resolution", "accept_release_resolution", "arbitrate_release_resolution"].includes(name)) keys = [...keys, meta(legacyEscrows.has(keys[0].pubkey.toBase58()) ? programId : planPda(keys[0].pubkey))];
   return new TransactionInstruction({ programId, keys, data: Buffer.concat([discriminator(name), ...args]) });
 }
 
@@ -93,7 +98,8 @@ async function airdrop(wallet) {
 }
 
 let fixtureNumber = 0;
-async function fixture(arbitrated = false) {
+async function fixture(arbitrated = false, terms = [["milestone-a", 60], ["milestone-b", 40]]) {
+  const milestones = terms.map(([id, amount]) => ({ id, amountUnits: String(amount) }));
   const creator = Keypair.generate(), worker = Keypair.generate(), outsider = Keypair.generate();
   const arbitrator = Keypair.generate();
   await airdrop(creator);
@@ -101,12 +107,26 @@ async function fixture(arbitrated = false) {
   await airdrop(outsider);
   if (arbitrated) await airdrop(arbitrator);
   const id = `validator-${++fixtureNumber}`;
-  const escrow = escrowPda(id), vault = vaultPda(id);
+  const escrow = escrowPda(id, creator.publicKey), vault = vaultPda(id, creator.publicKey);
   const mint = await createMint(connection, creator, creator.publicKey, creator.publicKey, 6);
   const creatorToken = await createAssociatedTokenAccount(connection, creator, mint, creator.publicKey);
   const workerToken = await createAssociatedTokenAccount(connection, creator, mint, worker.publicKey);
   await mintTo(connection, creator, mint, creatorToken, creator, 100n);
   const policy = policyPda(escrow);
+  if (fixtureNumber === 1) {
+    const vectorLength = Buffer.alloc(4); vectorLength.writeUInt32LE(milestones.length);
+    const plan = [vectorLength, ...milestones.flatMap((m) => [hash(m.id), u64(m.amountUnits)])];
+    const init = (targetEscrow, targetVault, signer) => ix("initialize_escrow_v2", [
+      meta(targetEscrow, true), meta(signer.publicKey, true, true), meta(mint), meta(targetVault, true),
+      meta(TOKEN_PROGRAM_ID), meta(SystemProgram.programId), meta(planPda(targetEscrow), true),
+    ], string(id), worker.publicKey.toBuffer(), u64(100), ...plan);
+    await assert.rejects(send(outsider, init(escrow, vault, outsider)));
+    assert.equal(await connection.getAccountInfo(escrow), null);
+    const attackerEscrow = escrowPda(id, outsider.publicKey), attackerVault = vaultPda(id, outsider.publicKey);
+    await send(outsider, init(attackerEscrow, attackerVault, outsider));
+    assert.ok(await connection.getAccountInfo(attackerEscrow));
+    console.log("PASS outsider cannot squat creator PDA; same public ID has independent namespaces");
+  }
   process.env.NEXT_PUBLIC_SOLANA_RPC_URL = process.env.VESTI_TEST_RPC_URL;
   process.env.ESCROW_PROGRAM_ID = programId.toBase58();
   process.env.NEXT_PUBLIC_USDC_MINT = mint.toBase58();
@@ -115,6 +135,7 @@ async function fixture(arbitrated = false) {
     creatorWallet: creator.publicKey.toBase58(),
     workerWallet: worker.publicKey.toBase58(),
     amount: "0.0001",
+    milestones,
     disputePolicy: arbitrated ? "arbitrator" : "bilateral",
     arbitratorWallet: arbitrated ? arbitrator.publicKey.toBase58() : null,
   });
@@ -128,6 +149,7 @@ async function fixture(arbitrated = false) {
     creatorWallet: creator.publicKey.toBase58(),
     workerWallet: worker.publicKey.toBase58(),
     totalAmount: "0.0001",
+    milestones,
     disputePolicy: arbitrated ? "arbitrator" : "bilateral",
     arbitratorWallet: arbitrated ? arbitrator.publicKey.toBase58() : null,
   });
@@ -203,6 +225,7 @@ async function testRelease() {
   await expectFailure("outsider proposal", () => send(f.outsider, proposeIx(f, f.outsider, 1, 60, 0)), f);
   await expectFailure("zero release", () => send(f.creator, proposeIx(f, f.creator, 1, 0, 0)), f);
   await expectFailure("excess release", () => send(f.creator, proposeIx(f, f.creator, 1, 101, 0)), f);
+  await expectFailure("partial milestone proposal", () => send(f.creator, proposeIx(f, f.creator, 1, 59, 0)), f);
   await send(f.creator, proposeIx(f, f.creator, 1, 60, 0));
   await expectFailure("stale proposal", () => send(f.worker, proposeIx(f, f.worker, 2, 0, 0)), f);
   await expectFailure("self acceptance", () => send(f.creator, acceptReleaseIx(f, f.creator, milestoneHash, 60, 1)), f);
@@ -241,15 +264,16 @@ async function testRefund() {
 }
 
 async function testReplacementAndDirectOpen() {
-  const f = await fixture();
-  const { milestoneHash } = await open(f, "unlisted-onchain-id", f.worker);
+  const f = await fixture(false, [["listed-onchain-id", 100]]);
+  await expectFailure("uncommitted milestone", () => open(f, "unlisted-onchain-id", f.worker), f);
+  const { milestoneHash } = await open(f, "listed-onchain-id", f.worker);
   await send(f.worker, proposeIx(f, f.worker, 2, 0, 0));
   await send(f.creator, proposeIx(f, f.creator, 1, 100, 1));
   await expectFailure("old proposal acceptance", () => send(f.creator, acceptRefundIx(f, f.creator, 100, 1)), f);
   await send(f.worker, acceptReleaseIx(f, f.worker, milestoneHash, 100, 2));
   assert.equal((await escrowState(f.escrow)).status, 3);
   assert.equal(await balance(f.workerToken), 100n);
-  console.log("PASS unknown milestone hash freezes escrow, proposal replacement, full release");
+  console.log("PASS unknown milestone rejected, committed proposal replacement, full release");
 }
 
 async function testToken2022Rejected() {
@@ -257,10 +281,10 @@ async function testToken2022Rejected() {
   await airdrop(payer);
   const mint = await createMint(connection, payer, payer.publicKey, null, 6, undefined, undefined, TOKEN_2022_PROGRAM_ID);
   const id = `token22-${++fixtureNumber}`;
-  const escrow = escrowPda(id), vault = vaultPda(id);
+  const escrow = escrowPda(id, payer.publicKey), vault = vaultPda(id, payer.publicKey);
   let failed = false;
   try {
-    await send(payer, ix("initialize_escrow", [
+    await send(payer, ix("initialize_escrow_v2", [
       meta(escrow, true), meta(payer.publicKey, true, true), meta(mint), meta(vault, true),
       meta(TOKEN_2022_PROGRAM_ID), meta(SystemProgram.programId),
     ], string(id), worker.publicKey.toBuffer(), u64(100)));
@@ -271,7 +295,7 @@ async function testToken2022Rejected() {
 }
 
 async function testCpiFailureRollsBack() {
-  const f = await fixture();
+  const f = await fixture(false, [["frozen-vault", 100]]);
   const { milestoneHash } = await open(f, "frozen-vault");
   await send(f.creator, proposeIx(f, f.creator, 1, 100, 0));
   await freezeAccount(connection, f.creator, f.vault, f.mint, f.creator);
@@ -282,7 +306,7 @@ async function testCpiFailureRollsBack() {
 }
 
 async function testExtraVaultTokensExcluded() {
-  const f = await fixture();
+  const f = await fixture(false, [["refund-with-extra", 100]]);
   await mintTo(connection, f.creator, f.mint, f.vault, f.creator, 7n);
   await open(f, "refund-with-extra");
   await send(f.creator, proposeIx(f, f.creator, 2, 0, 0));
@@ -294,7 +318,7 @@ async function testExtraVaultTokensExcluded() {
 }
 
 async function testArbitratorPolicy() {
-  const release = await fixture(true);
+  const release = await fixture(true, [["arbitrated-release", 60], ["remaining", 40]]);
   assert.ok(await connection.getAccountInfo(release.policy));
   const { milestoneHash } = await open(release, "arbitrated-release");
   await expectFailure("participant cannot arbitrate", () =>
@@ -309,7 +333,7 @@ async function testArbitratorPolicy() {
   await expectFailure("arbitration replay", () =>
     send(release.arbitrator, arbitrateReleaseIx(release, release.arbitrator, milestoneHash, 60)), release);
 
-  const refund = await fixture(true);
+  const refund = await fixture(true, [["arbitrated-refund", 100]]);
   await open(refund, "arbitrated-refund");
   await send(refund.creator, proposeIx(refund, refund.creator, 1, 100, 0));
   await expectFailure("arbitrator refund amount mismatch", () =>
@@ -319,7 +343,7 @@ async function testArbitratorPolicy() {
   assert.equal(await balance(refund.vault), 0n);
   assert.equal((await escrowState(refund.escrow)).status, 4);
 
-  const bilateral = await fixture();
+  const bilateral = await fixture(false, [["no-arbitrator", 100]]);
   assert.equal(await connection.getAccountInfo(bilateral.policy), null);
   const opened = await open(bilateral, "no-arbitrator");
   await expectFailure("bilateral policy rejects arbitrator", () =>
@@ -327,6 +351,29 @@ async function testArbitratorPolicy() {
   console.log("PASS immutable arbitrator selection, release and refund, bilateral default");
 }
 
+async function testLegacySettlement() {
+  for (const saved of legacyFixtures) {
+    const f = { ...saved, dispute: null };
+    for (const name of ["creator", "worker", "arbitrator"]) f[name] = Keypair.fromSecretKey(Uint8Array.from(saved[name]));
+    for (const name of ["escrow", "vault", "mint", "creatorToken", "workerToken", "policy"]) f[name] = new PublicKey(saved[name]);
+    if (saved.mode === "unfunded") {
+      await send(f.creator, ix("mark_funded", [meta(f.escrow, true), meta(f.creator.publicKey, false, true), meta(f.creatorToken, true), meta(f.mint), meta(f.vault, true), meta(TOKEN_PROGRAM_ID)], u64(100)));
+    }
+    await ordinaryRelease(f, "legacy-payment", 60);
+    await open(f, "legacy-refund", f.worker);
+    if (saved.mode === "arbitrator") await send(f.arbitrator, arbitrateRefundIx(f, f.arbitrator, 40));
+    else {
+      await send(f.worker, proposeIx(f, f.worker, 2, 0, 0));
+      await send(f.creator, acceptRefundIx(f, f.creator, 40, 1));
+    }
+    assert.equal(await balance(f.workerToken), 60n);
+    assert.equal(await balance(f.creatorToken), 40n);
+    assert.equal(await balance(f.vault), 0n);
+    assert.equal((await escrowState(f.escrow)).status, 4);
+    console.log(`PASS pre-upgrade ${saved.mode} account pays 60 and refunds 40 using legacy signer seeds`);
+  }
+}
+await testLegacySettlement();
 await testRelease();
 await testRefund();
 await testReplacementAndDirectOpen();

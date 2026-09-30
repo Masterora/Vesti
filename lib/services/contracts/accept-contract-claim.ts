@@ -1,3 +1,7 @@
+import {
+  lockContract,
+  advanceBusinessRevision,
+} from "@/lib/services/contracts/contract-lock";
 import { db } from "@/lib/db";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { recordEvent } from "@/lib/services/events/record-event";
@@ -7,34 +11,39 @@ import type { AcceptContractClaimInput } from "@/lib/validations/contract";
 
 export async function acceptContractClaim(input: AcceptContractClaimInput) {
   return db.$transaction(async (tx) => {
+    await lockContract(tx, input.contractId, true);
+    await advanceBusinessRevision(tx, input.contractId);
     const contract = assertFound(
       await tx.contract.findUnique({
         where: { id: input.contractId },
         include: {
           applications: {
-            orderBy: { createdAt: "asc" }
-          }
-        }
+            orderBy: { createdAt: "asc" },
+          },
+        },
       }),
-      "Contract not found"
+      "Contract not found",
     );
 
     assertAllowed(
       input.walletAddress === contract.creatorWallet,
-      "Only the Creator can accept a worker claim"
+      "Only the Creator can accept a worker claim",
     );
-    assertState(contract.status === "claimed", "Only claimed contracts can accept an applicant");
+    assertState(
+      contract.status === "claimed",
+      "Only claimed contracts can accept an applicant",
+    );
     assertState(
       getPendingApplicantWallets(contract).includes(input.applicantWallet),
-      "Selected applicant was not found on this contract"
+      "Selected applicant was not found on this contract",
     );
     assertAllowed(
       input.applicantWallet !== contract.arbitratorWallet,
-      "Arbitrator cannot be the Worker"
+      "Arbitrator cannot be the Worker",
     );
 
     await tx.contractApplication.deleteMany({
-      where: { contractId: contract.id }
+      where: { contractId: contract.id },
     });
 
     await tx.contract.update({
@@ -42,8 +51,8 @@ export async function acceptContractClaim(input: AcceptContractClaimInput) {
       data: {
         workerWallet: input.applicantWallet,
         requestedWorkerWallet: null,
-        status: "draft"
-      }
+        status: "draft",
+      },
     });
 
     await recordEvent(tx, {
@@ -51,8 +60,8 @@ export async function acceptContractClaim(input: AcceptContractClaimInput) {
       actorWallet: input.walletAddress,
       eventType: "contract_claim_accepted",
       payload: {
-        workerWallet: input.applicantWallet
-      }
+        workerWallet: input.applicantWallet,
+      },
     });
 
     const updated = await tx.contract.findUniqueOrThrow({
@@ -62,17 +71,17 @@ export async function acceptContractClaim(input: AcceptContractClaimInput) {
           orderBy: { index: "asc" },
           include: {
             proofSubmissions: {
-              orderBy: { version: "desc" }
-            }
-          }
+              orderBy: { version: "desc" },
+            },
+          },
         },
         events: {
-          orderBy: { createdAt: "desc" }
+          orderBy: { createdAt: "desc" },
         },
         applications: {
-          orderBy: { createdAt: "asc" }
-        }
-      }
+          orderBy: { createdAt: "asc" },
+        },
+      },
     });
 
     return serializeContractWithProfiles(updated);

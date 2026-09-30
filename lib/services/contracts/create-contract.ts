@@ -32,6 +32,8 @@ async function generateUniqueContractDisplayId(tx: Prisma.TransactionClient) {
 
 export async function createContract(rawInput: CreateContractInput) {
   const input = createContractSchema.parse(rawInput);
+  if (process.env.ESCROW_ADAPTER_MODE === "onchain" && input.milestones.length > 8)
+    throw new ServiceError("On-chain contracts support up to 8 fixed milestones", 400);
   const creatorWallet = input.creatorWallet.trim();
   const workerWallet = input.workerWallet?.trim() || null;
   const hasAssignedWorker = Boolean(workerWallet);

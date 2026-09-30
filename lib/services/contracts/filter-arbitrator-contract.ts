@@ -1,6 +1,8 @@
 import { serializeContractWithProfiles } from "@/lib/services/serialize";
 
-type SerializedContract = Awaited<ReturnType<typeof serializeContractWithProfiles>>;
+type SerializedContract = Awaited<
+  ReturnType<typeof serializeContractWithProfiles>
+>;
 
 export function filterArbitratorContract(contract: SerializedContract) {
   return {
@@ -8,16 +10,22 @@ export function filterArbitratorContract(contract: SerializedContract) {
     requestedWorkerWallet: null,
     comments: undefined,
     applications: undefined,
-    escrowTransactions: undefined,
+    escrowTransactions: contract.escrowTransactions?.filter(
+      (transaction) => transaction.walletAddress === contract.arbitratorWallet,
+    ),
     events: undefined,
     profiles: contract.profiles?.filter(
-      (profile) => profile.walletAddress === contract.creatorWallet || profile.walletAddress === contract.workerWallet
-    )
+      (profile) =>
+        profile.walletAddress === contract.creatorWallet ||
+        profile.walletAddress === contract.workerWallet,
+    ),
   };
 }
 
 export async function serializeArbitratorContract(
-  contract: Parameters<typeof serializeContractWithProfiles>[0]
+  contract: Parameters<typeof serializeContractWithProfiles>[0],
 ) {
-  return filterArbitratorContract(await serializeContractWithProfiles(contract));
+  return filterArbitratorContract(
+    await serializeContractWithProfiles(contract),
+  );
 }

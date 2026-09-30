@@ -1,3 +1,7 @@
+import {
+  lockContract,
+  advanceBusinessRevision,
+} from "@/lib/services/contracts/contract-lock";
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
@@ -6,36 +10,41 @@ import type { SubmitProofInput } from "@/lib/validations/proof-submission";
 
 export async function submitMilestoneProof(input: SubmitProofInput) {
   return db.$transaction(async (tx) => {
+    await lockContract(tx, input.contractId, true);
+    await advanceBusinessRevision(tx, input.contractId);
     const contract = assertFound(
       await tx.contract.findUnique({
-        where: { id: input.contractId }
+        where: { id: input.contractId },
       }),
-      "Contract not found"
+      "Contract not found",
     );
 
     const milestone = assertFound(
       await tx.milestone.findFirst({
         where: {
           id: input.milestoneId,
-          contractId: contract.id
-        }
+          contractId: contract.id,
+        },
       }),
-      "Milestone not found"
+      "Milestone not found",
     );
 
     assertAllowed(
       input.walletAddress === contract.workerWallet,
-      "Only the assigned Worker can submit proof"
+      "Only the assigned Worker can submit proof",
     );
-    assertState(contract.status === "active", "Contract must be active before proof submission");
+    assertState(
+      contract.status === "active",
+      "Contract must be active before proof submission",
+    );
     assertState(
       milestone.status === "ready" || milestone.status === "revision_requested",
-      "Milestone is not ready for proof submission"
+      "Milestone is not ready for proof submission",
     );
 
     const latestProof = await tx.proofSubmission.findFirst({
       where: { milestoneId: milestone.id },
-      orderBy: { version: "desc" }
+      orderBy: { version: "desc" },
     });
     const version = (latestProof?.version ?? 0) + 1;
 
@@ -46,16 +55,16 @@ export async function submitMilestoneProof(input: SubmitProofInput) {
         note: input.note,
         proofUrl: input.proofUrl || null,
         proofHash: input.proofHash || null,
-        version
-      }
+        version,
+      },
     });
 
     await tx.milestone.update({
-      where: { id: milestone.id },
+      where: { id: milestone.id, status: milestone.status },
       data: {
         status: "submitted",
-        submittedAt: new Date()
-      }
+        submittedAt: new Date(),
+      },
     });
 
     await recordEvent(tx, {
@@ -66,8 +75,8 @@ export async function submitMilestoneProof(input: SubmitProofInput) {
       payload: {
         proofSubmissionId: proof.id,
         version: proof.version,
-        proofUrl: proof.proofUrl
-      }
+        proofUrl: proof.proofUrl,
+      },
     });
 
     const updated = await tx.contract.findUniqueOrThrow({
@@ -77,14 +86,14 @@ export async function submitMilestoneProof(input: SubmitProofInput) {
           orderBy: { index: "asc" },
           include: {
             proofSubmissions: {
-              orderBy: { version: "desc" }
-            }
-          }
+              orderBy: { version: "desc" },
+            },
+          },
         },
         events: {
-          orderBy: { createdAt: "desc" }
-        }
-      }
+          orderBy: { createdAt: "desc" },
+        },
+      },
     });
 
     return serializeParticipantContract(updated, input.walletAddress);

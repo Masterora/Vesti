@@ -58,7 +58,8 @@ export type SerializedDispute = {
   contractId: string;
   milestoneId: string;
   openedBy: string;
-  reason: string;
+  reason: string | null;
+  proposalVersion?: string;
   previousMilestoneStatus: string;
   status: "open" | "proposed" | "resolved";
   proposedOutcome: "release_to_worker" | "refund_to_creator" | null;
@@ -73,11 +74,19 @@ export type SerializedEscrowTransaction = {
   contractId: string;
   milestoneId: string | null;
   action: string;
+  kind?: string | null;
   mode: "mock" | "onchain";
   walletAddress: string;
   amount: string | null;
   txSig: string | null;
-  status: "prepared" | "submitted" | "confirmed" | "reconciled" | "failed";
+  status:
+    | "building"
+    | "signed"
+    | "prepared"
+    | "submitted"
+    | "confirmed"
+    | "reconciled"
+    | "failed";
   errorCode: string | null;
   errorMessage: string | null;
   reconciliationAttempts: number;
@@ -116,12 +125,17 @@ export type SerializedContractListItem = {
     SerializedMilestone,
     "id" | "index" | "title" | "amount" | "dueAt" | "status"
   > | null;
-  activeDispute: { status: "open" | "proposed" | "resolved"; proposedBy: string | null } | null;
+  activeDispute: {
+    status: "open" | "proposed" | "resolved";
+    proposedBy: string | null;
+  } | null;
   pendingApplicantWallets: string[];
   profiles?: SerializedPublicUserProfile[];
 };
 
 export type SerializedContract = {
+  chainSyncStatus?: string;
+  chainReviewCode?: string | null;
   id: string;
   displayId: string;
   creatorWallet: string;

@@ -6,6 +6,7 @@ import {
 import { ServiceError } from "@/lib/services/errors";
 import { serializeSessionUserProfile } from "@/lib/services/profile/user-profiles";
 import type { VerifyAuthChallengeInput } from "@/lib/validations/auth";
+import { enforceRateLimit } from "@/lib/services/system/enforce-rate-limit";
 
 export async function verifyWalletAuthChallenge(input: VerifyAuthChallengeInput) {
   const walletAddress = input.walletAddress.trim();
@@ -51,6 +52,9 @@ export async function verifyWalletAuthChallenge(input: VerifyAuthChallengeInput)
     if (consumed.count !== 1) {
       throw new ServiceError("Wallet auth challenge is invalid or expired", 401);
     }
+    // Charge an identity only after a valid proof is atomically claimed.
+    // Invalid signatures and replayed challenges never debit another wallet.
+    await enforceRateLimit({ scope: "auth-verify-wallet", identity: walletAddress, limit: 10, windowMs: 5 * 60_000 }, tx);
 
     return tx.user.upsert({
       where: { walletAddress },

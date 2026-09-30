@@ -1,0 +1,116 @@
+[
+  {
+    "scenario": "persisted signature, page unload, app restart, backend broadcast",
+    "txSig": "3Pns2PBi7H1qXpteMevDZ2PjJPBhbnKRBFyFoWp4hZMwnyV7nAtnHvgyPD4AtaU8jfAPZzWknAr7teiEuu8ER2c4"
+  },
+  {
+    "policy": "bilateral",
+    "outcome": "release_to_worker",
+    "contractId": "cmunj57kq008qo7afjstlwwre",
+    "F": "10",
+    "R": "10",
+    "Q": "0",
+    "transactions": [
+      {
+        "kind": "fund",
+        "txSig": "38HiPaLpBcGS834u4YmQKoPtiMTPkgrZxv7KFHUnjpEuqxUra8RRLByK2Z7U8MgCaaCdus7ZE5XEqkiYd6Fatyva",
+        "slot": "1271"
+      },
+      {
+        "kind": "dispute_open",
+        "txSig": "3Pns2PBi7H1qXpteMevDZ2PjJPBhbnKRBFyFoWp4hZMwnyV7nAtnHvgyPD4AtaU8jfAPZzWknAr7teiEuu8ER2c4",
+        "slot": "1330"
+      },
+      {
+        "kind": "dispute_propose",
+        "txSig": "4Jc91Sd5UHYzrN5DAYXvg5NXW8WhmXZLdJYatRf6Bm9at7nZKhDz9cwuUSrUshZBe6n2ab2JnzyuqTcKKQh7qdnc",
+        "slot": "1375"
+      },
+      {
+        "kind": "dispute_accept_release",
+        "txSig": "2wsQ4qjZDopskgyadqcuywRmc7HG9Uby3RSmkJmfdKLDuitEfbShUHEVvd953n5Nft8j7RA5nAgyYx8Bk7ZgyvBR",
+        "slot": "1416"
+      }
+    ]
+  },
+  {
+    "policy": "bilateral",
+    "outcome": "refund_to_creator",
+    "contractId": "cmunj5qhe009fo7afezkyek6a",
+    "F": "10",
+    "R": "0",
+    "Q": "10",
+    "transactions": [
+      {
+        "kind": "fund",
+        "txSig": "3M2Kj9riNc9woScYTHzXUxjck3LzgzXVTD8hD247ae6YrrjfPJiBv6tB6DMApUxcA1qeSM1nEEMyuu7Y4g3kgf7B",
+        "slot": "1455"
+      },
+      {
+        "kind": "dispute_open",
+        "txSig": "2pN9i29DuiMRDA25Q8ADyDTbZhBEcYhmrrdYP36vANrbpeWhCffJmKcd2M1qhu6m1Ad4XSsNtroM8pTjieHvyLt5",
+        "slot": "1494"
+      },
+      {
+        "kind": "dispute_propose",
+        "txSig": "2x8QyyZRArRHPTbV5t5v8xuDL2DWJaxbpCHY5EekaYfRybQD4AJRGLtbKSUBGKoFxcqLQaVcN7ZHF9Pa11G8UpiL",
+        "slot": "1535"
+      },
+      {
+        "kind": "dispute_accept_refund",
+        "txSig": "5gx8uf3MdPNAzcTg8CfPjnL5jP9mCjqREAQEpei4sqsqgi8huCVdwKdGVyAWNaNfh9RMSrPW3zTHzeco1MPBwji8",
+        "slot": "1576"
+      }
+    ]
+  },
+  {
+    "policy": "arbitrator",
+    "outcome": "release_to_worker",
+    "contractId": "cmunj66tm009yo7afbe1mtv7f",
+    "F": "10",
+    "R": "10",
+    "Q": "0",
+    "transactions": [
+      {
+        "kind": "fund",
+        "txSig": "3kyeRUxGuRjmYeHurkDYurj7MJ3TykWukoZ47tLZj62DMqYFWZA7iccguSgaGttKcezvi4jWKNZ6HqXPhVQRgVK7",
+        "slot": "1616"
+      },
+      {
+        "kind": "dispute_open",
+        "txSig": "sb8JxR94MRJHyC9UMw9pnLcDRaJ1Y9drg359LuWjvsuhLyBtmwtKres8fKHQkRuJucSSVXqeQmDzULNA4tfuJm9",
+        "slot": "1654"
+      },
+      {
+        "kind": "dispute_arbitrate_release",
+        "txSig": "4yGhbrpAr9mnzqx7S4yFKdV6zLyRfDn7hDMUJbhKdMsTqx4Bf8887YG5PXBDPU3hmcHbgfwzfXLzTj2jMdh4AnPc",
+        "slot": "1695"
+      }
+    ]
+  },
+  {
+    "policy": "arbitrator",
+    "outcome": "refund_to_creator",
+    "contractId": "cmunj6j4h00aho7afgk4esw2m",
+    "F": "10",
+    "R": "0",
+    "Q": "10",
+    "transactions": [
+      {
+        "kind": "fund",
+        "txSig": "5vJPhWnzQwkXNwC85VEx77hmFTfAx3D2pW6rah4kLyYAcuSPuhREVn4Jmq7XDDYUGdUVtEg6Ykrcuvusc1xyHvaw",
+        "slot": "1735"
+      },
+      {
+        "kind": "dispute_open",
+        "txSig": "3ZaKJTxupp9EGbHZFdQV41Zd2DLQN9pH7iFc4fqe9ZubURSzRTxJAfqHPJGqbdWqfivdtSHxzgEzAvbEDrKR87K7",
+        "slot": "1775"
+      },
+      {
+        "kind": "dispute_arbitrate_refund",
+        "txSig": "5UwGGqEDTaJy7sxP8bLgpfhnPPMV1EBsZvSfNgQbh6Uk7dnrtP4ZeVfAGjsq1S4aN4pcqnrdhZLze3zpBcdX9Lqa",
+        "slot": "1815"
+      }
+    ]
+  }
+]

@@ -8,20 +8,12 @@ export async function POST(request: Request) {
   return handleRoute(request, async () => {
     const body = await parseJsonBody(request);
     const input = createAuthChallengeSchema.parse(body);
-    await Promise.all([
-      enforceRateLimit({
-        scope: "auth-challenge-wallet",
-        identity: input.walletAddress,
-        limit: 5,
-        windowMs: 5 * 60_000
-      }),
-      enforceRateLimit({
+    await enforceRateLimit({
         scope: "auth-challenge-client",
         identity: getRequestClientIdentity(request),
         limit: 20,
         windowMs: 5 * 60_000
-      })
-    ]);
+      });
 
     return createWalletAuthChallenge(input);
   });

@@ -1,3 +1,7 @@
+import {
+  lockContract,
+  advanceBusinessRevision,
+} from "@/lib/services/contracts/contract-lock";
 import { db } from "@/lib/db";
 import { getEscrowAdapterMode } from "@/lib/blockchain/escrow-adapter";
 import { recordEvent } from "@/lib/services/events/record-event";
@@ -5,57 +9,74 @@ import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
 import { serializeParticipantContract } from "@/lib/services/contracts/filter-worker-contract";
 import type { DisputeMilestoneInput } from "@/lib/validations/proof-submission";
 
-const disputableMilestoneStatuses = ["ready", "submitted", "revision_requested", "approved"];
+const disputableMilestoneStatuses = [
+  "ready",
+  "submitted",
+  "revision_requested",
+  "approved",
+];
 
 export async function disputeMilestone(input: DisputeMilestoneInput) {
   assertState(
     getEscrowAdapterMode() === "mock",
-    "On-chain disputes are disabled until on-chain settlement is available"
+    "On-chain disputes are disabled until on-chain settlement is available",
   );
 
   return db.$transaction(async (tx) => {
+    await lockContract(tx, input.contractId, true);
+    await advanceBusinessRevision(tx, input.contractId);
     const contract = assertFound(
       await tx.contract.findUnique({
-        where: { id: input.contractId }
+        where: { id: input.contractId },
       }),
-      "Contract not found"
+      "Contract not found",
     );
 
     const milestone = assertFound(
       await tx.milestone.findFirst({
         where: {
           id: input.milestoneId,
-          contractId: contract.id
-        }
+          contractId: contract.id,
+        },
       }),
-      "Milestone not found"
+      "Milestone not found",
     );
 
     assertAllowed(
-      input.walletAddress === contract.creatorWallet || input.walletAddress === contract.workerWallet,
-      "Only the Creator or Worker can open a dispute"
+      input.walletAddress === contract.creatorWallet ||
+        input.walletAddress === contract.workerWallet,
+      "Only the Creator or Worker can open a dispute",
     );
-    assertState(contract.status === "active", "Only active contracts can enter dispute");
+    assertState(
+      contract.status === "active",
+      "Only active contracts can enter dispute",
+    );
     assertState(
       disputableMilestoneStatuses.includes(milestone.status),
-      "This milestone cannot enter dispute from its current status"
+      "This milestone cannot enter dispute from its current status",
     );
 
     const claimedContract = await tx.contract.updateMany({
       where: { id: contract.id, status: "active" },
       data: {
-        status: "disputed"
-      }
+        status: "disputed",
+      },
     });
-    assertState(claimedContract.count === 1, "Contract dispute was already opened");
+    assertState(
+      claimedContract.count === 1,
+      "Contract dispute was already opened",
+    );
 
     const claimedMilestone = await tx.milestone.updateMany({
       where: { id: milestone.id, status: milestone.status },
       data: {
-        status: "disputed"
-      }
+        status: "disputed",
+      },
     });
-    assertState(claimedMilestone.count === 1, "Milestone dispute was already opened");
+    assertState(
+      claimedMilestone.count === 1,
+      "Milestone dispute was already opened",
+    );
 
     await tx.dispute.create({
       data: {
@@ -63,8 +84,8 @@ export async function disputeMilestone(input: DisputeMilestoneInput) {
         milestoneId: milestone.id,
         openedBy: input.walletAddress,
         reason: input.reason,
-        previousMilestoneStatus: milestone.status
-      }
+        previousMilestoneStatus: milestone.status,
+      },
     });
 
     await recordEvent(tx, {
@@ -74,8 +95,8 @@ export async function disputeMilestone(input: DisputeMilestoneInput) {
       eventType: "contract_disputed",
       payload: {
         title: milestone.title,
-        reason: input.reason
-      }
+        reason: input.reason,
+      },
     });
 
     const updated = await tx.contract.findUniqueOrThrow({
@@ -85,17 +106,17 @@ export async function disputeMilestone(input: DisputeMilestoneInput) {
           orderBy: { index: "asc" },
           include: {
             proofSubmissions: {
-              orderBy: { version: "desc" }
-            }
-          }
+              orderBy: { version: "desc" },
+            },
+          },
         },
         events: {
-          orderBy: { createdAt: "desc" }
+          orderBy: { createdAt: "desc" },
         },
         disputes: {
-          orderBy: { createdAt: "desc" }
-        }
-      }
+          orderBy: { createdAt: "desc" },
+        },
+      },
     });
 
     return serializeParticipantContract(updated, input.walletAddress);

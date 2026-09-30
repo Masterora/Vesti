@@ -1,6 +1,6 @@
 import { PublicKey } from "@solana/web3.js";
 import { describe, expect, it } from "vitest";
-import { decimalToTokenUnits, deriveMilestoneReleaseReceiptPda } from "./solana-escrow-accounts";
+import { decimalToTokenUnits, deriveMilestoneReleaseReceiptPda, deriveEscrowPda, deriveVaultPda, deriveLegacyEscrowPda } from "./solana-escrow-accounts";
 
 describe("decimalToTokenUnits", () => {
   it("uses shared exact amount conversion", () => {
@@ -15,6 +15,14 @@ describe("decimalToTokenUnits", () => {
 });
 
 describe("deriveMilestoneReleaseReceiptPda", () => {
+  it("isolates public contract names by creator while retaining explicit legacy derivation", () => {
+    const program = new PublicKey("ErFsmiKY7WxjD9ArYmpqjCCUKnTcfzLm6tFpmWdFU9ck");
+    const creator = new PublicKey("11111111111111111111111111111112");
+    const outsider = new PublicKey("11111111111111111111111111111113");
+    expect(deriveEscrowPda("public-id", program, creator).address.equals(deriveEscrowPda("public-id", program, outsider).address)).toBe(false);
+    expect(deriveVaultPda("public-id", program, creator).address.equals(deriveVaultPda("public-id", program, outsider).address)).toBe(false);
+    expect(deriveLegacyEscrowPda("public-id", program).address.equals(deriveEscrowPda("public-id", program, creator).address)).toBe(false);
+  });
   it("uses one stable address per escrow and milestone", () => {
     const program = new PublicKey("ErFsmiKY7WxjD9ArYmpqjCCUKnTcfzLm6tFpmWdFU9ck");
     const escrow = new PublicKey("11111111111111111111111111111112");

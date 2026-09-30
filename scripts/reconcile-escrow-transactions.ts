@@ -1,167 +1,138 @@
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
-import { confirmFundTransaction } from "@/lib/services/transactions/confirm-fund-transaction";
-import { confirmReleaseTransaction } from "@/lib/services/transactions/confirm-release-transaction";
-
-const leaseDurationMs = 2 * 60_000;
-
-function getPositiveIntegerSetting(name: string, fallback: number) {
-  const value = process.env[name]?.trim();
-
-  if (!value) {
-    return fallback;
-  }
-
-  const parsed = Number(value);
-
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${name} must be a positive integer`);
-  }
-
-  return parsed;
-}
-
-const batchSize = getPositiveIntegerSetting("RECONCILIATION_BATCH_SIZE", 25);
-const maxAttempts = getPositiveIntegerSetting("RECONCILIATION_MAX_ATTEMPTS", 12);
-
-function getRetryDelayMs(attempt: number) {
-  return Math.min(5_000 * 2 ** Math.max(attempt - 1, 0), 15 * 60_000);
-}
-
-async function claimTransaction(transactionId: string, now: Date) {
-  const leaseId = randomUUID();
-  const claimed = await db.escrowTransaction.updateMany({
-    where: {
-      id: transactionId,
-      status: "submitted",
-      requiresReviewAt: null,
-      AND: [
-        { OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] },
-        {
-          OR: [
-            { reconciliationLeaseExpiresAt: null },
-            { reconciliationLeaseExpiresAt: { lte: now } }
-          ]
-        }
-      ]
-    },
-    data: {
-      reconciliationLeaseId: leaseId,
-      reconciliationLeaseExpiresAt: new Date(now.getTime() + leaseDurationMs),
-      reconciliationAttempts: { increment: 1 },
-      lastAttemptAt: now
-    }
-  });
-
-  if (claimed.count !== 1) {
-    return null;
-  }
-
-  return db.escrowTransaction.findUniqueOrThrow({ where: { id: transactionId } });
-}
-
-async function reconcileClaimedTransaction(transaction: Awaited<ReturnType<typeof claimTransaction>>) {
-  if (!transaction?.txSig || !transaction.reconciliationLeaseId) {
-    return;
-  }
-
-  try {
-    if (transaction.action === "fund") {
-      await confirmFundTransaction({
-        contractId: transaction.contractId,
-        walletAddress: transaction.walletAddress,
-        transactionId: transaction.id,
-        txSig: transaction.txSig
-      });
-      return;
-    }
-
-    if (transaction.action === "release" && transaction.milestoneId) {
-      await confirmReleaseTransaction({
-        contractId: transaction.contractId,
-        milestoneId: transaction.milestoneId,
-        walletAddress: transaction.walletAddress,
-        transactionId: transaction.id,
-        txSig: transaction.txSig
-      });
-      return;
-    }
-
-    throw new Error(`Unsupported submitted escrow action: ${transaction.action}`);
-  } catch (error) {
-    const now = new Date();
-    const requiresReview = transaction.reconciliationAttempts >= maxAttempts;
-    const message = error instanceof Error ? error.message : "Escrow reconciliation failed";
-
-    await db.escrowTransaction.updateMany({
-      where: {
-        id: transaction.id,
-        status: "submitted",
-        reconciliationLeaseId: transaction.reconciliationLeaseId
-      },
-      data: {
-        errorCode: "RECONCILIATION_RETRY",
-        errorMessage: message.slice(0, 1000),
-        nextAttemptAt: requiresReview
-          ? null
-          : new Date(now.getTime() + getRetryDelayMs(transaction.reconciliationAttempts)),
-        requiresReviewAt: requiresReview ? now : null,
-        reconciliationLeaseId: null,
-        reconciliationLeaseExpiresAt: null
-      }
-    });
-
-    console.error("Escrow reconciliation attempt failed", {
-      transactionId: transaction.id,
-      attempt: transaction.reconciliationAttempts,
-      requiresReview,
-      error: message
-    });
-  }
-}
+import { recoverChainOperation } from "@/lib/services/transactions/chain-operations";
+import { syncContractChain } from "@/lib/services/transactions/chain-sync";
+import { reconciliationLimit, reconciliationRetryState } from "@/lib/services/transactions/reconciliation-policy";
 
 async function main() {
-  if (process.env.ESCROW_ADAPTER_MODE !== "onchain") {
-    throw new Error("ESCROW_ADAPTER_MODE=onchain is required for escrow reconciliation");
-  }
-
+  if (process.env.ESCROW_ADAPTER_MODE !== "onchain")
+    throw new Error("ESCROW_ADAPTER_MODE=onchain is required");
+  const batchSize = Number(process.env.RECONCILIATION_BATCH_SIZE ?? 25);
+  if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 100)
+    throw new Error("Invalid reconciliation batch size");
   const now = new Date();
+  const maximumAttempts = reconciliationLimit();
   const candidates = await db.escrowTransaction.findMany({
     where: {
       mode: "onchain",
-      status: "submitted",
-      txSig: { not: null },
+      status: {
+        in: ["building", "prepared", "signed", "submitted", "confirmed"],
+      },
       requiresReviewAt: null,
-      action: { in: ["fund", "release"] },
       AND: [
         { OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }] },
         {
           OR: [
             { reconciliationLeaseExpiresAt: null },
-            { reconciliationLeaseExpiresAt: { lte: now } }
-          ]
-        }
-      ]
+            { reconciliationLeaseExpiresAt: { lte: now } },
+          ],
+        },
+      ],
     },
-    orderBy: { submittedAt: "asc" },
+    orderBy: { createdAt: "asc" },
     take: batchSize,
-    select: { id: true }
   });
-
+  let failures = 0;
   for (const candidate of candidates) {
-    const transaction = await claimTransaction(candidate.id, new Date());
-    await reconcileClaimedTransaction(transaction);
+    const leaseId = randomUUID();
+    const claimed = await db.escrowTransaction.updateMany({
+      where: {
+        id: candidate.id,
+        status: candidate.status,
+        requiresReviewAt: null,
+        reconciliationAttempts: candidate.reconciliationAttempts,
+        OR: [
+          { reconciliationLeaseExpiresAt: null },
+          { reconciliationLeaseExpiresAt: { lte: new Date() } },
+        ],
+      },
+      data: {
+        reconciliationLeaseId: leaseId,
+        reconciliationLeaseExpiresAt: new Date(Date.now() + 120000),
+        reconciliationAttempts: { increment: 1 },
+        lastAttemptAt: new Date(),
+      },
+    });
+    if (claimed.count !== 1) continue;
+    try {
+      const result = await recoverChainOperation(candidate.id, leaseId);
+      await db.escrowTransaction.updateMany({
+        where: { id: candidate.id, reconciliationLeaseId: leaseId },
+        data: {
+          reconciliationLeaseId: null,
+          reconciliationLeaseExpiresAt: null,
+          ...(["failed", "reconciled"].includes(result.status)
+            ? { nextAttemptAt: null }
+            : reconciliationRetryState(candidate.reconciliationAttempts + 1, maximumAttempts)),
+        },
+      });
+    } catch {
+      failures++;
+      await db.escrowTransaction.updateMany({
+        where: { id: candidate.id, reconciliationLeaseId: leaseId },
+        data: {
+          ...reconciliationRetryState(candidate.reconciliationAttempts + 1, maximumAttempts),
+          reconciliationLeaseId: null,
+          reconciliationLeaseExpiresAt: null,
+        },
+      });
+      console.error("Reconciliation deferred", { transactionId: candidate.id });
+    }
   }
-
-  console.log(`Processed ${candidates.length} escrow reconciliation candidate(s).`);
+  // Detect direct program operations even without a Web transaction record.
+  const contracts = await db.contract.findMany({
+    where: {
+      workerWallet: { not: null },
+      chainSyncStatus: { not: "review" },
+      NOT: { escrowTransactions: { some: { requiresReviewAt: { not: null }, status: { in: ["building", "prepared", "signed", "submitted", "confirmed"] } } } },
+      OR: [
+        { status: { in: ["draft", "active", "disputed"] } },
+        { chainBaselineKind: "initialized" },
+        { escrowAccount: { not: null } },
+        {
+          escrowTransactions: {
+            some: {
+              mode: "onchain",
+              status: {
+                in: [
+                  "building",
+                  "prepared",
+                  "signed",
+                  "submitted",
+                  "confirmed",
+                ],
+              },
+            },
+          },
+        },
+      ],
+    },
+    orderBy: { updatedAt: "asc" },
+    take: batchSize,
+  });
+  for (const contract of contracts) {
+    try {
+      await syncContractChain(contract.id);
+    } catch {
+      failures++;
+      console.error("Contract scan deferred", { contractId: contract.id });
+    }
+  }
+  console.log(
+    JSON.stringify({
+      operations: candidates.length,
+      contracts: contracts.length,
+      failures,
+    }),
+  );
+  if (failures) process.exitCode = 1;
 }
-
 void main()
-  .catch((error: unknown) => {
-    console.error(error);
+  .catch((error) => {
+    console.error(
+      error instanceof Error ? error.message : "Reconciliation failed",
+    );
     process.exitCode = 1;
   })
-  .finally(async () => {
-    await db.$disconnect();
-  });
+  .finally(() => db.$disconnect());

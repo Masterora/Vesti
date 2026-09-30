@@ -6,7 +6,7 @@ import {
   createMarkFundedInstruction,
   createReleaseMilestoneInstruction
 } from "./solana-escrow-instructions";
-import { deriveMilestoneReleaseReceiptPda, deriveSolanaEscrowAccounts, TOKEN_PROGRAM_ID } from "./solana-escrow-accounts";
+import { deriveMilestonePlanPda, deriveMilestoneReleaseReceiptPda, deriveSolanaEscrowAccounts, TOKEN_PROGRAM_ID } from "./solana-escrow-accounts";
 
 const programId = new PublicKey("ErFsmiKY7WxjD9ArYmpqjCCUKnTcfzLm6tFpmWdFU9ck");
 const usdcMint = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
@@ -32,7 +32,7 @@ describe("Solana escrow instructions", () => {
       worker,
       usdcMint,
       contractId,
-      totalAmountUnits: BigInt(1000)
+      totalAmountUnits: BigInt(1000), milestones: [{ id: "milestone_1", amountUnits: "1000" }]
     });
 
     expect(instruction.programId.toBase58()).toBe(programId.toBase58());
@@ -42,10 +42,11 @@ describe("Solana escrow instructions", () => {
       usdcMint.toBase58(),
       accounts.vaultPda.toBase58(),
       TOKEN_PROGRAM_ID.toBase58(),
-      "11111111111111111111111111111111"
+      "11111111111111111111111111111111",
+      deriveMilestonePlanPda(accounts.escrowPda, programId).toBase58()
     ]);
     expect(instruction.keys[1]).toMatchObject({ isSigner: true, isWritable: true });
-    expect(instruction.data.subarray(0, 8).toString("hex")).toBe("f3a04d990b5c30d1");
+    expect(instruction.data.subarray(0, 8).toString("hex")).toBe(createHash("sha256").update("global:initialize_escrow_v2").digest().subarray(0, 8).toString("hex"));
   });
 
   it("builds mark funded instruction", () => {
@@ -64,7 +65,8 @@ describe("Solana escrow instructions", () => {
       accounts.creatorTokenAccount.toBase58(),
       usdcMint.toBase58(),
       accounts.vaultPda.toBase58(),
-      TOKEN_PROGRAM_ID.toBase58()
+      TOKEN_PROGRAM_ID.toBase58(),
+      deriveMilestonePlanPda(accounts.escrowPda, programId).toBase58()
     ]);
     expect(instruction.data.toString("hex")).toBe("9a19863dc8b81d38e803000000000000");
   });
@@ -89,7 +91,8 @@ describe("Solana escrow instructions", () => {
       accounts.workerTokenAccount.toBase58(),
       TOKEN_PROGRAM_ID.toBase58(),
       deriveMilestoneReleaseReceiptPda(accounts.escrowPda, milestoneId, programId).address.toBase58(),
-      "11111111111111111111111111111111"
+      "11111111111111111111111111111111",
+      deriveMilestonePlanPda(accounts.escrowPda, programId).toBase58()
     ]);
     expect(instruction.data.subarray(0, 8).toString("hex")).toBe("3802c7a4b86ca7de");
     expect(instruction.data.subarray(-32).toString("hex")).toBe(createHash("sha256").update(milestoneId).digest("hex"));

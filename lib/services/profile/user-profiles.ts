@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { buildStoredProfileAvatarUrl } from "@/lib/profile/avatar";
+import { normalizeAvatarImage } from "@/lib/profile/avatar-content";
 import { ServiceError } from "@/lib/services/errors";
 import type { SerializedPublicUserProfile, SerializedSessionUserProfile } from "@/types/profile";
 
@@ -101,7 +102,9 @@ export async function updateSessionUserProfile(input: {
   avatarImage?: string;
 }) {
   const email = input.email?.trim().toLowerCase() || null;
-  const avatarImage = input.avatarImage?.trim() || null;
+  const avatarImage = input.avatarImage?.trim()
+    ? (await normalizeAvatarImage(input.avatarImage)).dataUrl
+    : null;
   const avatarUpdate =
     input.avatarImage === undefined
       ? {}

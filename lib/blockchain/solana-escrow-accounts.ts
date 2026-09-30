@@ -25,9 +25,11 @@ export type SolanaEscrowAccountSeeds = {
   creator: PublicKey;
   worker: PublicKey;
   tokenProgramId?: PublicKey;
+  addressScheme?: "creator" | "legacy";
 };
 
 export type SolanaEscrowAccounts = {
+  addressScheme: "creator" | "legacy";
   escrowPda: PublicKey;
   escrowBump: number;
   vaultPda: PublicKey;
@@ -59,7 +61,7 @@ export function assertValidEscrowContractSeed(contractId: string) {
   }
 }
 
-export function deriveEscrowPda(contractId: string, programId: PublicKey) {
+export function deriveLegacyEscrowPda(contractId: string, programId: PublicKey) {
   assertValidEscrowContractSeed(contractId);
 
   const [address, bump] = PublicKey.findProgramAddressSync(
@@ -70,7 +72,7 @@ export function deriveEscrowPda(contractId: string, programId: PublicKey) {
   return { address, bump };
 }
 
-export function deriveVaultPda(contractId: string, programId: PublicKey) {
+export function deriveLegacyVaultPda(contractId: string, programId: PublicKey) {
   assertValidEscrowContractSeed(contractId);
 
   const [address, bump] = PublicKey.findProgramAddressSync(
@@ -78,6 +80,21 @@ export function deriveVaultPda(contractId: string, programId: PublicKey) {
     programId
   );
 
+  return { address, bump };
+}
+
+export function deriveEscrowPda(contractId: string, programId: PublicKey, creator: PublicKey) {
+  assertValidEscrowContractSeed(contractId);
+  const [address, bump] = PublicKey.findProgramAddressSync(
+    [Buffer.from("escrow_v2"), creator.toBuffer(), Buffer.from(contractId)], programId,
+  );
+  return { address, bump };
+}
+export function deriveVaultPda(contractId: string, programId: PublicKey, creator: PublicKey) {
+  assertValidEscrowContractSeed(contractId);
+  const [address, bump] = PublicKey.findProgramAddressSync(
+    [Buffer.from("vault_v2"), creator.toBuffer(), Buffer.from(contractId)], programId,
+  );
   return { address, bump };
 }
 
@@ -126,12 +143,14 @@ export function deriveSolanaEscrowAccounts({
   usdcMint,
   creator,
   worker,
-  tokenProgramId = TOKEN_PROGRAM_ID
+  tokenProgramId = TOKEN_PROGRAM_ID,
+  addressScheme = "creator"
 }: SolanaEscrowAccountSeeds): SolanaEscrowAccounts {
-  const escrow = deriveEscrowPda(contractId, programId);
-  const vault = deriveVaultPda(contractId, programId);
+  const escrow = addressScheme === "legacy" ? deriveLegacyEscrowPda(contractId, programId) : deriveEscrowPda(contractId, programId, creator);
+  const vault = addressScheme === "legacy" ? deriveLegacyVaultPda(contractId, programId) : deriveVaultPda(contractId, programId, creator);
 
   return {
+    addressScheme,
     escrowPda: escrow.address,
     escrowBump: escrow.bump,
     vaultPda: vault.address,
@@ -140,6 +159,10 @@ export function deriveSolanaEscrowAccounts({
     workerTokenAccount: deriveAssociatedTokenAccount(worker, usdcMint, tokenProgramId),
     tokenProgramId
   };
+}
+
+export function deriveMilestonePlanPda(escrow: PublicKey, programId: PublicKey) {
+  return PublicKey.findProgramAddressSync([Buffer.from("plan"), escrow.toBuffer()], programId)[0];
 }
 
 export function decimalToTokenUnits(amount: DecimalLike | string, decimals = USDC_DECIMALS) {

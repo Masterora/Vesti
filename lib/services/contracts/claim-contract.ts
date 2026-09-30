@@ -1,3 +1,7 @@
+import {
+  lockContract,
+  advanceBusinessRevision,
+} from "@/lib/services/contracts/contract-lock";
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
@@ -7,52 +11,58 @@ import type { ClaimContractInput } from "@/lib/validations/contract";
 
 export async function claimContract(input: ClaimContractInput) {
   await db.$transaction(async (tx) => {
+    await lockContract(tx, input.contractId, true);
+    await advanceBusinessRevision(tx, input.contractId);
     const contract = assertFound(
       await tx.contract.findUnique({
         where: { id: input.contractId },
         include: {
           applications: {
-            orderBy: { createdAt: "asc" }
-          }
-        }
+            orderBy: { createdAt: "asc" },
+          },
+        },
       }),
-      "Contract not found"
+      "Contract not found",
     );
 
     assertAllowed(
       input.walletAddress !== contract.creatorWallet,
-      "Creator cannot claim their own contract"
+      "Creator cannot claim their own contract",
     );
-    assertAllowed(input.walletAddress !== contract.arbitratorWallet, "Arbitrator cannot claim their contract");
+    assertAllowed(
+      input.walletAddress !== contract.arbitratorWallet,
+      "Arbitrator cannot claim their contract",
+    );
     assertAllowed(contract.isPublic, "Only public contracts can be claimed");
     assertState(
       ["open", "claimed"].includes(contract.status),
-      "Only open or claimed contracts can receive additional claims"
+      "Only open or claimed contracts can receive additional claims",
     );
     assertState(
       !getPendingApplicantWallets(contract).includes(input.walletAddress),
-      "You have already claimed this contract"
+      "You have already claimed this contract",
     );
 
     await tx.user.upsert({
       where: { walletAddress: input.walletAddress },
       update: {},
-      create: { walletAddress: input.walletAddress }
+      create: { walletAddress: input.walletAddress },
     });
 
     await tx.contractApplication.create({
       data: {
         contractId: contract.id,
-        applicantWallet: input.walletAddress
-      }
+        applicantWallet: input.walletAddress,
+      },
     });
 
     await tx.contract.update({
       where: { id: contract.id },
       data: {
-        requestedWorkerWallet: contract.requestedWorkerWallet ?? input.walletAddress,
-        status: "claimed"
-      }
+        requestedWorkerWallet:
+          contract.requestedWorkerWallet ?? input.walletAddress,
+        status: "claimed",
+      },
     });
 
     await recordEvent(tx, {
@@ -60,10 +70,13 @@ export async function claimContract(input: ClaimContractInput) {
       actorWallet: input.walletAddress,
       eventType: "contract_claim_requested",
       payload: {
-        requestedWorkerWallet: input.walletAddress
-      }
+        requestedWorkerWallet: input.walletAddress,
+      },
     });
   });
 
-  return getContractById({ contractId: input.contractId, walletAddress: input.walletAddress });
+  return getContractById({
+    contractId: input.contractId,
+    walletAddress: input.walletAddress,
+  });
 }

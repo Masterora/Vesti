@@ -41,14 +41,17 @@ export const proposeDisputeResolutionSchema = z.object({
   contractId: z.string().trim().min(1),
   milestoneId: z.string().trim().min(1),
   walletAddress: walletAddressSchema,
-  outcome: z.enum(["release_to_worker", "refund_to_creator"])
+  outcome: z.enum(["release_to_worker", "refund_to_creator"]),
+  expectedProposalVersion: z.string().regex(/^(0|[1-9][0-9]*)$/)
 });
 
 export const acceptDisputeResolutionSchema = z.object({
   contractId: z.string().trim().min(1),
   milestoneId: z.string().trim().min(1),
   walletAddress: walletAddressSchema,
-  idempotencyKey: z.string().uuid().optional()
+  idempotencyKey: z.string().uuid().optional(),
+  expectedProposalVersion: z.string().regex(/^(0|[1-9][0-9]*)$/),
+  expectedOutcome: z.enum(["release_to_worker", "refund_to_creator"])
 });
 
 export const arbitrateDisputeResolutionSchema = z.object({

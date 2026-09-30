@@ -6,7 +6,7 @@ import type {
   EscrowTransaction,
   Event,
   Milestone,
-  ProofSubmission
+  ProofSubmission,
 } from "@prisma/client";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
 import { getPublicUserProfilesByWallets } from "@/lib/services/profile/user-profiles";
@@ -48,7 +48,9 @@ export type ContractListRecord = Pick<
   | "updatedAt"
 > & {
   applications?: Array<Pick<ContractApplication, "applicantWallet">>;
-  milestones?: Array<Pick<Milestone, "id" | "index" | "title" | "amount" | "dueAt" | "status">>;
+  milestones?: Array<
+    Pick<Milestone, "id" | "index" | "title" | "amount" | "dueAt" | "status">
+  >;
   disputes?: Array<Pick<Dispute, "status" | "proposedBy">>;
   _count: {
     milestones: number;
@@ -61,9 +63,14 @@ function collectContractWallets(contract: ContractWithRelations) {
     contract.workerWallet,
     contract.requestedWorkerWallet,
     ...(contract.comments?.map((comment) => comment.authorWallet) ?? []),
-    ...(contract.applications?.map((application) => application.applicantWallet) ?? []),
+    ...(contract.applications?.map(
+      (application) => application.applicantWallet,
+    ) ?? []),
     ...(contract.events?.map((event) => event.actorWallet) ?? []),
-    ...contract.milestones.flatMap((milestone) => milestone.proofSubmissions?.map((proof) => proof.submittedBy) ?? [])
+    ...contract.milestones.flatMap(
+      (milestone) =>
+        milestone.proofSubmissions?.map((proof) => proof.submittedBy) ?? [],
+    ),
   ].filter((wallet): wallet is string => Boolean(wallet?.trim()));
 }
 
@@ -72,14 +79,16 @@ function collectContractListWallets(contract: ContractListRecord) {
     contract.creatorWallet,
     contract.workerWallet,
     contract.requestedWorkerWallet,
-    ...(contract.applications?.map((application) => application.applicantWallet) ?? [])
+    ...(contract.applications?.map(
+      (application) => application.applicantWallet,
+    ) ?? []),
   ].filter((wallet): wallet is string => Boolean(wallet?.trim()));
 }
 
 export function serializeProofSubmission(proof: ProofSubmission) {
   return {
     ...proof,
-    createdAt: proof.createdAt.toISOString()
+    createdAt: proof.createdAt.toISOString(),
   };
 }
 
@@ -93,14 +102,14 @@ export function serializeMilestone(milestone: MilestoneWithProofs) {
     releasedAt: milestone.releasedAt?.toISOString() ?? null,
     createdAt: milestone.createdAt.toISOString(),
     updatedAt: milestone.updatedAt.toISOString(),
-    proofSubmissions: milestone.proofSubmissions?.map(serializeProofSubmission)
+    proofSubmissions: milestone.proofSubmissions?.map(serializeProofSubmission),
   };
 }
 
 export function serializeEvent(event: Event) {
   return {
     ...event,
-    createdAt: event.createdAt.toISOString()
+    createdAt: event.createdAt.toISOString(),
   };
 }
 
@@ -108,23 +117,24 @@ export function serializeContractComment(comment: ContractComment) {
   return {
     ...comment,
     createdAt: comment.createdAt.toISOString(),
-    updatedAt: comment.updatedAt.toISOString()
+    updatedAt: comment.updatedAt.toISOString(),
   };
 }
 
 export function serializeContractApplication(application: ContractApplication) {
   return {
     ...application,
-    createdAt: application.createdAt.toISOString()
+    createdAt: application.createdAt.toISOString(),
   };
 }
 
 export function serializeDispute(dispute: Dispute) {
   return {
     ...dispute,
+    proposalVersion: dispute.proposalVersion.toString(),
     resolvedAt: dispute.resolvedAt?.toISOString() ?? null,
     createdAt: dispute.createdAt.toISOString(),
-    updatedAt: dispute.updatedAt.toISOString()
+    updatedAt: dispute.updatedAt.toISOString(),
   };
 }
 
@@ -134,6 +144,7 @@ export function serializeEscrowTransaction(transaction: EscrowTransaction) {
     contractId: transaction.contractId,
     milestoneId: transaction.milestoneId,
     action: transaction.action,
+    kind: transaction.kind,
     mode: transaction.mode,
     walletAddress: transaction.walletAddress,
     amount: transaction.amount?.toString() ?? null,
@@ -149,16 +160,24 @@ export function serializeEscrowTransaction(transaction: EscrowTransaction) {
     confirmedAt: transaction.confirmedAt?.toISOString() ?? null,
     reconciledAt: transaction.reconciledAt?.toISOString() ?? null,
     createdAt: transaction.createdAt.toISOString(),
-    updatedAt: transaction.updatedAt.toISOString()
+    updatedAt: transaction.updatedAt.toISOString(),
   };
 }
 
 export function serializeContract(
   contract: ContractWithRelations,
-  profilesByWallet?: Map<string, SerializedPublicUserProfile>
+  profilesByWallet?: Map<string, SerializedPublicUserProfile>,
 ) {
   return {
     ...contract,
+    businessRevision:
+      "businessRevision" in contract
+        ? String(contract.businessRevision)
+        : undefined,
+    chainLastSyncedSlot:
+      "chainLastSyncedSlot" in contract
+        ? (contract.chainLastSyncedSlot?.toString() ?? null)
+        : undefined,
     displayId: contract.displayId,
     isPublic: contract.isPublic,
     tags: contract.tags,
@@ -177,25 +196,33 @@ export function serializeContract(
     comments: contract.comments?.map(serializeContractComment),
     applications: contract.applications?.map(serializeContractApplication),
     disputes: contract.disputes?.map(serializeDispute),
-    escrowTransactions: contract.escrowTransactions?.map(serializeEscrowTransaction),
+    escrowTransactions: contract.escrowTransactions?.map(
+      serializeEscrowTransaction,
+    ),
     profiles: profilesByWallet
-      ? Array.from(new Set(collectContractWallets(contract))).flatMap((wallet) => {
-          const profile = profilesByWallet.get(wallet);
-          return profile ? [profile] : [];
-        })
-      : undefined
+      ? Array.from(new Set(collectContractWallets(contract))).flatMap(
+          (wallet) => {
+            const profile = profilesByWallet.get(wallet);
+            return profile ? [profile] : [];
+          },
+        )
+      : undefined,
   };
 }
 
 export function serializeContractListItem(
   contract: ContractListRecord,
-  profilesByWallet?: Map<string, SerializedPublicUserProfile>
+  profilesByWallet?: Map<string, SerializedPublicUserProfile>,
 ) {
-  const orderedMilestones = [...(contract.milestones ?? [])].sort((left, right) => left.index - right.index);
+  const orderedMilestones = [...(contract.milestones ?? [])].sort(
+    (left, right) => left.index - right.index,
+  );
   const currentMilestone =
     (contract.status === "disputed"
       ? orderedMilestones.find((milestone) => milestone.status === "disputed")
-      : orderedMilestones.find((milestone) => milestone.status !== "released")) ?? null;
+      : orderedMilestones.find(
+          (milestone) => milestone.status !== "released",
+        )) ?? null;
 
   return {
     id: contract.id,
@@ -225,22 +252,28 @@ export function serializeContractListItem(
           title: currentMilestone.title,
           amount: currentMilestone.amount.toString(),
           dueAt: currentMilestone.dueAt?.toISOString() ?? null,
-          status: currentMilestone.status
+          status: currentMilestone.status,
         }
       : null,
     activeDispute: contract.disputes?.[0] ?? null,
     pendingApplicantWallets: getPendingApplicantWallets(contract),
     profiles: profilesByWallet
-      ? Array.from(new Set(collectContractListWallets(contract))).flatMap((wallet) => {
-          const profile = profilesByWallet.get(wallet);
-          return profile ? [profile] : [];
-        })
-      : undefined
+      ? Array.from(new Set(collectContractListWallets(contract))).flatMap(
+          (wallet) => {
+            const profile = profilesByWallet.get(wallet);
+            return profile ? [profile] : [];
+          },
+        )
+      : undefined,
   };
 }
 
-export async function serializeContractWithProfiles(contract: ContractWithRelations) {
-  const profilesByWallet = await getPublicUserProfilesByWallets(collectContractWallets(contract));
+export async function serializeContractWithProfiles(
+  contract: ContractWithRelations,
+) {
+  const profilesByWallet = await getPublicUserProfilesByWallets(
+    collectContractWallets(contract),
+  );
 
   return serializeContract(contract, profilesByWallet);
 }

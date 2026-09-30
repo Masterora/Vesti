@@ -1,6 +1,13 @@
 "use client";
 
-import { AlertTriangle, Check, CircleDollarSign, ExternalLink, RotateCcw, Send } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  CircleDollarSign,
+  ExternalLink,
+  RotateCcw,
+  Send,
+} from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useRuntimeConfig } from "@/components/layout/runtime-config";
 import { Button } from "@/components/ui/button";
@@ -13,23 +20,36 @@ export type ProofDraft = {
   proofUrl: string;
 };
 
-export function ProofHistory({ milestone }: { milestone: SerializedMilestone }) {
+export function ProofHistory({
+  milestone,
+}: {
+  milestone: SerializedMilestone;
+}) {
   const { locale, messages } = useLocale();
   const proofs = milestone.proofSubmissions ?? [];
 
   if (proofs.length === 0) {
-    return <p className="mt-4 text-sm text-muted-foreground">{messages.contractDetail.noProof}</p>;
+    return (
+      <p className="mt-4 text-sm text-muted-foreground">
+        {messages.contractDetail.noProof}
+      </p>
+    );
   }
 
   return (
     <div className="mt-4 rounded-lg border border-border">
       {proofs.map((proof) => (
-        <div key={proof.id} className="border-b border-border p-3 last:border-b-0">
+        <div
+          key={proof.id}
+          className="border-b border-border p-3 last:border-b-0"
+        >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-semibold">
               {messages.contractDetail.proof} v{proof.version}
             </p>
-            <p className="text-xs text-muted-foreground">{formatDateTime(proof.createdAt, locale)}</p>
+            <p className="text-xs text-muted-foreground">
+              {formatDateTime(proof.createdAt, locale)}
+            </p>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">{proof.note}</p>
           {proof.proofUrl ? (
@@ -66,7 +86,7 @@ export function MilestoneActions({
   onApprove,
   onRequestRevision,
   onDispute,
-  onRelease
+  onRelease,
 }: {
   milestone: SerializedMilestone;
   contractStatus: string;
@@ -89,18 +109,22 @@ export function MilestoneActions({
   const { messages } = useLocale();
   const runtime = useRuntimeConfig();
   const copy = messages.contractDetail;
-  const disputeEligible = contractStatus === "active" &&
+  const disputeEligible =
+    contractStatus === "active" &&
     ["creator", "worker"].includes(role) &&
-    ["ready", "submitted", "revision_requested", "approved"].includes(milestone.status);
-  const canDispute =
-    disputeEligible &&
-    runtime?.canOpenDispute === true;
+    ["ready", "submitted", "revision_requested", "approved"].includes(
+      milestone.status,
+    );
+  const canDispute = disputeEligible && runtime?.canOpenDispute === true;
   const disputeControl = canDispute ? (
     <div className="mt-5 rounded-md border border-danger/30 bg-danger/10 p-4">
       <div className="grid gap-3">
         <div className="grid gap-2">
-          <Label>{copy.disputeReason}</Label>
+          <Label htmlFor={`dispute-reason-${milestone.id}`}>
+            {copy.disputeReason}
+          </Label>
           <Textarea
+            id={`dispute-reason-${milestone.id}`}
             value={disputeReason}
             onChange={(event) => onDisputeReasonChange(event.target.value)}
             placeholder={copy.disputePlaceholder}
@@ -111,15 +135,19 @@ export function MilestoneActions({
           variant="danger"
           className="w-max"
           onClick={onDispute}
-          disabled={!disputeReason || activeAction === `dispute-${milestone.id}`}
+          disabled={!disputeReason || Boolean(activeAction) || releasePending}
         >
           <AlertTriangle className="mr-2 size-4" aria-hidden="true" />
-          {activeAction === `dispute-${milestone.id}` ? copy.openingDispute : copy.openDispute}
+          {activeAction === `dispute-${milestone.id}`
+            ? copy.openingDispute
+            : copy.openDispute}
         </Button>
       </div>
     </div>
   ) : disputeEligible && runtime?.escrowMode === "onchain" ? (
-    <p className="mt-5 text-sm text-muted-foreground">{copy.disputeUnavailable}</p>
+    <p className="mt-5 text-sm text-muted-foreground">
+      {copy.disputeUnavailable}
+    </p>
   ) : null;
 
   if (
@@ -131,8 +159,12 @@ export function MilestoneActions({
       <>
         {milestone.status === "revision_requested" && requestedRevisionNote ? (
           <div className="mt-5 rounded-md border border-warning/30 bg-warning/10 p-4">
-            <p className="text-sm font-semibold text-warning">{copy.requestedRevisionNote}</p>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-warning">{requestedRevisionNote}</p>
+            <p className="text-sm font-semibold text-warning">
+              {copy.requestedRevisionNote}
+            </p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-warning">
+              {requestedRevisionNote}
+            </p>
           </div>
         ) : null}
         <div className="mt-5 rounded-lg bg-muted p-4">
@@ -141,7 +173,9 @@ export function MilestoneActions({
               <Label>{copy.proofNote}</Label>
               <Textarea
                 value={draft.note}
-                onChange={(event) => onDraftChange({ note: event.target.value })}
+                onChange={(event) =>
+                  onDraftChange({ note: event.target.value })
+                }
                 placeholder={copy.proofNotePlaceholder}
               />
             </div>
@@ -149,7 +183,9 @@ export function MilestoneActions({
               <Label>{copy.proofUrl}</Label>
               <Input
                 value={draft.proofUrl}
-                onChange={(event) => onDraftChange({ proofUrl: event.target.value })}
+                onChange={(event) =>
+                  onDraftChange({ proofUrl: event.target.value })
+                }
                 placeholder={copy.proofUrlPlaceholder}
               />
             </div>
@@ -157,10 +193,12 @@ export function MilestoneActions({
               type="button"
               className="w-max"
               onClick={onSubmitProof}
-              disabled={!draft.note || activeAction === `submit-${milestone.id}`}
+              disabled={!draft.note || Boolean(activeAction) || releasePending}
             >
               <Send className="mr-2 size-4" aria-hidden="true" />
-              {activeAction === `submit-${milestone.id}` ? copy.submittingProof : copy.submitProof}
+              {activeAction === `submit-${milestone.id}`
+                ? copy.submittingProof
+                : copy.submitProof}
             </Button>
           </div>
         </div>
@@ -169,7 +207,11 @@ export function MilestoneActions({
     );
   }
 
-  if (contractStatus === "active" && role === "creator" && milestone.status === "submitted") {
+  if (
+    contractStatus === "active" &&
+    role === "creator" &&
+    milestone.status === "submitted"
+  ) {
     return (
       <>
         <div className="mt-5 rounded-lg bg-muted p-4">
@@ -183,18 +225,28 @@ export function MilestoneActions({
               />
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" onClick={onApprove} disabled={activeAction === `approve-${milestone.id}`}>
+              <Button
+                type="button"
+                onClick={onApprove}
+                disabled={Boolean(activeAction) || releasePending}
+              >
                 <Check className="mr-2 size-4" aria-hidden="true" />
-                {activeAction === `approve-${milestone.id}` ? copy.approvingMilestone : copy.approveMilestone}
+                {activeAction === `approve-${milestone.id}`
+                  ? copy.approvingMilestone
+                  : copy.approveMilestone}
               </Button>
               <Button
                 type="button"
                 variant="secondary"
                 onClick={onRequestRevision}
-                disabled={!revisionNote || activeAction === `revision-${milestone.id}`}
+                disabled={
+                  !revisionNote || Boolean(activeAction) || releasePending
+                }
               >
                 <RotateCcw className="mr-2 size-4" aria-hidden="true" />
-                {activeAction === `revision-${milestone.id}` ? copy.requestingRevision : copy.requestRevision}
+                {activeAction === `revision-${milestone.id}`
+                  ? copy.requestingRevision
+                  : copy.requestRevision}
               </Button>
             </div>
           </div>
@@ -204,13 +256,23 @@ export function MilestoneActions({
     );
   }
 
-  if (contractStatus === "active" && role === "creator" && milestone.status === "approved") {
+  if (
+    contractStatus === "active" &&
+    role === "creator" &&
+    milestone.status === "approved"
+  ) {
     return (
       <>
         <div className="mt-5">
-          <Button type="button" onClick={onRelease} disabled={releasePending || Boolean(activeAction)}>
+          <Button
+            type="button"
+            onClick={onRelease}
+            disabled={releasePending || Boolean(activeAction)}
+          >
             <CircleDollarSign className="mr-2 size-4" aria-hidden="true" />
-            {activeAction === `release-${milestone.id}` ? copy.releasingPayment : copy.releasePayment}
+            {activeAction === `release-${milestone.id}`
+              ? copy.releasingPayment
+              : copy.releasePayment}
           </Button>
         </div>
         {disputeControl}

@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { ServiceError } from "@/lib/services/errors";
-
-const dataUrlPattern = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([a-zA-Z0-9+/=\s]+)$/;
+import { normalizeAvatarImage } from "@/lib/profile/avatar-content";
 
 export async function GET(request: Request) {
   const searchParams = new URL(request.url).searchParams;
@@ -25,17 +24,18 @@ export async function GET(request: Request) {
     return new Response(null, { status: 404 });
   }
 
-  const match = user.avatarImage.match(dataUrlPattern);
-
-  if (!match) {
-    throw new Error("Stored avatar image is invalid");
+  let bytes: Buffer;
+  try {
+    ({ bytes } = await normalizeAvatarImage(user.avatarImage));
+  } catch {
+    // Historical active/invalid uploads are never served as documents.
+    return new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
   }
-
-  const [, contentType, base64Payload] = match;
-
-  return new Response(Buffer.from(base64Payload.replace(/\s+/g, ""), "base64"), {
+  return new Response(new Uint8Array(bytes), {
     headers: {
-      "Content-Type": contentType,
+      "Content-Type": "image/png",
+      "Content-Security-Policy": "sandbox; default-src 'none'",
+      "X-Content-Type-Options": "nosniff",
       "Cache-Control": hasVersion
         ? "public, max-age=31536000, immutable"
         : "public, max-age=300"

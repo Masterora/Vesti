@@ -2,7 +2,7 @@ import type {
   EscrowTransaction,
   EscrowTransactionAction,
   EscrowTransactionMode,
-  Prisma
+  Prisma,
 } from "@prisma/client";
 import { assertState } from "@/lib/services/errors";
 
@@ -23,7 +23,10 @@ function getOperationKey(input: CreateEscrowTransactionInput) {
     return `${input.action}:${input.contractId}`;
   }
 
-  assertState(Boolean(input.milestoneId), `${input.action} transaction requires a milestone`);
+  assertState(
+    Boolean(input.milestoneId),
+    `${input.action} transaction requires a milestone`,
+  );
   return `${input.action}:${input.milestoneId}`;
 }
 
@@ -33,37 +36,46 @@ function sameNullableValue(left: string | null, right?: string | null) {
 
 export function assertEscrowTransactionMatches(
   transaction: EscrowTransaction,
-  input: CreateEscrowTransactionInput
+  input: CreateEscrowTransactionInput,
 ) {
   const amountsMatch =
     transaction.amount && input.amount
       ? transaction.amount.equals(input.amount)
       : transaction.amount == null && input.amount == null;
 
-  assertState(transaction.contractId === input.contractId, "Idempotency key belongs to another contract");
+  assertState(
+    transaction.contractId === input.contractId,
+    "Idempotency key belongs to another contract",
+  );
   assertState(
     sameNullableValue(transaction.milestoneId, input.milestoneId),
-    "Idempotency key belongs to another milestone"
+    "Idempotency key belongs to another milestone",
   );
-  assertState(transaction.action === input.action, "Idempotency key belongs to another action");
-  assertState(transaction.mode === input.mode, "Idempotency key belongs to another escrow mode");
+  assertState(
+    transaction.action === input.action,
+    "Idempotency key belongs to another action",
+  );
+  assertState(
+    transaction.mode === input.mode,
+    "Idempotency key belongs to another escrow mode",
+  );
   assertState(
     transaction.walletAddress === input.walletAddress,
-    "Idempotency key belongs to another wallet"
+    "Idempotency key belongs to another wallet",
   );
   assertState(amountsMatch, "Idempotency key belongs to another amount");
   assertState(
     transaction.operationKey === getOperationKey(input),
-    "Idempotency key belongs to another operation"
+    "Idempotency key belongs to another operation",
   );
 }
 
 export async function getOrCreateEscrowTransaction(
   tx: TransactionClient,
-  input: CreateEscrowTransactionInput
+  input: CreateEscrowTransactionInput,
 ) {
   const existing = await tx.escrowTransaction.findUnique({
-    where: { idempotencyKey: input.idempotencyKey }
+    where: { idempotencyKey: input.idempotencyKey },
   });
 
   if (existing) {
@@ -74,14 +86,17 @@ export async function getOrCreateEscrowTransaction(
   const inProgress = await tx.escrowTransaction.findFirst({
     where: {
       contractId: input.contractId,
-      milestoneId: input.milestoneId ?? null,
-      action: input.action,
-      status: { in: ["prepared", "submitted", "confirmed"] }
+      status: {
+        in: ["building", "prepared", "signed", "submitted", "confirmed"],
+      },
     },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
   });
 
-  assertState(!inProgress, `Another ${input.action} transaction is already in progress`);
+  assertState(
+    !inProgress,
+    `Another ${input.action} transaction is already in progress`,
+  );
 
   return tx.escrowTransaction.create({
     data: {
@@ -92,7 +107,7 @@ export async function getOrCreateEscrowTransaction(
       walletAddress: input.walletAddress,
       amount: input.amount ?? null,
       idempotencyKey: input.idempotencyKey,
-      operationKey: getOperationKey(input)
-    }
+      operationKey: getOperationKey(input),
+    },
   });
 }

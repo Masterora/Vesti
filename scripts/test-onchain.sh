@@ -15,15 +15,25 @@ faucet_port=$((rpc_port + 3))
 gossip_port=$((rpc_port + 2))
 dynamic_port_min=$((rpc_port + 10))
 dynamic_port_max=$((rpc_port + 80))
+fixture_args=(--bind-address 127.0.0.1)
+legacy_fixture_dir=""
+if [[ ${VESTI_WEB_CHAIN_TEST:-0} != 1 ]]; then
+  legacy_fixture_dir=$(mktemp -d "${TMPDIR:-/tmp}/vesti-legacy.XXXXXX")
+  corepack pnpm exec tsx tests/onchain/generate-legacy-fixtures.mjs "$legacy_fixture_dir"
+  fixture_args+=(--account-dir "$legacy_fixture_dir/accounts")
+  export VESTI_LEGACY_FIXTURES="$legacy_fixture_dir/manifest.json"
+fi
 solana-test-validator --reset --ledger "$ledger_dir" --rpc-port "$rpc_port" \
-  --faucet-port "$faucet_port" --gossip-port "$gossip_port" \
+  --ticks-per-slot "${VESTI_TEST_TICKS_PER_SLOT:-16}" --faucet-port "$faucet_port" --gossip-port "$gossip_port" \
   --dynamic-port-range "$dynamic_port_min-$dynamic_port_max" \
   --bpf-program "$program_id" "$program_so" \
+  "${fixture_args[@]}" \
   >"$ledger_dir/validator.log" 2>&1 &
 validator_pid=$!
 cleanup() {
   kill "$validator_pid" 2>/dev/null || true
   wait "$validator_pid" 2>/dev/null || true
+  if [[ -n "$legacy_fixture_dir" ]]; then rm -rf "$legacy_fixture_dir"; fi
   if [[ ${VESTI_KEEP_TEST_LEDGER:-0} == 1 ]]; then
     echo "Validator ledger and log: $ledger_dir"
   else
@@ -50,4 +60,8 @@ if [[ "$ready" != 1 ]]; then
   exit 1
 fi
 
-corepack pnpm exec tsx tests/onchain/escrow-validator.mjs
+if [[ ${VESTI_WEB_CHAIN_TEST:-0} == 1 ]]; then
+  corepack pnpm exec tsx tests/onchain/web-chain-workflow.ts
+else
+  corepack pnpm exec tsx tests/onchain/escrow-validator.mjs
+fi

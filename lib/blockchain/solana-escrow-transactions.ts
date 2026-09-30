@@ -1,7 +1,7 @@
 import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import {
   decimalToTokenUnits,
-  deriveEscrowPda,
+  deriveLegacyEscrowPda,
   deriveSolanaEscrowAccounts,
   parsePublicKey,
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -112,6 +112,7 @@ export async function prepareFundEscrowTransaction(input: {
   amount: DecimalLike | string;
   disputePolicy: "bilateral" | "arbitrator";
   arbitratorWallet: string | null;
+  milestones?: { id: string; amountUnits: string }[];
 }) {
   const config = getSolanaEscrowTransactionConfig();
   const creator = parsePublicKey(input.creatorWallet, "creatorWallet");
@@ -144,7 +145,8 @@ export async function prepareFundEscrowTransaction(input: {
       usdcMint: config.usdcMint,
       contractId: input.contractId,
       totalAmountUnits: amountUnits,
-      arbitrator
+      arbitrator,
+      milestones: input.milestones
     }) : createInitializeEscrowInstruction({
       programId: config.programId,
       accounts,
@@ -152,7 +154,8 @@ export async function prepareFundEscrowTransaction(input: {
       worker,
       usdcMint: config.usdcMint,
       contractId: input.contractId,
-      totalAmountUnits: amountUnits
+      totalAmountUnits: amountUnits,
+      milestones: input.milestones
     }),
     createMarkFundedInstruction({
       programId: config.programId,
@@ -180,7 +183,7 @@ export async function inspectPreparedFunding(input: {
   // A missing local signature does not prove the transaction was never broadcast.
   // Only release its operation lock after the hash is unusable and the
   // finalized chain has no escrow account for this contract.
-  const escrowPda = deriveEscrowPda(input.contractId, config.programId).address;
+  const escrowPda = deriveLegacyEscrowPda(input.contractId, config.programId).address;
   const account = await config.connection.getAccountInfo(escrowPda, "finalized");
   if (account) return "review";
 

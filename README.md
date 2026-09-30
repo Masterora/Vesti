@@ -38,7 +38,7 @@ Wallet addresses identify both roles. A user sees the actions permitted by their
 6. Approved funds are released to the worker.
 7. The same cycle continues until every milestone is released.
 
-The Creator chooses a dispute policy before the contract starts: mutual agreement by default, or a separate named arbitrator wallet. In Mock mode, the parties may agree on release or refund; the named arbitrator can also decide. Both policies are implemented in the program and passed local validator tests. The Web on-chain dispute entry point remains disabled until its transaction and database reconciliation flow is complete.
+The Creator chooses a dispute policy before the contract starts: mutual agreement by default, or a separate named arbitrator wallet. In Mock mode, the parties may agree on release or refund; the named arbitrator can also decide. Both policies are implemented in the program and Web, with durable signatures, finalized reconciliation and page recovery validated on a local validator. On-chain disputes remain disabled by default and can currently be enabled only for an explicitly approved localnet configuration. See the [iteration 2 delivery record](docs/iteration-2-delivery.zh-CN.md).
 
 ## System design
 

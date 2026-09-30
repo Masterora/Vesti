@@ -6,7 +6,7 @@ import {
   Transaction,
   TransactionExpiredBlockheightExceededError,
   TransactionExpiredNonceInvalidError,
-  TransactionExpiredTimeoutError
+  TransactionExpiredTimeoutError,
 } from "@solana/web3.js";
 import bs58 from "bs58";
 import {
@@ -16,7 +16,7 @@ import {
   useEffect,
   useMemo,
   useState,
-  useSyncExternalStore
+  useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -35,7 +35,8 @@ type WalletContextValue = {
   disconnectWallet: () => Promise<void>;
   signAndSendPreparedTransaction: (
     serializedTransaction: string,
-    onSubmitted?: (signature: string) => Promise<void>
+    onSigned: (signature: string, signedTransaction: string) => Promise<void>,
+    expectedGenesisHash: string,
   ) => Promise<string>;
   authError: string;
   hasInjectedWallet: boolean;
@@ -66,7 +67,10 @@ type SolanaInjectedProvider = {
   }>;
   disconnect?(): Promise<void>;
   signTransaction?(transaction: Transaction): Promise<Transaction>;
-  signMessage(message: Uint8Array, display?: "utf8" | "hex"): Promise<{
+  signMessage(
+    message: Uint8Array,
+    display?: "utf8" | "hex",
+  ): Promise<{
     signature: Uint8Array;
   }>;
 };
@@ -89,7 +93,9 @@ function getDefaultWalletAddress() {
 }
 
 function getWalletSnapshot() {
-  return window.localStorage.getItem(walletStorageKey) || getDefaultWalletAddress();
+  return (
+    window.localStorage.getItem(walletStorageKey) || getDefaultWalletAddress()
+  );
 }
 
 function getServerWalletSnapshot() {
@@ -121,7 +127,10 @@ function getClientSolanaConnection(locale: Locale) {
 
   if (!rpcUrl) {
     throw new Error(
-      translateErrorMessage(locale, "NEXT_PUBLIC_SOLANA_RPC_URL is required to submit Solana transactions")
+      translateErrorMessage(
+        locale,
+        "NEXT_PUBLIC_SOLANA_RPC_URL is required to submit Solana transactions",
+      ),
     );
   }
 
@@ -144,26 +153,38 @@ function formatWalletActionError(error: unknown, locale: Locale) {
     error instanceof TransactionExpiredNonceInvalidError ||
     /blockhash/i.test(message)
   ) {
-    return translateErrorMessage(locale, "The transaction expired. Please sign again.");
+    return translateErrorMessage(
+      locale,
+      "The transaction expired. Please sign again.",
+    );
   }
 
   if (/reject|declin|cancel/i.test(message)) {
-    return translateErrorMessage(locale, "You canceled the signature. Contract state did not change.");
+    return translateErrorMessage(
+      locale,
+      "You canceled the signature. Contract state did not change.",
+    );
   }
 
   if (/insufficient funds/i.test(message)) {
     return translateErrorMessage(
       locale,
-      "The creator wallet does not have enough USDC balance to finish this transaction."
+      "The creator wallet does not have enough USDC balance to finish this transaction.",
     );
   }
 
   if (error instanceof SendTransactionError) {
-    return translateErrorMessage(locale, "The transaction failed on-chain. Contract state did not change.");
+    return translateErrorMessage(
+      locale,
+      "The transaction failed on-chain. Contract state did not change.",
+    );
   }
 
   if (/network|fetch|rpc/i.test(message)) {
-    return translateErrorMessage(locale, "The Solana network is temporarily unavailable. Please try again.");
+    return translateErrorMessage(
+      locale,
+      "The Solana network is temporarily unavailable. Please try again.",
+    );
   }
 
   return translateErrorMessage(locale, message);
@@ -174,13 +195,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const walletAddress = useSyncExternalStore(
     subscribeWalletAddress,
     getWalletSnapshot,
-    getServerWalletSnapshot
+    getServerWalletSnapshot,
   );
-  const [sessionWalletAddress, setSessionWalletAddress] = useState<string | null>(null);
+  const [sessionWalletAddress, setSessionWalletAddress] = useState<
+    string | null
+  >(null);
   const [authError, setAuthError] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [hasInjectedWallet, setHasInjectedWallet] = useState(false);
-  const [sessionProfile, setSessionProfile] = useState<SerializedSessionUserProfile | null>(null);
+  const [sessionProfile, setSessionProfile] =
+    useState<SerializedSessionUserProfile | null>(null);
 
   const setWalletAddress = useCallback((wallet: string) => {
     window.localStorage.setItem(walletStorageKey, wallet);
@@ -236,7 +260,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setAuthError(
         caught instanceof Error
           ? translateErrorMessage(locale, caught.message)
-          : translateErrorMessage(locale, "Wallet disconnect failed")
+          : translateErrorMessage(locale, "Wallet disconnect failed"),
       );
       return;
     }
@@ -248,7 +272,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setAuthError(
         caught instanceof Error
           ? translateErrorMessage(locale, caught.message)
-          : translateErrorMessage(locale, "Wallet disconnect failed")
+          : translateErrorMessage(locale, "Wallet disconnect failed"),
       );
     } finally {
       setSessionWalletAddress(null);
@@ -265,20 +289,25 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const wallet = getInjectedSolanaWallet();
 
       if (!wallet?.signMessage) {
-        throw new Error(translateErrorMessage(locale, "Install a Solana wallet with message signing support"));
+        throw new Error(
+          translateErrorMessage(
+            locale,
+            "Install a Solana wallet with message signing support",
+          ),
+        );
       }
 
       const connection = await wallet.connect();
       const nextWalletAddress = connection.publicKey.toBase58();
       const challenge = await postJson<AuthChallenge>("/api/auth/challenge", {
-        walletAddress: nextWalletAddress
+        walletAddress: nextWalletAddress,
       });
       const encodedMessage = new TextEncoder().encode(challenge.message);
       const signedMessage = await wallet.signMessage(encodedMessage, "utf8");
       const session = await postJson<AuthSession>("/api/auth/verify", {
         walletAddress: nextWalletAddress,
         nonce: challenge.nonce,
-        signature: bs58.encode(signedMessage.signature)
+        signature: bs58.encode(signedMessage.signature),
       });
 
       setSessionWalletAddress(session.walletAddress);
@@ -288,7 +317,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setAuthError(
         caught instanceof Error
           ? translateErrorMessage(locale, caught.message)
-          : translateErrorMessage(locale, "Wallet connection failed")
+          : translateErrorMessage(locale, "Wallet connection failed"),
       );
     } finally {
       setIsConnecting(false);
@@ -296,16 +325,28 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [locale, setWalletAddress]);
 
   const updateProfile = useCallback(
-    async (profile: { displayName?: string; email?: string; bio?: string; avatarImage?: string }) => {
-      const updated = await postJson<SerializedSessionUserProfile>("/api/profile/update", profile);
+    async (profile: {
+      displayName?: string;
+      email?: string;
+      bio?: string;
+      avatarImage?: string;
+    }) => {
+      const updated = await postJson<SerializedSessionUserProfile>(
+        "/api/profile/update",
+        profile,
+      );
       setSessionProfile(updated);
       return updated;
     },
-    []
+    [],
   );
 
   const signAndSendPreparedTransaction = useCallback(
-    async (serializedTransaction: string, onSubmitted?: (signature: string) => Promise<void>) => {
+    async (
+      serializedTransaction: string,
+      onSigned: (signature: string, signedTransaction: string) => Promise<void>,
+      expectedGenesisHash: string,
+    ) => {
       setAuthError("");
 
       try {
@@ -313,8 +354,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           throw new Error(
             translateErrorMessage(
               locale,
-              "Connect and sign in with your wallet before submitting an on-chain transaction"
-            )
+              "Connect and sign in with your wallet before submitting an on-chain transaction",
+            ),
           );
         }
 
@@ -322,7 +363,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
         if (!wallet?.signTransaction) {
           throw new Error(
-            translateErrorMessage(locale, "Install a Solana wallet with transaction signing support")
+            translateErrorMessage(
+              locale,
+              "Install a Solana wallet with transaction signing support",
+            ),
           );
         }
 
@@ -333,21 +377,28 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           throw new Error(
             translateErrorMessage(
               locale,
-              "Reconnect the same wallet you used to sign in before submitting this transaction"
-            )
+              "Reconnect the same wallet you used to sign in before submitting this transaction",
+            ),
           );
         }
 
-        const signedTransaction = await wallet.signTransaction(
-          deserializePreparedTransaction(serializedTransaction)
-        );
         const connection = getClientSolanaConnection(locale);
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-          preflightCommitment: "confirmed"
+        if (!expectedGenesisHash || await connection.getGenesisHash() !== expectedGenesisHash)
+          throw new Error("Wallet RPC network differs from the prepared transaction");
+        const signedTransaction = await wallet.signTransaction(
+          deserializePreparedTransaction(serializedTransaction),
+        );
+        const rawTransaction = signedTransaction.serialize();
+        const signature = bs58.encode(signedTransaction.signature!);
+        await onSigned(
+          signature,
+          Buffer.from(rawTransaction).toString("base64"),
+        );
+        if (await connection.getGenesisHash() !== expectedGenesisHash)
+          throw new Error("Wallet RPC network changed before broadcast");
+        await connection.sendRawTransaction(rawTransaction, {
+          preflightCommitment: "confirmed",
         });
-
-        await onSubmitted?.(signature);
-        await connection.confirmTransaction(signature, "confirmed");
 
         return signature;
       } catch (caught) {
@@ -357,12 +408,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         throw new Error(message);
       }
     },
-    [locale, sessionWalletAddress]
+    [locale, sessionWalletAddress],
   );
 
   const value = useMemo(
     () => ({
-      walletAddress: walletAddress === sessionWalletAddress ? walletAddress : "",
+      walletAddress:
+        walletAddress === sessionWalletAddress ? walletAddress : "",
       setWalletAddress,
 
       connectWallet,
@@ -376,7 +428,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       sessionWalletAddress,
       sessionProfile,
       updateProfile,
-
     }),
     [
       authError,
@@ -390,11 +441,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setWalletAddress,
       signAndSendPreparedTransaction,
       updateProfile,
-      walletAddress
-    ]
+      walletAddress,
+    ],
   );
 
-  return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;
+  return (
+    <WalletContext.Provider value={value}>{children}</WalletContext.Provider>
+  );
 }
 
 export function useWallet() {

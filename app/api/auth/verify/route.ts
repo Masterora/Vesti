@@ -10,20 +10,12 @@ export async function POST(request: Request) {
     assertTrustedRequestOrigin(request);
     const body = await parseJsonBody(request);
     const input = verifyAuthChallengeSchema.parse(body);
-    await Promise.all([
-      enforceRateLimit({
-        scope: "auth-verify-wallet",
-        identity: input.walletAddress,
-        limit: 10,
-        windowMs: 5 * 60_000
-      }),
-      enforceRateLimit({
+    await enforceRateLimit({
         scope: "auth-verify-client",
         identity: getRequestClientIdentity(request),
         limit: 30,
         windowMs: 5 * 60_000
-      })
-    ]);
+      });
     const result = await verifyWalletAuthChallenge(input);
     const cookie = createWalletSessionCookie(result.walletAddress);
 

@@ -14,14 +14,28 @@ describe("operational hardening", () => {
     const publicKeyDer = publicKey.export({ format: "der", type: "spki" });
     const walletAddress = bs58.encode(Buffer.from(publicKeyDer).subarray(-32));
     const challenge = await createWalletAuthChallenge({ walletAddress });
-    const signature = bs58.encode(sign(null, Buffer.from(challenge.message, "utf8"), privateKey));
+    const signature = bs58.encode(
+      sign(null, Buffer.from(challenge.message, "utf8"), privateKey),
+    );
     const attempts = await Promise.allSettled([
-      verifyWalletAuthChallenge({ walletAddress, nonce: challenge.nonce, signature }),
-      verifyWalletAuthChallenge({ walletAddress, nonce: challenge.nonce, signature })
+      verifyWalletAuthChallenge({
+        walletAddress,
+        nonce: challenge.nonce,
+        signature,
+      }),
+      verifyWalletAuthChallenge({
+        walletAddress,
+        nonce: challenge.nonce,
+        signature,
+      }),
     ]);
 
-    expect(attempts.filter((attempt) => attempt.status === "fulfilled")).toHaveLength(1);
-    expect(attempts.filter((attempt) => attempt.status === "rejected")).toHaveLength(1);
+    expect(
+      attempts.filter((attempt) => attempt.status === "fulfilled"),
+    ).toHaveLength(1);
+    expect(
+      attempts.filter((attempt) => attempt.status === "rejected"),
+    ).toHaveLength(1);
   });
 
   it("enforces a shared database rate limit", async () => {
@@ -31,7 +45,7 @@ describe("operational hardening", () => {
       identity,
       limit: 2,
       windowMs: 60_000,
-      now: new Date("2026-07-21T02:00:15.000Z")
+      now: new Date("2026-07-21T02:00:15.000Z"),
     };
 
     await enforceRateLimit(policy);
@@ -47,7 +61,7 @@ describe("operational hardening", () => {
       workerWallet,
       title: "Submission recovery",
       totalAmount: "10",
-      milestones: [{ title: "Delivery", amount: "10" }]
+      milestones: [{ title: "Delivery", amount: "10" }],
     });
     const transaction = await db.escrowTransaction.create({
       data: {
@@ -57,18 +71,22 @@ describe("operational hardening", () => {
         walletAddress: creatorWallet,
         amount: "10",
         idempotencyKey: randomUUID(),
-        operationKey: `fund:${contract.id}`
-      }
+        operationKey: `fund:${contract.id}`,
+        contextVersion: 1,
+        status: "signed",
+        signedTransaction: "saved-signed-bytes",
+        txSig: "signature_for_recovery_test",
+      },
     });
     const input = {
       contractId: contract.id,
       walletAddress: creatorWallet,
       transactionId: transaction.id,
-      txSig: `signature_${randomUUID()}`
+      txSig: "signature_for_recovery_test",
     };
     const results = await Promise.all([
       submitEscrowTransaction(input),
-      submitEscrowTransaction(input)
+      submitEscrowTransaction(input),
     ]);
 
     expect(results.every((result) => result.txSig === input.txSig)).toBe(true);

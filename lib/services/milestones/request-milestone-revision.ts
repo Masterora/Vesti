@@ -1,3 +1,7 @@
+import {
+  lockContract,
+  advanceBusinessRevision,
+} from "@/lib/services/contracts/contract-lock";
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
@@ -6,38 +10,43 @@ import type { RequestRevisionInput } from "@/lib/validations/proof-submission";
 
 export async function requestMilestoneRevision(input: RequestRevisionInput) {
   return db.$transaction(async (tx) => {
+    await lockContract(tx, input.contractId, true);
+    await advanceBusinessRevision(tx, input.contractId);
     const contract = assertFound(
       await tx.contract.findUnique({
-        where: { id: input.contractId }
+        where: { id: input.contractId },
       }),
-      "Contract not found"
+      "Contract not found",
     );
 
     const milestone = assertFound(
       await tx.milestone.findFirst({
         where: {
           id: input.milestoneId,
-          contractId: contract.id
-        }
+          contractId: contract.id,
+        },
       }),
-      "Milestone not found"
+      "Milestone not found",
     );
 
     assertAllowed(
       input.walletAddress === contract.creatorWallet,
-      "Only the Creator can request milestone revisions"
+      "Only the Creator can request milestone revisions",
     );
-    assertState(contract.status === "active", "Contract must be active before revision requests");
+    assertState(
+      contract.status === "active",
+      "Contract must be active before revision requests",
+    );
     assertState(
       milestone.status === "submitted",
-      "Only submitted milestones can be sent back for revision"
+      "Only submitted milestones can be sent back for revision",
     );
 
     await tx.milestone.update({
-      where: { id: milestone.id },
+      where: { id: milestone.id, status: milestone.status },
       data: {
-        status: "revision_requested"
-      }
+        status: "revision_requested",
+      },
     });
 
     await recordEvent(tx, {
@@ -47,8 +56,8 @@ export async function requestMilestoneRevision(input: RequestRevisionInput) {
       eventType: "milestone_revision_requested",
       payload: {
         title: milestone.title,
-        note: input.note
-      }
+        note: input.note,
+      },
     });
 
     const updated = await tx.contract.findUniqueOrThrow({
@@ -58,14 +67,14 @@ export async function requestMilestoneRevision(input: RequestRevisionInput) {
           orderBy: { index: "asc" },
           include: {
             proofSubmissions: {
-              orderBy: { version: "desc" }
-            }
-          }
+              orderBy: { version: "desc" },
+            },
+          },
         },
         events: {
-          orderBy: { createdAt: "desc" }
-        }
-      }
+          orderBy: { createdAt: "desc" },
+        },
+      },
     });
 
     return serializeContractWithProfiles(updated);

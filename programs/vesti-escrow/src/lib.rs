@@ -20,11 +20,12 @@ pub const POLICY_ARBITRATOR: u8 = 1;
 pub mod vesti_escrow {
     use super::*;
 
-    pub fn initialize_escrow(
+    pub fn initialize_escrow_v2(
         ctx: Context<InitializeEscrow>,
         contract_id: String,
         worker: Pubkey,
         total_amount: u64,
+        milestones: Vec<MilestoneTerm>,
     ) -> Result<()> {
         let escrow_key = ctx.accounts.escrow.key();
         initialize_state(
@@ -38,15 +39,17 @@ pub mod vesti_escrow {
             total_amount,
             ctx.bumps.escrow,
             ctx.bumps.vault,
-        )
+        )?;
+        initialize_plan(&mut ctx.accounts.milestone_plan, escrow_key, total_amount, milestones)
     }
 
-    pub fn initialize_escrow_with_arbitrator(
+    pub fn initialize_escrow_with_arbitrator_v2(
         ctx: Context<InitializeEscrowWithArbitrator>,
         contract_id: String,
         worker: Pubkey,
         total_amount: u64,
         arbitrator: Pubkey,
+        milestones: Vec<MilestoneTerm>,
     ) -> Result<()> {
         let creator = ctx.accounts.creator.key();
         let escrow_key = ctx.accounts.escrow.key();
@@ -66,6 +69,7 @@ pub mod vesti_escrow {
             ctx.bumps.escrow,
             ctx.bumps.vault,
         )?;
+        initialize_plan(&mut ctx.accounts.milestone_plan, escrow_key, total_amount, milestones)?;
         let policy = &mut ctx.accounts.policy;
         policy.escrow = ctx.accounts.escrow.key();
         policy.arbitrator = arbitrator;
@@ -81,6 +85,7 @@ pub mod vesti_escrow {
 
     pub fn mark_funded(ctx: Context<FundEscrow>, amount: u64) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
+        require_plan(escrow.key(), escrow, ctx.accounts.milestone_plan.as_ref())?;
 
         require!(
             amount == escrow.total_amount,
@@ -127,6 +132,7 @@ pub mod vesti_escrow {
     ) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
 
+        require_term(escrow.key(), escrow, ctx.accounts.milestone_plan.as_ref(), milestone_hash, Some(amount))?;
         require!(!milestone_id.is_empty(), VestiEscrowError::EmptyMilestoneId);
         require!(
             milestone_id.len() <= EscrowState::MAX_MILESTONE_ID_LEN,
@@ -151,8 +157,9 @@ pub mod vesti_escrow {
             VestiEscrowError::ReleaseExceedsFunding
         );
 
-        let signer_seeds: &[&[&[u8]]] =
-            &[&[b"escrow", escrow.contract_id.as_bytes(), &[escrow.bump]]];
+        let bump = [escrow.bump];
+        let seeds = escrow_signer_seeds(escrow.key(), escrow, &bump);
+        let signer_seeds: &[&[&[u8]]] = &[&seeds];
 
         token::transfer_checked(
             CpiContext::new_with_signer(
@@ -203,6 +210,7 @@ pub mod vesti_escrow {
         let escrow = &mut ctx.accounts.escrow;
         let actor = ctx.accounts.actor.key();
         require_participant(escrow, actor)?;
+        require_term(escrow.key(), escrow, ctx.accounts.milestone_plan.as_ref(), milestone_hash, None)?;
         require!(!milestone_id.is_empty(), VestiEscrowError::EmptyMilestoneId);
         require!(
             milestone_id.len() <= EscrowState::MAX_MILESTONE_ID_LEN,
@@ -264,6 +272,7 @@ pub mod vesti_escrow {
             escrow.status == STATUS_DISPUTED,
             VestiEscrowError::InvalidStatus
         );
+        require_term(escrow.key(), escrow, ctx.accounts.milestone_plan.as_ref(), ctx.accounts.dispute.milestone_hash, if outcome == OUTCOME_RELEASE { Some(amount) } else { None })?;
         let dispute = &mut ctx.accounts.dispute;
         require!(
             dispute.state != DISPUTE_RESOLVED,
@@ -313,6 +322,7 @@ pub mod vesti_escrow {
         expected_amount: u64,
     ) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
+        require_term(escrow.key(), escrow, ctx.accounts.milestone_plan.as_ref(), ctx.accounts.dispute.milestone_hash, Some(expected_amount))?;
         let dispute = &mut ctx.accounts.dispute;
         validate_acceptance(
             escrow,
@@ -333,8 +343,9 @@ pub mod vesti_escrow {
             next_released <= escrow.funded_amount,
             VestiEscrowError::ReleaseExceedsFunding
         );
-        let signer_seeds: &[&[&[u8]]] =
-            &[&[b"escrow", escrow.contract_id.as_bytes(), &[escrow.bump]]];
+        let bump = [escrow.bump];
+        let seeds = escrow_signer_seeds(escrow.key(), escrow, &bump);
+        let signer_seeds: &[&[&[u8]]] = &[&seeds];
         token::transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.key(),
@@ -402,8 +413,9 @@ pub mod vesti_escrow {
             remaining > 0 && expected_refund_amount == remaining,
             VestiEscrowError::InvalidAmount
         );
-        let signer_seeds: &[&[&[u8]]] =
-            &[&[b"escrow", escrow.contract_id.as_bytes(), &[escrow.bump]]];
+        let bump = [escrow.bump];
+        let seeds = escrow_signer_seeds(escrow.key(), escrow, &bump);
+        let signer_seeds: &[&[&[u8]]] = &[&seeds];
         token::transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.key(),
@@ -441,6 +453,7 @@ pub mod vesti_escrow {
         amount: u64,
     ) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
+        require_term(escrow.key(), escrow, ctx.accounts.milestone_plan.as_ref(), ctx.accounts.dispute.milestone_hash, Some(amount))?;
         let dispute = &mut ctx.accounts.dispute;
         validate_arbitration(
             escrow,
@@ -457,8 +470,9 @@ pub mod vesti_escrow {
             next_released <= escrow.funded_amount,
             VestiEscrowError::ReleaseExceedsFunding
         );
-        let signer_seeds: &[&[&[u8]]] =
-            &[&[b"escrow", escrow.contract_id.as_bytes(), &[escrow.bump]]];
+        let bump = [escrow.bump];
+        let seeds = escrow_signer_seeds(escrow.key(), escrow, &bump);
+        let signer_seeds: &[&[&[u8]]] = &[&seeds];
         token::transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.key(),
@@ -522,8 +536,9 @@ pub mod vesti_escrow {
             remaining > 0 && expected_refund_amount == remaining,
             VestiEscrowError::InvalidAmount
         );
-        let signer_seeds: &[&[&[u8]]] =
-            &[&[b"escrow", escrow.contract_id.as_bytes(), &[escrow.bump]]];
+        let bump = [escrow.bump];
+        let seeds = escrow_signer_seeds(escrow.key(), escrow, &bump);
+        let signer_seeds: &[&[&[u8]]] = &[&seeds];
         token::transfer_checked(
             CpiContext::new_with_signer(
                 ctx.accounts.token_program.key(),
@@ -657,6 +672,50 @@ fn validate_arbitration(
     Ok(())
 }
 
+const MAX_PLAN_MILESTONES: usize = 8;
+fn initialize_plan(plan: &mut MilestonePlan, escrow: Pubkey, total: u64, terms: Vec<MilestoneTerm>) -> Result<()> {
+    require!(!terms.is_empty() && terms.len() <= MAX_PLAN_MILESTONES, VestiEscrowError::InvalidMilestonePlan);
+    let mut sum = 0u64;
+    for (index, term) in terms.iter().enumerate() {
+        require!(term.amount > 0 && !terms[..index].iter().any(|t| t.milestone_hash == term.milestone_hash), VestiEscrowError::InvalidMilestonePlan);
+        sum = sum.checked_add(term.amount).ok_or(VestiEscrowError::AmountOverflow)?;
+    }
+    require!(sum == total, VestiEscrowError::InvalidMilestonePlan);
+    plan.escrow = escrow;
+    plan.terms = terms;
+    Ok(())
+}
+fn require_plan<'a>(key: Pubkey, escrow: &EscrowState, plan: Option<&Account<'a, MilestonePlan>>) -> Result<()> {
+    if key == legacy_escrow_address(escrow) { return Ok(()); }
+    let plan = plan.ok_or(VestiEscrowError::InvalidMilestonePlan)?;
+    require!(plan.escrow == key && plan.key() == Pubkey::find_program_address(&[b"plan", key.as_ref()], &crate::ID).0, VestiEscrowError::InvalidMilestonePlan);
+    Ok(())
+}
+fn require_term<'a>(key: Pubkey, escrow: &EscrowState, plan: Option<&Account<'a, MilestonePlan>>, hash: [u8; 32], amount: Option<u64>) -> Result<()> {
+    require_plan(key, escrow, plan)?;
+    if key == legacy_escrow_address(escrow) { return Ok(()); }
+    let term = plan.unwrap().terms.iter().find(|t| t.milestone_hash == hash).ok_or(VestiEscrowError::InvalidMilestonePlan)?;
+    require!(amount.map_or(true, |a| a == term.amount), VestiEscrowError::InvalidMilestonePlan);
+    Ok(())
+}
+
+// Existing account layout is retained. Old funded PDAs keep their settlement exits.
+fn legacy_escrow_address(escrow: &EscrowState) -> Pubkey {
+    Pubkey::find_program_address(&[b"escrow", escrow.contract_id.as_bytes()], &crate::ID).0
+}
+fn valid_escrow_address(key: Pubkey, escrow: &EscrowState) -> bool {
+    let legacy = Pubkey::find_program_address(&[b"escrow", escrow.contract_id.as_bytes()], &crate::ID);
+    let current = Pubkey::find_program_address(&[b"escrow_v2", escrow.creator.as_ref(), escrow.contract_id.as_bytes()], &crate::ID);
+    (key == legacy.0 && escrow.bump == legacy.1) || (key == current.0 && escrow.bump == current.1)
+}
+fn escrow_signer_seeds<'a>(key: Pubkey, escrow: &'a EscrowState, bump: &'a [u8; 1]) -> Vec<&'a [u8]> {
+    if key == legacy_escrow_address(escrow) {
+        vec![b"escrow", escrow.contract_id.as_bytes(), bump]
+    } else {
+        vec![b"escrow_v2", escrow.creator.as_ref(), escrow.contract_id.as_bytes(), bump]
+    }
+}
+
 #[derive(Accounts)]
 #[instruction(contract_id: String)]
 pub struct InitializeEscrow<'info> {
@@ -664,7 +723,7 @@ pub struct InitializeEscrow<'info> {
         init,
         payer = creator,
         space = 8 + EscrowState::INIT_SPACE,
-        seeds = [b"escrow", contract_id.as_bytes()],
+        seeds = [b"escrow_v2", creator.key().as_ref(), contract_id.as_bytes()],
         bump
     )]
     pub escrow: Account<'info, EscrowState>,
@@ -677,12 +736,14 @@ pub struct InitializeEscrow<'info> {
         token::mint = usdc_mint,
         token::authority = escrow,
         token::token_program = token_program,
-        seeds = [b"vault", contract_id.as_bytes()],
+        seeds = [b"vault_v2", creator.key().as_ref(), contract_id.as_bytes()],
         bump
     )]
     pub vault: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    #[account(init, payer = creator, space = 8 + MilestonePlan::INIT_SPACE, seeds = [b"plan", escrow.key().as_ref()], bump)]
+    pub milestone_plan: Account<'info, MilestonePlan>,
 }
 
 #[derive(Accounts)]
@@ -692,7 +753,7 @@ pub struct InitializeEscrowWithArbitrator<'info> {
         init,
         payer = creator,
         space = 8 + EscrowState::INIT_SPACE,
-        seeds = [b"escrow", contract_id.as_bytes()],
+        seeds = [b"escrow_v2", creator.key().as_ref(), contract_id.as_bytes()],
         bump
     )]
     pub escrow: Account<'info, EscrowState>,
@@ -705,7 +766,7 @@ pub struct InitializeEscrowWithArbitrator<'info> {
         token::mint = usdc_mint,
         token::authority = escrow,
         token::token_program = token_program,
-        seeds = [b"vault", contract_id.as_bytes()],
+        seeds = [b"vault_v2", creator.key().as_ref(), contract_id.as_bytes()],
         bump
     )]
     pub vault: Account<'info, TokenAccount>,
@@ -719,14 +780,15 @@ pub struct InitializeEscrowWithArbitrator<'info> {
     pub policy: Account<'info, DisputePolicy>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    #[account(init, payer = creator, space = 8 + MilestonePlan::INIT_SPACE, seeds = [b"plan", escrow.key().as_ref()], bump)]
+    pub milestone_plan: Account<'info, MilestonePlan>,
 }
 
 #[derive(Accounts)]
 pub struct FundEscrow<'info> {
     #[account(
         mut,
-        seeds = [b"escrow", escrow.contract_id.as_bytes()],
-        bump = escrow.bump,
+        constraint = valid_escrow_address(escrow.key(), &escrow) @ VestiEscrowError::InvalidEscrowAddress,
         has_one = creator @ VestiEscrowError::Unauthorized,
         has_one = usdc_mint @ VestiEscrowError::InvalidMint,
         has_one = vault @ VestiEscrowError::InvalidVault
@@ -749,6 +811,7 @@ pub struct FundEscrow<'info> {
     )]
     pub vault: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
+    pub milestone_plan: Option<Account<'info, MilestonePlan>>,
 }
 
 #[derive(Accounts)]
@@ -756,8 +819,7 @@ pub struct FundEscrow<'info> {
 pub struct ReleaseMilestonePayment<'info> {
     #[account(
         mut,
-        seeds = [b"escrow", escrow.contract_id.as_bytes()],
-        bump = escrow.bump,
+        constraint = valid_escrow_address(escrow.key(), &escrow) @ VestiEscrowError::InvalidEscrowAddress,
         has_one = creator @ VestiEscrowError::Unauthorized,
         has_one = worker @ VestiEscrowError::InvalidWorker,
         has_one = usdc_mint @ VestiEscrowError::InvalidMint,
@@ -797,6 +859,7 @@ pub struct ReleaseMilestonePayment<'info> {
     )]
     pub release_receipt: Account<'info, MilestoneReleaseReceipt>,
     pub system_program: Program<'info, System>,
+    pub milestone_plan: Option<Account<'info, MilestonePlan>>,
 }
 
 #[derive(Accounts)]
@@ -804,8 +867,7 @@ pub struct ReleaseMilestonePayment<'info> {
 pub struct OpenDispute<'info> {
     #[account(
         mut,
-        seeds = [b"escrow", escrow.contract_id.as_bytes()],
-        bump = escrow.bump
+        constraint = valid_escrow_address(escrow.key(), &escrow) @ VestiEscrowError::InvalidEscrowAddress
     )]
     pub escrow: Account<'info, EscrowState>,
     #[account(mut)]
@@ -825,11 +887,12 @@ pub struct OpenDispute<'info> {
     )]
     pub release_receipt: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
+    pub milestone_plan: Option<Account<'info, MilestonePlan>>,
 }
 
 #[derive(Accounts)]
 pub struct ProposeResolution<'info> {
-    #[account(seeds = [b"escrow", escrow.contract_id.as_bytes()], bump = escrow.bump)]
+    #[account(constraint = valid_escrow_address(escrow.key(), &escrow) @ VestiEscrowError::InvalidEscrowAddress)]
     pub escrow: Account<'info, EscrowState>,
     #[account(
         mut,
@@ -839,13 +902,14 @@ pub struct ProposeResolution<'info> {
     )]
     pub dispute: Account<'info, DisputeState>,
     pub actor: Signer<'info>,
+    pub milestone_plan: Option<Account<'info, MilestonePlan>>,
 }
 
 #[derive(Accounts)]
 pub struct AcceptReleaseResolution<'info> {
     #[account(
         mut,
-        seeds = [b"escrow", escrow.contract_id.as_bytes()], bump = escrow.bump,
+        constraint = valid_escrow_address(escrow.key(), &escrow) @ VestiEscrowError::InvalidEscrowAddress,
         has_one = worker @ VestiEscrowError::InvalidWorker,
         has_one = usdc_mint @ VestiEscrowError::InvalidMint,
         has_one = vault @ VestiEscrowError::InvalidVault
@@ -877,13 +941,14 @@ pub struct AcceptReleaseResolution<'info> {
     pub release_receipt: Box<Account<'info, MilestoneReleaseReceipt>>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    pub milestone_plan: Option<Account<'info, MilestonePlan>>,
 }
 
 #[derive(Accounts)]
 pub struct AcceptRefundResolution<'info> {
     #[account(
         mut,
-        seeds = [b"escrow", escrow.contract_id.as_bytes()], bump = escrow.bump,
+        constraint = valid_escrow_address(escrow.key(), &escrow) @ VestiEscrowError::InvalidEscrowAddress,
         has_one = creator @ VestiEscrowError::Unauthorized,
         has_one = usdc_mint @ VestiEscrowError::InvalidMint,
         has_one = vault @ VestiEscrowError::InvalidVault
@@ -910,7 +975,7 @@ pub struct AcceptRefundResolution<'info> {
 #[derive(Accounts)]
 pub struct ArbitrateReleaseResolution<'info> {
     #[account(
-        mut, seeds = [b"escrow", escrow.contract_id.as_bytes()], bump = escrow.bump,
+        mut, constraint = valid_escrow_address(escrow.key(), &escrow) @ VestiEscrowError::InvalidEscrowAddress,
         has_one = worker @ VestiEscrowError::InvalidWorker,
         has_one = usdc_mint @ VestiEscrowError::InvalidMint,
         has_one = vault @ VestiEscrowError::InvalidVault
@@ -943,12 +1008,13 @@ pub struct ArbitrateReleaseResolution<'info> {
     pub release_receipt: Box<Account<'info, MilestoneReleaseReceipt>>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    pub milestone_plan: Option<Account<'info, MilestonePlan>>,
 }
 
 #[derive(Accounts)]
 pub struct ArbitrateRefundResolution<'info> {
     #[account(
-        mut, seeds = [b"escrow", escrow.contract_id.as_bytes()], bump = escrow.bump,
+        mut, constraint = valid_escrow_address(escrow.key(), &escrow) @ VestiEscrowError::InvalidEscrowAddress,
         has_one = creator @ VestiEscrowError::Unauthorized,
         has_one = usdc_mint @ VestiEscrowError::InvalidMint,
         has_one = vault @ VestiEscrowError::InvalidVault
@@ -974,6 +1040,19 @@ pub struct ArbitrateRefundResolution<'info> {
     #[account(mut, token::mint = usdc_mint, token::authority = creator)]
     pub creator_token_account: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
+}
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, InitSpace)]
+pub struct MilestoneTerm {
+    pub milestone_hash: [u8; 32],
+    pub amount: u64,
+}
+#[account]
+#[derive(InitSpace)]
+pub struct MilestonePlan {
+    pub escrow: Pubkey,
+    #[max_len(8)]
+    pub terms: Vec<MilestoneTerm>,
 }
 
 #[account]
@@ -1145,4 +1224,8 @@ pub enum VestiEscrowError {
     SelfAcceptance,
     #[msg("Arbitrator wallet must differ from both participants.")]
     InvalidArbitrator,
+    #[msg("Milestone ID or amount does not match the committed plan.")]
+    InvalidMilestonePlan,
+    #[msg("Escrow address does not match its creator and contract namespace.")]
+    InvalidEscrowAddress,
 }

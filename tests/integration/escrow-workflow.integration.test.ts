@@ -217,7 +217,8 @@ describe("escrow workflow", () => {
       contractId: created.id,
       milestoneId: secondMilestone.id,
       walletAddress: creatorWallet,
-      outcome: "release_to_worker"
+      outcome: "release_to_worker",
+      expectedProposalVersion: "0"
     });
     const workerDisputedItem = (await listContractsForWallet({ walletAddress: workerWallet }))
       .find((contract) => contract.id === created.id);
@@ -234,7 +235,9 @@ describe("escrow workflow", () => {
       contractId: created.id,
       milestoneId: secondMilestone.id,
       walletAddress: workerWallet,
-      idempotencyKey: randomUUID()
+      idempotencyKey: randomUUID(),
+      expectedProposalVersion: "1",
+      expectedOutcome: "release_to_worker"
     });
 
     expect(settled.status).toBe("completed");
@@ -376,13 +379,16 @@ describe("escrow workflow", () => {
       contractId: created.id,
       milestoneId: milestone.id,
       walletAddress: refundWorker,
-      outcome: "refund_to_creator"
+      outcome: "refund_to_creator",
+      expectedProposalVersion: "0"
     });
     const refunded = await acceptDisputeResolution({
       contractId: created.id,
       milestoneId: milestone.id,
       walletAddress: refundCreator,
-      idempotencyKey: randomUUID()
+      idempotencyKey: randomUUID(),
+      expectedProposalVersion: "1",
+      expectedOutcome: "refund_to_creator"
     });
 
     expect(refunded.status).toBe("cancelled");

@@ -9,6 +9,7 @@ import {
   deriveDisputePolicyPda,
   deriveMilestoneReleaseReceiptPda,
   hashMilestoneId,
+  deriveMilestonePlanPda,
   type SolanaEscrowAccounts
 } from "@/lib/blockchain/solana-escrow-accounts";
 
@@ -18,7 +19,20 @@ type CommonInstructionParams = {
   creator: PublicKey;
   worker: PublicKey;
   usdcMint: PublicKey;
+  milestones?: { id: string; amountUnits: string }[];
+  historical?: boolean;
 };
+
+function planKeys(accounts: SolanaEscrowAccounts, programId: PublicKey, historical = false) {
+  if (accounts.addressScheme === "legacy" && historical) return [];
+  return [{ pubkey: accounts.addressScheme === "legacy" ? programId : deriveMilestonePlanPda(accounts.escrowPda, programId), isSigner: false, isWritable: false }];
+}
+function planData(accounts: SolanaEscrowAccounts, milestones?: { id: string; amountUnits: string }[]) {
+  if (accounts.addressScheme === "legacy") return [];
+  if (!milestones?.length || milestones.length > 8) throw new Error("On-chain contracts require 1 to 8 committed milestones");
+  const length = Buffer.alloc(4); length.writeUInt32LE(milestones.length);
+  return [length, ...milestones.flatMap((m) => [hashMilestoneId(m.id), encodeU64(BigInt(m.amountUnits))])];
+}
 
 export function createInitializeEscrowInstruction({
   programId,
@@ -27,7 +41,8 @@ export function createInitializeEscrowInstruction({
   worker,
   usdcMint,
   contractId,
-  totalAmountUnits
+  totalAmountUnits,
+  milestones
 }: CommonInstructionParams & {
   contractId: string;
   totalAmountUnits: bigint;
@@ -40,12 +55,14 @@ export function createInitializeEscrowInstruction({
       { pubkey: usdcMint, isSigner: false, isWritable: false },
       { pubkey: accounts.vaultPda, isSigner: false, isWritable: true },
       { pubkey: accounts.tokenProgramId, isSigner: false, isWritable: false },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      ...(accounts.addressScheme === "legacy" ? [] : [{ pubkey: deriveMilestonePlanPda(accounts.escrowPda, programId), isSigner: false, isWritable: true }])
     ],
-    data: encodeAnchorInstruction("initialize_escrow", [
+    data: encodeAnchorInstruction(accounts.addressScheme === "legacy" ? "initialize_escrow" : "initialize_escrow_v2", [
       encodeAnchorString(contractId),
       Buffer.from(worker.toBytes()),
-      encodeU64(totalAmountUnits)
+      encodeU64(totalAmountUnits),
+      ...planData(accounts, milestones)
     ])
   });
 }
@@ -58,7 +75,8 @@ export function createInitializeEscrowWithArbitratorInstruction({
   usdcMint,
   contractId,
   totalAmountUnits,
-  arbitrator
+  arbitrator,
+  milestones
 }: CommonInstructionParams & {
   contractId: string;
   totalAmountUnits: bigint;
@@ -73,13 +91,15 @@ export function createInitializeEscrowWithArbitratorInstruction({
       { pubkey: accounts.vaultPda, isSigner: false, isWritable: true },
       { pubkey: deriveDisputePolicyPda(accounts.escrowPda, programId).address, isSigner: false, isWritable: true },
       { pubkey: accounts.tokenProgramId, isSigner: false, isWritable: false },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      ...(accounts.addressScheme === "legacy" ? [] : [{ pubkey: deriveMilestonePlanPda(accounts.escrowPda, programId), isSigner: false, isWritable: true }])
     ],
-    data: encodeAnchorInstruction("initialize_escrow_with_arbitrator", [
+    data: encodeAnchorInstruction(accounts.addressScheme === "legacy" ? "initialize_escrow_with_arbitrator" : "initialize_escrow_with_arbitrator_v2", [
       encodeAnchorString(contractId),
       Buffer.from(worker.toBytes()),
       encodeU64(totalAmountUnits),
-      Buffer.from(arbitrator.toBytes())
+      Buffer.from(arbitrator.toBytes()),
+      ...planData(accounts, milestones)
     ])
   });
 }
@@ -89,7 +109,8 @@ export function createMarkFundedInstruction({
   accounts,
   creator,
   usdcMint,
-  amountUnits
+  amountUnits,
+  historical
 }: CommonInstructionParams & {
   amountUnits: bigint;
 }) {
@@ -101,7 +122,8 @@ export function createMarkFundedInstruction({
       { pubkey: accounts.creatorTokenAccount, isSigner: false, isWritable: true },
       { pubkey: usdcMint, isSigner: false, isWritable: false },
       { pubkey: accounts.vaultPda, isSigner: false, isWritable: true },
-      { pubkey: accounts.tokenProgramId ?? TOKEN_PROGRAM_ID, isSigner: false, isWritable: false }
+      { pubkey: accounts.tokenProgramId ?? TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+      ...planKeys(accounts, programId, historical)
     ],
     data: encodeAnchorInstruction("mark_funded", [encodeU64(amountUnits)])
   });
@@ -114,7 +136,8 @@ export function createReleaseMilestoneInstruction({
   worker,
   usdcMint,
   milestoneId,
-  amountUnits
+  amountUnits,
+  historical
 }: CommonInstructionParams & {
   milestoneId: string;
   amountUnits: bigint;
@@ -130,7 +153,8 @@ export function createReleaseMilestoneInstruction({
       { pubkey: accounts.workerTokenAccount, isSigner: false, isWritable: true },
       { pubkey: accounts.tokenProgramId ?? TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
       { pubkey: deriveMilestoneReleaseReceiptPda(accounts.escrowPda, milestoneId, programId).address, isSigner: false, isWritable: true },
-      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+      ...planKeys(accounts, programId, historical)
     ],
     data: encodeAnchorInstruction("release_milestone", [
       encodeAnchorString(milestoneId),
