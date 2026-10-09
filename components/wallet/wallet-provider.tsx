@@ -15,6 +15,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -60,6 +61,8 @@ type SolanaInjectedProvider = {
   publicKey?: {
     toBase58(): string;
   } | null;
+  on?(event: "accountChanged" | "disconnect", listener: () => void): void;
+  removeListener?(event: "accountChanged" | "disconnect", listener: () => void): void;
   connect(): Promise<{
     publicKey: {
       toBase58(): string;
@@ -119,7 +122,8 @@ function subscribeWalletAddress(onStoreChange: () => void) {
 }
 
 function getInjectedSolanaWallet() {
-  return (window as typeof window & { solana?: SolanaInjectedProvider }).solana;
+  const injected = window as typeof window & { phantom?: { solana?: SolanaInjectedProvider }; solana?: SolanaInjectedProvider };
+  return injected.phantom?.solana?.isPhantom ? injected.phantom.solana : injected.solana?.isPhantom ? injected.solana : undefined;
 }
 
 function getClientSolanaConnection(locale: Locale) {
@@ -155,7 +159,7 @@ function formatWalletActionError(error: unknown, locale: Locale) {
   ) {
     return translateErrorMessage(
       locale,
-      "The transaction expired. Please sign again.",
+      "Check the original transaction status before preparing another signature.",
     );
   }
 
@@ -176,14 +180,14 @@ function formatWalletActionError(error: unknown, locale: Locale) {
   if (error instanceof SendTransactionError) {
     return translateErrorMessage(
       locale,
-      "The transaction failed on-chain. Contract state did not change.",
+      "Check the original transaction status before preparing another signature.",
     );
   }
 
   if (/network|fetch|rpc/i.test(message)) {
     return translateErrorMessage(
       locale,
-      "The Solana network is temporarily unavailable. Please try again.",
+      "Check the original transaction status before preparing another signature.",
     );
   }
 
@@ -192,6 +196,7 @@ function formatWalletActionError(error: unknown, locale: Locale) {
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const { locale } = useLocale();
+  const walletGeneration = useRef(0);
   const walletAddress = useSyncExternalStore(
     subscribeWalletAddress,
     getWalletSnapshot,
@@ -281,6 +286,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, [locale, setWalletAddress]);
 
+  useEffect(() => {
+    const wallet = getInjectedSolanaWallet();
+    const invalidate = () => {
+      walletGeneration.current += 1;
+      setSessionWalletAddress(null);
+      setSessionProfile(null);
+      setWalletAddress("");
+      void postJson("/api/auth/logout", {}).catch(() => {});
+    };
+    wallet?.on?.("accountChanged", invalidate);
+    wallet?.on?.("disconnect", invalidate);
+    return () => {
+      wallet?.removeListener?.("accountChanged", invalidate);
+      wallet?.removeListener?.("disconnect", invalidate);
+    };
+  }, [setWalletAddress]);
+
   const connectWallet = useCallback(async () => {
     setIsConnecting(true);
     setAuthError("");
@@ -299,6 +321,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       const connection = await wallet.connect();
       const nextWalletAddress = connection.publicKey.toBase58();
+      const generation = walletGeneration.current;
       const challenge = await postJson<AuthChallenge>("/api/auth/challenge", {
         walletAddress: nextWalletAddress,
       });
@@ -310,6 +333,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         signature: bs58.encode(signedMessage.signature),
       });
 
+      if (generation !== walletGeneration.current || wallet.publicKey?.toBase58() !== nextWalletAddress || session.walletAddress !== nextWalletAddress) {
+        await postJson("/api/auth/logout", {});
+        throw new Error("Wallet account changed during authentication");
+      }
       setSessionWalletAddress(session.walletAddress);
       setSessionProfile(session.profile);
       setWalletAddress(nextWalletAddress);
@@ -372,6 +399,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
         const walletConnection = await wallet.connect();
         const connectedWalletAddress = walletConnection.publicKey.toBase58();
+        const generation = walletGeneration.current;
 
         if (connectedWalletAddress !== sessionWalletAddress) {
           throw new Error(
@@ -388,6 +416,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const signedTransaction = await wallet.signTransaction(
           deserializePreparedTransaction(serializedTransaction),
         );
+        if (generation !== walletGeneration.current || wallet.publicKey?.toBase58() !== sessionWalletAddress || signedTransaction.feePayer?.toBase58() !== sessionWalletAddress)
+          throw new Error("Wallet account changed during signing");
         const rawTransaction = signedTransaction.serialize();
         const signature = bs58.encode(signedTransaction.signature!);
         await onSigned(
@@ -396,6 +426,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         );
         if (await connection.getGenesisHash() !== expectedGenesisHash)
           throw new Error("Wallet RPC network changed before broadcast");
+        if (generation !== walletGeneration.current || wallet.publicKey?.toBase58() !== sessionWalletAddress)
+          throw new Error("Wallet account changed during signing");
         await connection.sendRawTransaction(rawTransaction, {
           preflightCommitment: "confirmed",
         });

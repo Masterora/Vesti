@@ -1,3 +1,4 @@
+import { lockReleaseControl, type ReleaseIntent } from "@/lib/services/releases/release-control";
 import type { Prisma } from "@prisma/client";
 import { assertFound, assertState } from "@/lib/services/errors";
 
@@ -5,7 +6,11 @@ export async function lockContract(
   tx: Prisma.TransactionClient,
   contractId: string,
   userMutation = false,
+  releaseIntent?: ReleaseIntent,
+  expectedEpoch?: bigint,
 ) {
+  if (process.env.ESCROW_ADAPTER_MODE === "onchain")
+    await lockReleaseControl(tx, releaseIntent ?? (userMutation ? "business" : "recover"), expectedEpoch);
   await tx.$queryRaw`SELECT id FROM "Contract" WHERE id = ${contractId} FOR UPDATE`;
   const contract = assertFound(
     await tx.contract.findUnique({ where: { id: contractId } }),

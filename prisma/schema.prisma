@@ -283,6 +283,7 @@ model EscrowTransaction {
   logicalOperationKey          String?
   attempt                      Int                     @default(0)
   contractLockKey              String?                 @unique
+  releaseControlEpoch          BigInt?
   buildToken                   String?
   buildExpiresAt               DateTime?
   signedTransaction            String?
@@ -307,6 +308,7 @@ model EscrowTransaction {
   lastAttemptAt                DateTime?
   nextAttemptAt                DateTime?
   requiresReviewAt             DateTime?
+  reconciliationLeaseEpoch     BigInt?
   reconciliationLeaseId        String?
   reconciliationLeaseExpiresAt DateTime?
   submittedAt                  DateTime?
@@ -373,4 +375,52 @@ model ChainAppliedInstruction {
   contract              Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
   @@unique([networkGenesisHash, programId, txSig, instructionIndex])
   @@index([contractId, slot, transactionIndex, instructionIndex])
+}
+
+model ChainReleaseControl {
+  environmentKey String @id
+  genesisHash String
+  programId String
+  mint String
+  phase String @default("draining")
+  epoch BigInt @default(0)
+  activeManifestSha256 String
+  targetManifestSha256 String?
+  deploymentCandidateSha256 String?
+  deploymentCandidateEvidence Json?
+  deploymentReceiptEvidence Json?
+  maintenanceBatch String?
+  actor String
+  drainEvidence Json?
+  updatedAt DateTime @updatedAt
+}
+
+model ChainReleaseTransition {
+  id String @id @default(cuid())
+  contractId String
+  fromReleaseId String
+  toReleaseId String
+  epoch BigInt
+  fromManifestSha256 String
+  toManifestSha256 String
+  approvalSha256 String
+  beforeEvidence Json
+  afterEvidence Json
+  actor String
+  createdAt DateTime @default(now())
+  batches ChainReleaseTransitionBatch[]
+  @@unique([contractId, fromReleaseId, toReleaseId])
+}
+
+model ChainReleaseTransitionBatch {
+  id String @id @default(cuid())
+  transitionId String
+  batchId String
+  approvalSha256 String
+  beforeEvidence Json
+  afterEvidence Json
+  actor String
+  createdAt DateTime @default(now())
+  transition ChainReleaseTransition @relation(fields: [transitionId], references: [id], onDelete: Restrict)
+  @@unique([transitionId, batchId])
 }

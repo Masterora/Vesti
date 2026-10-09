@@ -1,3 +1,4 @@
+import { initializeTestRelease } from "../release-fixture";
 import { mkdir, writeFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -85,6 +86,11 @@ async function execute(
     Buffer.from(prepared.transaction, "base64"),
   );
   transaction.sign(actor);
+  const verifyPausedRecovery = kind === "fund" && !process.env.VESTI_D17_TESTED;
+  if (verifyPausedRecovery) {
+    process.env.ESCROW_CHAIN_NEW_OPERATIONS_ENABLED = "false";
+    await assert.rejects(prepareChainOperation({ ...input, idempotencyKey: randomUUID() }), /paused/);
+  }
   const signed = await recordSignedOperation({
     transactionId: prepared.transactionId,
     walletAddress: input.walletAddress,
@@ -183,6 +189,11 @@ async function execute(
     ).amount.toString(),
     eventCount: await db.event.count({ where: { contractId } }),
   });
+  if (verifyPausedRecovery) {
+    process.env.ESCROW_CHAIN_NEW_OPERATIONS_ENABLED = "true";
+    process.env.VESTI_D17_TESTED = "1";
+    console.log("PASS D17 paused new operations preserve original signed recovery");
+  }
   console.log("PASS", kind, result.txSig);
   return result;
 }
@@ -247,11 +258,13 @@ async function main() {
     ESCROW_CHAIN_DISPUTES_ENABLED: "true",
     NEXT_PUBLIC_SOLANA_NETWORK: "localnet",
     NEXT_PUBLIC_SOLANA_RPC_URL: process.env.VESTI_TEST_RPC_URL,
+    SOLANA_SERVER_RPC_URL: process.env.VESTI_TEST_RPC_URL,
     ESCROW_PROGRAM_ID: programId.toBase58(),
     NEXT_PUBLIC_USDC_MINT: mint.toBase58(),
     ESCROW_NETWORK_GENESIS_HASH: await connection.getGenesisHash(),
     ESCROW_PROGRAM_SHA256: await readProgramHash(connection, programId),
   });
+  await initializeTestRelease();
   console.log("PASS approved chain identity and mint setup");
   const balanceBefore = (
     await getAccount(connection, creatorToken, "finalized")
@@ -648,6 +661,7 @@ async function main() {
     await (
       await import("./browser-chain-acceptance")
     ).runBrowserAcceptance(connection, creator, worker, arbitrator);
+  if (process.env.VESTI_SKIP_BROWSER_TEST !== "1") await (await import("./session-isolation-browser")).runSessionIsolationBrowser();
   console.log(
     "PASS history replay, isolation, shared locking, interrupted build, signed recovery",
   );

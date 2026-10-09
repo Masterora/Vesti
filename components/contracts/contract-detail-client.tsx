@@ -944,6 +944,7 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
   };
 
   const fundContract = () => {
+    if (runtime?.escrowMode === "onchain" && !runtime.canPrepareFunds) return;
     if (!contract || contract.status !== "draft" || role !== "creator") return;
     const signedPending = readPendingEscrowSubmissions().find(
       (pending) =>
@@ -973,6 +974,7 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
   };
 
   const releasePayment = (milestone: SerializedMilestone) => {
+    if (runtime?.escrowMode === "onchain" && !runtime.canPrepareFunds) return;
     if (
       !contract ||
       contract.status !== "active" ||
@@ -1122,6 +1124,10 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
             {locale === "zh" ? "确认注资" : "Confirm funding"}
           </h2>
           <p className="mt-3 text-sm text-muted-foreground">{contract.title}</p>
+          {runtime?.escrowMode === "onchain" ? <p className="mt-3 break-all text-sm">
+            {runtime.network} · {runtime.assetLabel === "test_usdc" ? (locale === "zh" ? "测试 USDC" : "Test USDC") : "USDC"}<br />
+            Mint: <span className="font-mono">{runtime.mintAddress}</span>
+          </p> : null}
           <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
             <dt className="text-muted-foreground">
               {locale === "zh" ? "金额" : "Amount"}
@@ -1184,6 +1190,10 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
           <p className="mt-3 text-sm text-muted-foreground">
             {releaseMilestone.index}. {releaseMilestone.title}
           </p>
+          {runtime?.escrowMode === "onchain" ? <p className="mt-3 break-all text-sm">
+            {runtime.network} · {runtime.assetLabel === "test_usdc" ? (locale === "zh" ? "测试 USDC" : "Test USDC") : "USDC"}<br />
+            Mint: <span className="font-mono">{runtime.mintAddress}</span>
+          </p> : null}
           <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
             <dt className="text-muted-foreground">
               {locale === "zh" ? "收款方" : "Recipient"}
@@ -1235,7 +1245,7 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
             </Button>
             <Button
               type="button"
-              disabled={remainingAfterRelease === null}
+              disabled={remainingAfterRelease === null || (runtime?.escrowMode === "onchain" && !runtime.canPrepareFunds)}
               onClick={() => {
                 closeReleaseDialog();
                 releasePayment(releaseMilestone);
@@ -1290,12 +1300,12 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
       </div>
 
       {error ? (
-        <p className="mb-4 rounded-md border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
+        <p role="alert" className="mb-4 rounded-md border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
           {error}
         </p>
       ) : null}
       {!error && successMessage ? (
-        <p className="mb-4 rounded-md border border-success/30 bg-success/10 p-3 text-sm text-success">
+        <p role="status" className="mb-4 rounded-md border border-success/30 bg-success/10 p-3 text-sm text-success">
           {successMessage}
         </p>
       ) : null}
@@ -1600,6 +1610,7 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
                           disabled={
                             Boolean(activeAction) ||
                             Boolean(pendingFunding) ||
+                            (runtime?.escrowMode === "onchain" && !runtime.canPrepareFunds) ||
                             contract.chainSyncStatus === "review" ||
                             contract.chainSyncStatus === "degraded"
                           }
@@ -1719,7 +1730,7 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
             ["creator", "worker", "arbitrator"].includes(role) ? (
               <Card>
                 <p role="status" className="text-sm">
-                  {contract.chainSyncStatus === "review"
+                  {runtime?.chainState === "paused" ? (locale === "zh" ? `维护阶段：${runtime.maintenancePhase}，新操作已暂停。` : `Maintenance: ${runtime.maintenancePhase}. New operations are paused.`) : contract.chainSyncStatus === "review"
                     ? locale === "zh"
                       ? `合约待核查：${contract.chainReviewCode ?? "链上证据不一致"}。当前金额为最后已验证的本金账本。`
                       : `Contract requires review: ${contract.chainReviewCode ?? "chain evidence mismatch"}. Amounts show the last verified principal ledger.`
@@ -1732,6 +1743,7 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
                   className="mt-3"
                   disabled={
                     Boolean(activeAction) ||
+                    (runtime?.escrowMode === "onchain" && runtime.recoveryState !== "available") ||
                     (contract.chainSyncStatus === "review" && !["UNEXPLAINED_WRITABLE_ESCROW", "VERSIONED_ENVELOPE_UNSUPPORTED"].includes(contract.chainReviewCode ?? ""))
                   }
                   onClick={async () => {
@@ -1941,6 +1953,7 @@ function ContractDetailContent({ contractId }: ContractDetailClientProps) {
                         )
                       }
                       releasePending={
+                        (runtime?.escrowMode === "onchain" && !runtime.canPrepareFunds) ||
                         pendingEscrowTransactions.length > 0 ||
                         ["review", "degraded"].includes(
                           contract.chainSyncStatus ?? "",

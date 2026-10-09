@@ -1,3 +1,4 @@
+import { assertRecoveryEnabled } from "@/lib/services/releases/release-control";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { decimalToTokenUnits, deriveLegacyEscrowPda, deriveEscrowPda } from "@/lib/blockchain/solana-escrow-accounts";
@@ -89,7 +90,7 @@ export async function markChainProblem(contractId: string, error: unknown) {
     });
   });
 }
-async function applyEvidence(
+export async function applyEvidence(
   tx: Prisma.TransactionClient,
   e: ChainInstructionEvidence,
 ) {
@@ -323,6 +324,7 @@ export async function syncContractChain(
   walletAddress?: string,
   lease?: { transactionId: string; leaseId: string },
 ) {
+  const control = await assertRecoveryEnabled();
   const original = assertFound(
     await db.contract.findUnique({
       where: { id: contractId },
@@ -361,7 +363,7 @@ export async function syncContractChain(
     const s = snapshot;
     await db.$transaction(
       async (tx) => {
-        const contract = await lockContract(tx, contractId);
+        const contract = await lockContract(tx, contractId, false, "recover", control.epoch);
         assertState(
           contract.businessRevision === original.businessRevision,
           "Contract changed during synchronization; retry",
@@ -375,6 +377,7 @@ export async function syncContractChain(
             where: { id: lease.transactionId },
           });
           assertState(
+            operation.reconciliationLeaseEpoch === control.epoch &&
             operation.reconciliationLeaseId === lease.leaseId &&
               !!operation.reconciliationLeaseExpiresAt &&
               operation.reconciliationLeaseExpiresAt > new Date(),
@@ -495,6 +498,7 @@ export async function syncContractChain(
         error.message.includes("lease expired"))
     )
       throw error;
+    if (error instanceof ServiceError && ["NEW_OPERATIONS_PAUSED", "CHAIN_CONFIG_INVALID"].includes(error.code)) throw error;
     await markChainProblem(contractId, error);
     throw error;
   }

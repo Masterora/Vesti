@@ -1,7 +1,7 @@
 import { Connection } from "@solana/web3.js";
 
 function getSolanaConnection() {
-  const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+  const rpcUrl = process.env.SOLANA_SERVER_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
 
   if (!rpcUrl) {
     throw new Error("NEXT_PUBLIC_SOLANA_RPC_URL is required for on-chain escrow mode");

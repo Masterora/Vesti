@@ -1,0 +1,22 @@
+{
+  "deploymentSig": "4FuKro2ibHuL9KSwdb3Q9FYygPBXf4pe6MVkCxWXRDMcenhDBZJjKkWhw9rAffEEs2boRHndqDvtY2raX87T3JFC",
+  "slot": "388",
+  "oldManifestSha256": "18664706d0af7160b3511395d588f13761f885ea1d9710dc8b8aae719cce7010",
+  "newManifestSha256": "7332667b0c3870f54f3b35b19c2db24670af66d0683876c282958abc2abaa358",
+  "directSig": "5SgxUjrirWrcKphwZxVLsM5x5e71CXVs4XkDqJx6ec2riJqJfSEoJSNqwK4QqgyFzv6v5cE1qrtwrJHquifookXc",
+  "caseIds": [
+    "D20",
+    "D21",
+    "D23"
+  ],
+  "registrySha256": "82a18175ac8fedc9b927a0a848dae160b4c36f6e0b1be5e059e73572ad79afa0",
+  "activationProof": {
+    "loader": "BPFLoaderUpgradeab1e11111111111111111111111",
+    "deploymentSig": "4FuKro2ibHuL9KSwdb3Q9FYygPBXf4pe6MVkCxWXRDMcenhDBZJjKkWhw9rAffEEs2boRHndqDvtY2raX87T3JFC",
+    "deployedSlot": "388",
+    "effectiveSlot": "389",
+    "rule": "DELAY_VISIBILITY_SLOT_OFFSET=1",
+    "runtime": "3.1.14"
+  },
+  "inventoryState": "unattested"
+}

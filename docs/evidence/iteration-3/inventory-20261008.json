@@ -1,0 +1,13 @@
+{
+  "caseId": "D22",
+  "network": "localnet",
+  "status": "passed",
+  "programId": "ErFsmiKY7WxjD9ArYmpqjCCUKnTcfzLm6tFpmWdFU9ck",
+  "programAccountCount": 4,
+  "actualClassicUnboundEscrow": "DrU9T6BkYPU8PMpJ1Dfk6dRMf5eY1xa2t9NLR7nddF69",
+  "token2022FixtureOrigin": "preloaded historical escrow plus real Token-2022 mintTo",
+  "token2022VaultUnits": "1000000",
+  "unknownAccountRetained": true,
+  "cappedRpcCountStatus": "unattested",
+  "sameIdUpgradeGateRejected": true
+}

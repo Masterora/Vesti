@@ -14,7 +14,7 @@ import {
 } from "./solana-escrow-accounts";
 
 function getSolanaEscrowConfig() {
-  const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+  const rpcUrl = process.env.SOLANA_SERVER_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
   const programId = process.env.ESCROW_PROGRAM_ID;
   const usdcMint = process.env.NEXT_PUBLIC_USDC_MINT;
 

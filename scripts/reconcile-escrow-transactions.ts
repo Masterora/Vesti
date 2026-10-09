@@ -1,3 +1,4 @@
+import { assertRecoveryEnabled, lockReleaseControl } from "@/lib/services/releases/release-control";
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
@@ -8,6 +9,7 @@ import { reconciliationLimit, reconciliationRetryState } from "@/lib/services/tr
 async function main() {
   if (process.env.ESCROW_ADAPTER_MODE !== "onchain")
     throw new Error("ESCROW_ADAPTER_MODE=onchain is required");
+  const control = await assertRecoveryEnabled();
   const batchSize = Number(process.env.RECONCILIATION_BATCH_SIZE ?? 25);
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 100)
     throw new Error("Invalid reconciliation batch size");
@@ -36,7 +38,9 @@ async function main() {
   let failures = 0;
   for (const candidate of candidates) {
     const leaseId = randomUUID();
-    const claimed = await db.escrowTransaction.updateMany({
+    const claimed = await db.$transaction(async (tx) => {
+      await lockReleaseControl(tx, "recover", control.epoch);
+      return tx.escrowTransaction.updateMany({
       where: {
         id: candidate.id,
         status: candidate.status,
@@ -48,16 +52,20 @@ async function main() {
         ],
       },
       data: {
+        reconciliationLeaseEpoch: control.epoch,
         reconciliationLeaseId: leaseId,
         reconciliationLeaseExpiresAt: new Date(Date.now() + 120000),
         reconciliationAttempts: { increment: 1 },
         lastAttemptAt: new Date(),
       },
     });
+    });
     if (claimed.count !== 1) continue;
     try {
       const result = await recoverChainOperation(candidate.id, leaseId);
-      await db.escrowTransaction.updateMany({
+      await db.$transaction(async (tx) => {
+      await lockReleaseControl(tx, "recover", control.epoch);
+      await tx.escrowTransaction.updateMany({
         where: { id: candidate.id, reconciliationLeaseId: leaseId },
         data: {
           reconciliationLeaseId: null,
@@ -67,15 +75,19 @@ async function main() {
             : reconciliationRetryState(candidate.reconciliationAttempts + 1, maximumAttempts)),
         },
       });
+      });
     } catch {
       failures++;
-      await db.escrowTransaction.updateMany({
+      await db.$transaction(async (tx) => {
+      await lockReleaseControl(tx, "recover", control.epoch);
+      await tx.escrowTransaction.updateMany({
         where: { id: candidate.id, reconciliationLeaseId: leaseId },
         data: {
           ...reconciliationRetryState(candidate.reconciliationAttempts + 1, maximumAttempts),
           reconciliationLeaseId: null,
           reconciliationLeaseExpiresAt: null,
         },
+      });
       });
       console.error("Reconciliation deferred", { transactionId: candidate.id });
     }

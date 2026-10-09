@@ -98,6 +98,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Solana and Anchor
         uses: solana-foundation/github-actions/setup-all@2a02b58f6989d9fa9a568aa03f558156984663de
@@ -137,5 +139,15 @@ jobs:
       - name: Install browser for page and wallet acceptance
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Build application for simultaneous session-isolation acceptance
+        run: pnpm build
+
       - name: Test durable Web chain protocol and browser dispute exits
         run: pnpm test:chain-integration
+
+      - name: Test actual same-ID release upgrade and atomic ledger conversion
+        # The upgrade harness compiles an immutable predecessor from Git history.
+        run: pnpm test:release-upgrade
+
+      - name: Reject unknown, Token-2022 and truncated release inventories
+        run: pnpm test:release-inventory

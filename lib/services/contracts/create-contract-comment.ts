@@ -1,3 +1,4 @@
+import { lockContract } from "@/lib/services/contracts/contract-lock";
 import { db } from "@/lib/db";
 import { getContractRole } from "@/lib/auth/wallet-role";
 import { getPendingApplicantWallets } from "@/lib/domain/contract-applications";
@@ -8,6 +9,7 @@ import type { CreateContractCommentInput } from "@/lib/validations/contract";
 
 export async function createContractComment(input: CreateContractCommentInput) {
   return db.$transaction(async (tx) => {
+    await lockContract(tx, input.contractId, true);
     const contract = assertFound(
       await tx.contract.findUnique({
         where: { id: input.contractId },

@@ -1,3 +1,5 @@
+import { lockReleaseControl } from "@/lib/services/releases/release-control";
+import { chainIdentity } from "@/lib/blockchain/chain-protocol";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { recordEvent } from "@/lib/services/events/record-event";
@@ -64,7 +66,9 @@ export async function createContract(rawInput: CreateContractInput) {
     throw new ServiceError("Milestone amounts must add up to the contract total");
   }
 
+  if (process.env.ESCROW_ADAPTER_MODE === "onchain") await chainIdentity();
   return db.$transaction(async (tx) => {
+    if (process.env.ESCROW_ADAPTER_MODE === "onchain") await lockReleaseControl(tx, "prepare");
     const displayId = await generateUniqueContractDisplayId(tx);
 
     await tx.user.upsert({

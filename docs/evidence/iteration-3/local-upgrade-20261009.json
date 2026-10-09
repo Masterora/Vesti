@@ -1,0 +1,27 @@
+{
+  "deploymentSig": "3uVutq2h9sEvyUGCn1xDL7KQSVFS1qdpYgpgZ6NjRsL4uW3zhqBze8MjmWf4AjCnSe5buxdc2YizqJV9tEjubTSZ",
+  "slot": "402",
+  "oldManifestSha256": "ff96c1ed29697e9f18c769ea166b8f904e5983d04ab0e06da9012bc65bfbd4e5",
+  "newManifestSha256": "bc13ae0bba48a0f4b7ed79e04302c1a71dde944f463d8ee48a76380121d20d4f",
+  "directSig": "2wyDmj2QAJYTjnchx3KXkAmdickvpyZyhyR3s4T3jtKC2npqsuUMsUxe1AEp7W2eJsftusZvE7wZs4eFmSk8dP4S",
+  "caseIds": [
+    "D20",
+    "D21",
+    "D23"
+  ],
+  "registrySha256": "94a329792b451116206a00091faae69f88587d22fd4557685917f7b2f431f299",
+  "activationProof": {
+    "loader": "BPFLoaderUpgradeab1e11111111111111111111111",
+    "deploymentSig": "3uVutq2h9sEvyUGCn1xDL7KQSVFS1qdpYgpgZ6NjRsL4uW3zhqBze8MjmWf4AjCnSe5buxdc2YizqJV9tEjubTSZ",
+    "deployedSlot": "402",
+    "effectiveSlot": "403",
+    "rule": "DELAY_VISIBILITY_SLOT_OFFSET=1",
+    "runtime": "3.1.14"
+  },
+  "inventoryState": "unattested",
+  "maintenancePhasesViaService": true,
+  "staleFrozenInventoryRejected": true,
+  "approvedCandidateSha256": "585e784155e19fa4bdaf5c2a3666fb85139fa449a8762d2ad7c97dad0ff0d38b",
+  "finalizedReceiptVerified": true,
+  "freshOpenApprovalVerified": true
+}

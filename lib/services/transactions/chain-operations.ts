@@ -1,3 +1,4 @@
+import { assertRecoveryEnabled, lockReleaseControl } from "@/lib/services/releases/release-control";
 import { randomUUID } from "node:crypto";
 import type {
   EscrowTransaction,
@@ -94,8 +95,15 @@ export async function prepareChainOperation(input: PrepareChainInput) {
   });
   if (existing) {
     sameRequest(existing, input);
-    return preparedResult(existing);
+    return db.$transaction(async (tx) => {
+      const control = await lockReleaseControl(tx, "status");
+      const result = preparedResult(existing);
+      // Maintenance retries are observation only; resume owns recovery of original bytes.
+      if (control.phase !== "open" || process.env.ESCROW_CHAIN_NEW_OPERATIONS_ENABLED !== "true") result.transaction = null;
+      return result;
+    });
   }
+  await db.$transaction((tx) => lockReleaseControl(tx, "prepare"));
   if (input.kind.startsWith("dispute") && !(await disputeCapability()))
     throw new ServiceError("On-chain dispute capability is unavailable", 503);
   const auth = assertFound(
@@ -130,6 +138,7 @@ export async function prepareChainOperation(input: PrepareChainInput) {
   await syncContractChain(input.contractId, input.walletAddress);
   const base = await baseChainContext(input.contractId);
   const operation = await db.$transaction(async (tx) => {
+    const control = await lockReleaseControl(tx, "prepare");
     const contract = await lockContract(tx, input.contractId, true);
     assertState(
       contract.creatorWallet === base.creator &&
@@ -332,6 +341,7 @@ export async function prepareChainOperation(input: PrepareChainInput) {
           JSON.stringify(context),
         ) as Prisma.InputJsonValue,
         status: "building",
+        releaseControlEpoch: control.epoch,
         buildToken: randomUUID(),
         buildExpiresAt: new Date(nowRows[0].now.getTime() + 120000),
       },
@@ -343,7 +353,7 @@ export async function prepareChainOperation(input: PrepareChainInput) {
       operation.operationContext as ChainContext,
     );
     const committed = await db.$transaction(async (tx) => {
-      const contract = await lockContract(tx, input.contractId);
+      const contract = await lockContract(tx, input.contractId, false, "prepare", operation.releaseControlEpoch ?? BigInt(-1));
       assertState(
         contract.chainSyncStatus === "synced" &&
           contract.businessRevision.toString() ===
@@ -476,10 +486,12 @@ export async function recoverChainOperation(
   transactionId: string,
   leaseId?: string,
 ) {
+  const recoveryControl = await assertRecoveryEnabled();
   let operation = assertFound(
     await db.escrowTransaction.findUnique({ where: { id: transactionId } }),
     "Transaction not found",
   );
+  if (leaseId) assertState(operation.reconciliationLeaseEpoch === recoveryControl.epoch, "Reconciliation lease expired after maintenance transition");
   if (operation.status === "reconciled" || operation.status === "failed")
     return operation;
   if (operation.status === "building") {
@@ -545,7 +557,7 @@ export async function recoverChainOperation(
   ) {
     // Snapshot proves all finalized business effects. Unknown successful signatures remain locked.
     await db.$transaction(async (tx) => {
-      const contract = await lockContract(tx, operation.contractId);
+      const contract = await lockContract(tx, operation.contractId, false, "recover", recoveryControl.epoch);
       assertState(
         contract.businessRevision === snapshot.businessRevision &&
           snapshot.slot >= expiryBarrierSlot,
@@ -584,18 +596,21 @@ export async function recoverChainOperation(
       });
     });
   } else if (operation.signedTransaction && valid && !status) {
-    await connection.sendRawTransaction(
-      Buffer.from(operation.signedTransaction, "base64"),
-      { preflightCommitment: "finalized" },
-    );
-    await db.escrowTransaction.updateMany({
+    await db.$transaction(async (tx) => {
+      await lockContract(tx, operation.contractId, false, "recover", recoveryControl.epoch);
+      await connection.sendRawTransaction(Buffer.from(operation.signedTransaction!, "base64"), { preflightCommitment: "finalized" });
+      await tx.escrowTransaction.updateMany({
       where: { id: operation.id, status: "signed" },
       data: { status: "submitted", submittedAt: new Date() },
+      });
     });
   } else if (status && !status.err) {
-    await db.escrowTransaction.updateMany({
+    await db.$transaction(async (tx) => {
+      await lockContract(tx, operation.contractId, false, "recover", recoveryControl.epoch);
+      await tx.escrowTransaction.updateMany({
       where: { id: operation.id, status: { in: ["signed", "submitted"] } },
       data: { status: "confirmed", confirmedAt: new Date() },
+      });
     });
   }
   void snapshot;

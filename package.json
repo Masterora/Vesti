@@ -19,7 +19,16 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "test:chain-integration": "tsx scripts/run-chain-integration-tests.ts",
-    "chain:identity": "tsx scripts/inspect-chain-identity.ts"
+    "chain:identity": "tsx scripts/inspect-chain-identity.ts",
+    "chain:release:inspect": "tsx scripts/inspect-chain-release.ts",
+    "chain:release:inventory": "tsx scripts/inventory-chain-release.ts",
+    "chain:release:verify": "tsx scripts/verify-chain-release.ts",
+    "chain:release:control": "tsx scripts/control-chain-release.ts",
+    "chain:release:transition": "tsx scripts/transition-chain-release.ts",
+    "test:release-upgrade": "tsx scripts/run-release-upgrade-tests.ts",
+    "devnet:acceptance": "tsx scripts/run-devnet-acceptance.ts",
+    "devnet:evidence:verify": "tsx scripts/verify-devnet-evidence.ts",
+    "test:release-inventory": "tsx scripts/run-release-upgrade-tests.ts --inventory"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",

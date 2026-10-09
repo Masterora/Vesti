@@ -6,6 +6,15 @@ import { postJson } from "@/lib/api/client";
 export type PublicRuntimeConfig = {
   escrowMode: "mock" | "onchain";
   network: string;
+  releaseId: string | null;
+  mintAddress: string | null;
+  assetLabel: "test_usdc" | "usdc";
+  chainState: "ready" | "paused" | "unavailable" | "mismatch";
+  canPrepareFunds: boolean;
+  recoveryState: "available" | "paused" | "identity_mismatch" | "temporarily_unavailable";
+  maintenancePhase: string;
+  maintenanceEpoch: string;
+  reasonCode: string | null;
   canOpenDispute: boolean;
   canSettleDispute: boolean;
 };
@@ -17,10 +26,12 @@ export function RuntimeConfigProvider({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     const controller = new AbortController();
-    void postJson<PublicRuntimeConfig>("/api/runtime/public-config", {}, { signal: controller.signal })
+    const refresh = () => postJson<PublicRuntimeConfig>("/api/runtime/public-config", {}, { signal: controller.signal })
       .then(setConfig)
       .catch(() => setConfig(null));
-    return () => controller.abort();
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), 15000);
+    return () => { controller.abort(); window.clearInterval(interval); };
   }, []);
 
   return <RuntimeConfigContext.Provider value={config}>{children}</RuntimeConfigContext.Provider>;

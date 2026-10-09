@@ -1,0 +1,99 @@
+name: Devnet acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      manifest:
+        description: Approved repository-relative release manifest
+        required: true
+        type: string
+      execute:
+        description: Execute test-token transactions with dedicated test wallets
+        required: true
+        default: false
+        type: boolean
+      principal_budget_units:
+        description: Maximum test-token units including principal and donations
+        required: true
+        default: '17100000'
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: vesti-devnet-acceptance
+  cancel-in-progress: false
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: devnet-acceptance
+    env:
+      DATABASE_URL: ${{ secrets.DEVNET_DATABASE_URL }}
+      SOLANA_SERVER_RPC_URL: ${{ secrets.DEVNET_SERVER_RPC_URL }}
+      NEXT_PUBLIC_SOLANA_RPC_URL: https://api.devnet.solana.com
+      NEXT_PUBLIC_SOLANA_NETWORK: devnet
+      ESCROW_ADAPTER_MODE: onchain
+      ESCROW_CHAIN_NEW_OPERATIONS_ENABLED: 'true'
+      ESCROW_CHAIN_DISPUTES_ENABLED: 'true'
+      ESCROW_RELEASE_MANIFEST_PATH: ${{ inputs.manifest }}
+      ESCROW_PROTOCOL_REGISTRY_PATH: ${{ vars.DEVNET_PROTOCOL_REGISTRY_PATH }}
+      ESCROW_PROTOCOL_REGISTRY_SHA256: ${{ vars.DEVNET_PROTOCOL_REGISTRY_SHA256 }}
+      DEVNET_ACCEPTANCE_BUDGET_UNITS: ${{ inputs.principal_budget_units }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma:generate
+      - name: Load public pins from approved manifest
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, appendFileSync } from 'node:fs';
+          import { resolve, relative } from 'node:path';
+          const path = resolve(process.env.ESCROW_RELEASE_MANIFEST_PATH);
+          if (relative(process.cwd(), path).startsWith('..')) throw new Error('Manifest must be in the checked-out repository');
+          const m = JSON.parse(readFileSync(path, 'utf8'));
+          for (const [k,v] of Object.entries({ESCROW_RELEASE_ID:m.releaseId, ESCROW_NETWORK_GENESIS_HASH:m.genesisHash, ESCROW_PROGRAM_ID:m.programId, NEXT_PUBLIC_USDC_MINT:m.mint.address, ESCROW_PROGRAM_SHA256:m.deployedProgram.sha256})) {
+            if (typeof v !== 'string' || /[\r\n]/.test(v)) throw new Error('Invalid manifest pin');
+            appendFileSync(process.env.GITHUB_ENV, `${k}=${v}\n`);
+          }
+          JS
+      - name: Read-only release preflight
+        run: pnpm devnet:acceptance
+      - name: Prepare dedicated test-wallet files
+        if: ${{ inputs.execute }}
+        env:
+          CREATOR_JSON: ${{ secrets.DEVNET_CREATOR_TEST_KEYPAIR }}
+          WORKER_JSON: ${{ secrets.DEVNET_WORKER_TEST_KEYPAIR }}
+          ARBITRATOR_JSON: ${{ secrets.DEVNET_ARBITRATOR_TEST_KEYPAIR }}
+        run: |
+          node --input-type=module <<'JS'
+          import { mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
+          const directory = `${process.env.RUNNER_TEMP}/vesti-devnet-test`;
+          mkdirSync(directory, {recursive:true,mode:0o700});
+          for (const role of ['CREATOR','WORKER','ARBITRATOR']) {
+            const key = JSON.parse(process.env[`${role}_JSON`]);
+            if (!Array.isArray(key) || key.length !== 64 || key.some(v => !Number.isInteger(v) || v < 0 || v > 255)) throw new Error('Invalid test-wallet configuration');
+            const path = `${directory}/${role.toLowerCase()}.json`;
+            writeFileSync(path,JSON.stringify(key),{mode:0o600});
+            appendFileSync(process.env.GITHUB_ENV,`DEVNET_${role}_KEYPAIR_PATH=${path}\n`);
+          }
+          JS
+      - name: Run service-keypair acceptance
+        if: ${{ inputs.execute }}
+        run: pnpm devnet:acceptance --apply
+      - name: Remove test-wallet files
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/vesti-devnet-test"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: devnet-evidence
+          path: |
+            output/iteration-3/*/evidence.json
+            output/iteration-3/*/rpc/*.json
+          if-no-files-found: ignore

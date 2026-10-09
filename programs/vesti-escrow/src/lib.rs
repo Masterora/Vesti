@@ -40,7 +40,12 @@ pub mod vesti_escrow {
             ctx.bumps.escrow,
             ctx.bumps.vault,
         )?;
-        initialize_plan(&mut ctx.accounts.milestone_plan, escrow_key, total_amount, milestones)
+        initialize_plan(
+            &mut ctx.accounts.milestone_plan,
+            escrow_key,
+            total_amount,
+            milestones,
+        )
     }
 
     pub fn initialize_escrow_with_arbitrator_v2(
@@ -69,7 +74,12 @@ pub mod vesti_escrow {
             ctx.bumps.escrow,
             ctx.bumps.vault,
         )?;
-        initialize_plan(&mut ctx.accounts.milestone_plan, escrow_key, total_amount, milestones)?;
+        initialize_plan(
+            &mut ctx.accounts.milestone_plan,
+            escrow_key,
+            total_amount,
+            milestones,
+        )?;
         let policy = &mut ctx.accounts.policy;
         policy.escrow = ctx.accounts.escrow.key();
         policy.arbitrator = arbitrator;
@@ -132,7 +142,13 @@ pub mod vesti_escrow {
     ) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
 
-        require_term(escrow.key(), escrow, ctx.accounts.milestone_plan.as_ref(), milestone_hash, Some(amount))?;
+        require_term(
+            escrow.key(),
+            escrow,
+            ctx.accounts.milestone_plan.as_ref(),
+            milestone_hash,
+            Some(amount),
+        )?;
         require!(!milestone_id.is_empty(), VestiEscrowError::EmptyMilestoneId);
         require!(
             milestone_id.len() <= EscrowState::MAX_MILESTONE_ID_LEN,
@@ -210,7 +226,13 @@ pub mod vesti_escrow {
         let escrow = &mut ctx.accounts.escrow;
         let actor = ctx.accounts.actor.key();
         require_participant(escrow, actor)?;
-        require_term(escrow.key(), escrow, ctx.accounts.milestone_plan.as_ref(), milestone_hash, None)?;
+        require_term(
+            escrow.key(),
+            escrow,
+            ctx.accounts.milestone_plan.as_ref(),
+            milestone_hash,
+            None,
+        )?;
         require!(!milestone_id.is_empty(), VestiEscrowError::EmptyMilestoneId);
         require!(
             milestone_id.len() <= EscrowState::MAX_MILESTONE_ID_LEN,
@@ -272,7 +294,17 @@ pub mod vesti_escrow {
             escrow.status == STATUS_DISPUTED,
             VestiEscrowError::InvalidStatus
         );
-        require_term(escrow.key(), escrow, ctx.accounts.milestone_plan.as_ref(), ctx.accounts.dispute.milestone_hash, if outcome == OUTCOME_RELEASE { Some(amount) } else { None })?;
+        require_term(
+            escrow.key(),
+            escrow,
+            ctx.accounts.milestone_plan.as_ref(),
+            ctx.accounts.dispute.milestone_hash,
+            if outcome == OUTCOME_RELEASE {
+                Some(amount)
+            } else {
+                None
+            },
+        )?;
         let dispute = &mut ctx.accounts.dispute;
         require!(
             dispute.state != DISPUTE_RESOLVED,
@@ -322,7 +354,13 @@ pub mod vesti_escrow {
         expected_amount: u64,
     ) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
-        require_term(escrow.key(), escrow, ctx.accounts.milestone_plan.as_ref(), ctx.accounts.dispute.milestone_hash, Some(expected_amount))?;
+        require_term(
+            escrow.key(),
+            escrow,
+            ctx.accounts.milestone_plan.as_ref(),
+            ctx.accounts.dispute.milestone_hash,
+            Some(expected_amount),
+        )?;
         let dispute = &mut ctx.accounts.dispute;
         validate_acceptance(
             escrow,
@@ -453,7 +491,13 @@ pub mod vesti_escrow {
         amount: u64,
     ) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow;
-        require_term(escrow.key(), escrow, ctx.accounts.milestone_plan.as_ref(), ctx.accounts.dispute.milestone_hash, Some(amount))?;
+        require_term(
+            escrow.key(),
+            escrow,
+            ctx.accounts.milestone_plan.as_ref(),
+            ctx.accounts.dispute.milestone_hash,
+            Some(amount),
+        )?;
         let dispute = &mut ctx.accounts.dispute;
         validate_arbitration(
             escrow,
@@ -673,29 +717,71 @@ fn validate_arbitration(
 }
 
 const MAX_PLAN_MILESTONES: usize = 8;
-fn initialize_plan(plan: &mut MilestonePlan, escrow: Pubkey, total: u64, terms: Vec<MilestoneTerm>) -> Result<()> {
-    require!(!terms.is_empty() && terms.len() <= MAX_PLAN_MILESTONES, VestiEscrowError::InvalidMilestonePlan);
+fn initialize_plan(
+    plan: &mut MilestonePlan,
+    escrow: Pubkey,
+    total: u64,
+    terms: Vec<MilestoneTerm>,
+) -> Result<()> {
+    require!(
+        !terms.is_empty() && terms.len() <= MAX_PLAN_MILESTONES,
+        VestiEscrowError::InvalidMilestonePlan
+    );
     let mut sum = 0u64;
     for (index, term) in terms.iter().enumerate() {
-        require!(term.amount > 0 && !terms[..index].iter().any(|t| t.milestone_hash == term.milestone_hash), VestiEscrowError::InvalidMilestonePlan);
-        sum = sum.checked_add(term.amount).ok_or(VestiEscrowError::AmountOverflow)?;
+        require!(
+            term.amount > 0
+                && !terms[..index]
+                    .iter()
+                    .any(|t| t.milestone_hash == term.milestone_hash),
+            VestiEscrowError::InvalidMilestonePlan
+        );
+        sum = sum
+            .checked_add(term.amount)
+            .ok_or(VestiEscrowError::AmountOverflow)?;
     }
     require!(sum == total, VestiEscrowError::InvalidMilestonePlan);
     plan.escrow = escrow;
     plan.terms = terms;
     Ok(())
 }
-fn require_plan<'a>(key: Pubkey, escrow: &EscrowState, plan: Option<&Account<'a, MilestonePlan>>) -> Result<()> {
-    if key == legacy_escrow_address(escrow) { return Ok(()); }
+fn require_plan<'a>(
+    key: Pubkey,
+    escrow: &EscrowState,
+    plan: Option<&Account<'a, MilestonePlan>>,
+) -> Result<()> {
+    if key == legacy_escrow_address(escrow) {
+        return Ok(());
+    }
     let plan = plan.ok_or(VestiEscrowError::InvalidMilestonePlan)?;
-    require!(plan.escrow == key && plan.key() == Pubkey::find_program_address(&[b"plan", key.as_ref()], &crate::ID).0, VestiEscrowError::InvalidMilestonePlan);
+    require!(
+        plan.escrow == key
+            && plan.key() == Pubkey::find_program_address(&[b"plan", key.as_ref()], &crate::ID).0,
+        VestiEscrowError::InvalidMilestonePlan
+    );
     Ok(())
 }
-fn require_term<'a>(key: Pubkey, escrow: &EscrowState, plan: Option<&Account<'a, MilestonePlan>>, hash: [u8; 32], amount: Option<u64>) -> Result<()> {
+fn require_term<'a>(
+    key: Pubkey,
+    escrow: &EscrowState,
+    plan: Option<&Account<'a, MilestonePlan>>,
+    hash: [u8; 32],
+    amount: Option<u64>,
+) -> Result<()> {
     require_plan(key, escrow, plan)?;
-    if key == legacy_escrow_address(escrow) { return Ok(()); }
-    let term = plan.unwrap().terms.iter().find(|t| t.milestone_hash == hash).ok_or(VestiEscrowError::InvalidMilestonePlan)?;
-    require!(amount.map_or(true, |a| a == term.amount), VestiEscrowError::InvalidMilestonePlan);
+    if key == legacy_escrow_address(escrow) {
+        return Ok(());
+    }
+    let term = plan
+        .unwrap()
+        .terms
+        .iter()
+        .find(|t| t.milestone_hash == hash)
+        .ok_or(VestiEscrowError::InvalidMilestonePlan)?;
+    require!(
+        amount.map_or(true, |a| a == term.amount),
+        VestiEscrowError::InvalidMilestonePlan
+    );
     Ok(())
 }
 
@@ -704,15 +790,32 @@ fn legacy_escrow_address(escrow: &EscrowState) -> Pubkey {
     Pubkey::find_program_address(&[b"escrow", escrow.contract_id.as_bytes()], &crate::ID).0
 }
 fn valid_escrow_address(key: Pubkey, escrow: &EscrowState) -> bool {
-    let legacy = Pubkey::find_program_address(&[b"escrow", escrow.contract_id.as_bytes()], &crate::ID);
-    let current = Pubkey::find_program_address(&[b"escrow_v2", escrow.creator.as_ref(), escrow.contract_id.as_bytes()], &crate::ID);
+    let legacy =
+        Pubkey::find_program_address(&[b"escrow", escrow.contract_id.as_bytes()], &crate::ID);
+    let current = Pubkey::find_program_address(
+        &[
+            b"escrow_v2",
+            escrow.creator.as_ref(),
+            escrow.contract_id.as_bytes(),
+        ],
+        &crate::ID,
+    );
     (key == legacy.0 && escrow.bump == legacy.1) || (key == current.0 && escrow.bump == current.1)
 }
-fn escrow_signer_seeds<'a>(key: Pubkey, escrow: &'a EscrowState, bump: &'a [u8; 1]) -> Vec<&'a [u8]> {
+fn escrow_signer_seeds<'a>(
+    key: Pubkey,
+    escrow: &'a EscrowState,
+    bump: &'a [u8; 1],
+) -> Vec<&'a [u8]> {
     if key == legacy_escrow_address(escrow) {
         vec![b"escrow", escrow.contract_id.as_bytes(), bump]
     } else {
-        vec![b"escrow_v2", escrow.creator.as_ref(), escrow.contract_id.as_bytes(), bump]
+        vec![
+            b"escrow_v2",
+            escrow.creator.as_ref(),
+            escrow.contract_id.as_bytes(),
+            bump,
+        ]
     }
 }
 

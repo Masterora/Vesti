@@ -1,3 +1,4 @@
+import { configuredProtocolRegistry, historicalDecoderCandidates } from "./protocol-version-registry";
 import { ServiceError } from "@/lib/services/errors";
 import {
   PublicKey,
@@ -200,6 +201,9 @@ export async function readChainHistory(
   const identity = await chainIdentity(),
     { connection, programId } = identity;
   assertChainContextIdentity(base, identity);
+  const registry = configuredProtocolRegistry();
+  if (!registry && process.env.NEXT_PUBLIC_SOLANA_NETWORK === "devnet") fail("PROTOCOL_REGISTRY_UNAPPROVED");
+  if (registry && (registry.genesisHash !== identity.genesisHash || registry.programId !== identity.programId.toBase58() || registry.versions.at(-1)?.programHash !== identity.programHash)) fail("PROTOCOL_REGISTRY_IDENTITY_MISMATCH");
   const accounts = contextAccounts(base);
   // Scan from the initial account creation; bounded pagination must reach the end.
   const scan = async () => {
@@ -489,9 +493,12 @@ export async function readChainHistory(
       )
         fail("PRINCIPAL_OVERFLOW", txSig);
       // Pre-upgrade legacy history lacks the optional plan-account sentinel.
-      let expected = protocolInstruction(c, initialize);
-      if (c.addressScheme !== "creator" && ix.accounts.length !== expected.keys.length)
-        expected = protocolInstruction(c, initialize, true);
+      const candidates = registry ? historicalDecoderCandidates(registry, BigInt(response.slot)) : null;
+      const expectations = candidates ? candidates.map((v) => protocolInstruction(c, initialize, v.descriptor.decoder === "vesti-legacy-no-plan")) : [protocolInstruction(c, initialize)];
+      if (!registry && c.addressScheme !== "creator" && ix.accounts.length !== expectations[0].keys.length) expectations[0] = protocolInstruction(c, initialize, true);
+      // Every candidate must validate the complete envelope: layout ambiguity never selects a convenient decoder.
+      if (expectations.some((expected) => !data.equals(expected.data) || ix.accounts.length !== expected.keys.length || ix.accounts.some((n, i) => !message.accountKeys[n].equals(expected.keys[i].pubkey) || (expected.keys[i].isSigner && !message.isAccountSigner(n)) || (expected.keys[i].isWritable && !message.isAccountWritable(n))))) fail("PROTOCOL_VERSION_AMBIGUOUS", txSig);
+      const expected = expectations[0];
       if (
         !data.equals(expected.data) ||
         ix.accounts.length !== expected.keys.length ||

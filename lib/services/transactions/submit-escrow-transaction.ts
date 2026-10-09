@@ -1,3 +1,4 @@
+import { lockContract } from "@/lib/services/contracts/contract-lock";
 import { db } from "@/lib/db";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
 import type { SubmitEscrowTransactionInput } from "@/lib/validations/transaction";
@@ -42,13 +43,16 @@ export async function submitEscrowTransaction(
     ),
     "Transaction cannot be submitted",
   );
-  await db.escrowTransaction.updateMany({
+  await db.$transaction(async (tx) => {
+  await lockContract(tx, transaction.contractId);
+  await tx.escrowTransaction.updateMany({
     where: { id: transaction.id, status: "signed" },
     data: {
       status: "submitted",
       submittedAt: new Date(),
       nextAttemptAt: new Date(),
     },
+  });
   });
   return db.escrowTransaction.findUniqueOrThrow({
     where: { id: transaction.id },

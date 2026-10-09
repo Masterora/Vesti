@@ -1,3 +1,4 @@
+import { lockContract, advanceBusinessRevision } from "@/lib/services/contracts/contract-lock";
 import { db } from "@/lib/db";
 import { assertAllowed, assertFound, assertState } from "@/lib/services/errors";
 import { serializeContractWithProfiles } from "@/lib/services/serialize";
@@ -5,6 +6,7 @@ import type { RenameContractInput } from "@/lib/validations/contract";
 
 export async function renameContract(input: RenameContractInput) {
   return db.$transaction(async (tx) => {
+    await lockContract(tx, input.contractId, true);
     const contract = assertFound(
       await tx.contract.findUnique({
         where: { id: input.contractId }
@@ -28,6 +30,7 @@ export async function renameContract(input: RenameContractInput) {
       }
     });
 
+    await advanceBusinessRevision(tx, contract.id);
     const updated = await tx.contract.findUniqueOrThrow({
       where: { id: contract.id },
       include: {

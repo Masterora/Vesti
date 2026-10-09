@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import bs58 from "bs58";
 import {
   createAuthMessage,
+  getWalletSession,
+  createClearWalletSessionCookie,
   createWalletSessionCookie,
   decodeWalletSession,
   encodeWalletSession,
@@ -82,5 +84,26 @@ describe("wallet sessions", () => {
     vi.stubEnv("NODE_ENV", "production");
     const request = new Request("http://localhost/api/contracts/list");
     expect(resolveOptionalRequestWallet(request, "body_wallet")).toBeNull();
+  });
+});
+
+describe("environment cookie isolation", () => {
+  it("reads and clears only its own deployment cookie in shared browser storage", () => {
+    const previous = process.env.AUTH_SESSION_COOKIE_NAME;
+    try {
+      process.env.AUTH_SESSION_COOKIE_NAME = "vesti_local_session";
+      const local = createWalletSessionCookie("local-wallet").value.split(";")[0];
+      process.env.AUTH_SESSION_COOKIE_NAME = "vesti_devnet_session";
+      const devnet = createWalletSessionCookie("devnet-wallet").value.split(";")[0];
+      const request = new Request("http://localhost", { headers: { cookie: `${local}; ${devnet}` } });
+      expect(getWalletSession(request)?.walletAddress).toBe("devnet-wallet");
+      expect(createClearWalletSessionCookie()).toContain("vesti_devnet_session=");
+      expect(createClearWalletSessionCookie()).not.toContain("Domain=");
+      process.env.AUTH_SESSION_COOKIE_NAME = "vesti_local_session";
+      expect(getWalletSession(request)?.walletAddress).toBe("local-wallet");
+    } finally {
+      if (previous === undefined) delete process.env.AUTH_SESSION_COOKIE_NAME;
+      else process.env.AUTH_SESSION_COOKIE_NAME = previous;
+    }
   });
 });

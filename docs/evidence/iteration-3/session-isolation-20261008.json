@@ -1,0 +1,15 @@
+{
+  "caseId": "D24",
+  "status": "passed",
+  "origins": [
+    "http://127.0.0.1:18991",
+    "http://127.0.0.1:18992"
+  ],
+  "cookieNames": [
+    "vesti_local_session",
+    "vesti_devnet_session"
+  ],
+  "sharedBrowserContext": true,
+  "independentSecrets": true,
+  "loginAndLogoutIsolation": true
+}

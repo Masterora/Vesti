@@ -4,6 +4,11 @@ import bs58 from "bs58";
 import { ServiceError } from "@/lib/services/errors";
 
 export const walletSessionCookieName = "vesti_session";
+export function configuredWalletSessionCookieName() {
+  const name = process.env.AUTH_SESSION_COOKIE_NAME || walletSessionCookieName;
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(name)) throw new ServiceError("Invalid session cookie configuration", 503);
+  return name;
+}
 
 const authMessagePrefix = "Vesti wallet authentication";
 const sessionTtlMs = 1000 * 60 * 60 * 24 * 7;
@@ -66,7 +71,7 @@ function parseCookies(request: Request) {
 }
 
 function getSessionCookieValue(request: Request) {
-  return parseCookies(request).get(walletSessionCookieName);
+  return parseCookies(request).get(configuredWalletSessionCookieName());
 }
 
 export function createAuthNonce() {
@@ -138,7 +143,7 @@ export function createWalletSessionCookie(walletAddress: string, now = new Date(
   return {
     session,
     value: [
-      `${walletSessionCookieName}=${encodeURIComponent(encodeWalletSession(session))}`,
+      `${configuredWalletSessionCookieName()}=${encodeURIComponent(encodeWalletSession(session))}`,
       "Path=/",
       "HttpOnly",
       "SameSite=Lax",
@@ -154,7 +159,7 @@ export function createClearWalletSessionCookie() {
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
 
   return [
-    `${walletSessionCookieName}=`,
+    `${configuredWalletSessionCookieName()}=`,
     "Path=/",
     "HttpOnly",
     "SameSite=Lax",

@@ -35,6 +35,11 @@ const exactErrorMap: Record<string, keyof typeof messages.en.errors> = {
 };
 
 const exactZhMessages: Record<string, string> = {
+  "Check the original transaction status before preparing another signature.": "请先检查原交易状态，再决定是否重新准备签名。",
+  "New operations are paused; check the original transaction status": "新操作已暂停，请检查原交易状态。",
+  "Chain release configuration is invalid": "链上发布配置未通过验证。",
+  "Wallet account changed during authentication": "登录过程中钱包账户已切换，请重新登录。",
+  "Wallet account changed during signing": "签名过程中钱包账户已切换，请检查原交易状态。",
   "Wallet session is required": "需要先建立钱包会话。",
   "Contract not found": "未找到合同。",
   "Milestone not found": "未找到里程碑。",

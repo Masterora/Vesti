@@ -67,15 +67,15 @@ export type ChainContext = {
 };
 export function chainConfig() {
   if (
-    !process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
+    !(process.env.SOLANA_SERVER_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL) ||
     !process.env.ESCROW_PROGRAM_ID ||
     !process.env.NEXT_PUBLIC_USDC_MINT
   )
-    throw new ServiceError("Chain configuration is unavailable", 503);
+    throw new ServiceError("Chain configuration is unavailable", 503, "CHAIN_CONFIG_INVALID");
   return {
     connection: new Connection(
-      process.env.NEXT_PUBLIC_SOLANA_RPC_URL,
-      "finalized",
+      process.env.SOLANA_SERVER_RPC_URL || process.env.NEXT_PUBLIC_SOLANA_RPC_URL!,
+      { commitment: "finalized", fetch: (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(10000) }) },
     ),
     programId: new PublicKey(process.env.ESCROW_PROGRAM_ID),
     mint: new PublicKey(process.env.NEXT_PUBLIC_USDC_MINT),
@@ -87,13 +87,13 @@ export async function readProgramHash(
 ) {
   const program = await connection.getAccountInfo(programId, "finalized");
   if (!program?.executable)
-    throw new ServiceError("Escrow program is unavailable", 503);
+    throw new ServiceError("Escrow program is unavailable", 503, "CHAIN_PROGRAM_MISMATCH");
   let bytes = program.data;
   // Upgradeable loader Program account points at ProgramData, with a 45-byte metadata header.
   if (
     program.owner.toBase58() === "BPFLoaderUpgradeab1e11111111111111111111111"
   ) {
-    if (bytes.readUInt32LE(0) !== 2)
+    if (bytes.length !== 36 || bytes.readUInt32LE(0) !== 2)
       throw new ServiceError("Unsupported program layout", 503);
     const data = await connection.getAccountInfo(
       new PublicKey(bytes.subarray(4, 36)),
@@ -102,6 +102,7 @@ export async function readProgramHash(
     if (
       !data ||
       !data.owner.equals(program.owner) ||
+      data.data.length < 45 ||
       data.data.readUInt32LE(0) !== 3
     )
       throw new ServiceError("Program data unavailable", 503);
@@ -109,23 +110,17 @@ export async function readProgramHash(
   }
   return digest(bytes);
 }
-export async function chainIdentity() {
+async function readChainIdentity() {
   const config = chainConfig();
   const genesisHash = await config.connection.getGenesisHash();
   const programHash = await readProgramHash(
     config.connection,
     config.programId,
   );
-  if (
-    !process.env.ESCROW_NETWORK_GENESIS_HASH ||
-    genesisHash !== process.env.ESCROW_NETWORK_GENESIS_HASH ||
-    !process.env.ESCROW_PROGRAM_SHA256 ||
-    programHash !== process.env.ESCROW_PROGRAM_SHA256
-  )
-    throw new ServiceError(
-      "Network or escrow program version is not approved",
-      503,
-    );
+  if (!process.env.ESCROW_NETWORK_GENESIS_HASH || genesisHash !== process.env.ESCROW_NETWORK_GENESIS_HASH)
+    throw new ServiceError("Network is not approved", 503, "CHAIN_NETWORK_MISMATCH");
+  if (!process.env.ESCROW_PROGRAM_SHA256 || programHash !== process.env.ESCROW_PROGRAM_SHA256)
+    throw new ServiceError("Escrow program version is not approved", 503, "CHAIN_PROGRAM_MISMATCH");
   const mint = await config.connection.getAccountInfo(config.mint, "finalized");
   if (
     !mint ||
@@ -136,9 +131,13 @@ export async function chainIdentity() {
   )
     throw new ServiceError(
       "A classic initialized USDC mint with six decimals is required",
-      503,
+      503, "CHAIN_MINT_MISMATCH",
     );
   return { ...config, genesisHash, programHash };
+}
+export async function chainIdentity() {
+  try { return await readChainIdentity(); }
+  catch (error) { if (error instanceof ServiceError) throw error; throw new ServiceError("Chain RPC is unavailable", 503, "CHAIN_RPC_UNAVAILABLE"); }
 }
 export function assertChainContextIdentity(c: ChainContext, identity: { genesisHash: string; programHash: string; programId: PublicKey; mint: PublicKey }) {
   if (c.genesisHash !== identity.genesisHash || c.programHash !== identity.programHash ||
@@ -148,10 +147,12 @@ export function assertChainContextIdentity(c: ChainContext, identity: { genesisH
 export async function disputeCapability() {
   if (
     process.env.ESCROW_CHAIN_DISPUTES_ENABLED !== "true" ||
-    process.env.NEXT_PUBLIC_SOLANA_NETWORK !== "localnet"
+    !["localnet", "devnet"].includes(process.env.NEXT_PUBLIC_SOLANA_NETWORK ?? "")
   )
     return false;
   try {
+    const { configuredRelease } = await import("./release-manifest");
+    configuredRelease();
     await chainIdentity();
     return true;
   } catch {

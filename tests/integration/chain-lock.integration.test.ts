@@ -1,3 +1,4 @@
+import { initializeTestRelease } from "../release-fixture";
 import { randomUUID } from "node:crypto";
 import { describe, it, expect } from "vitest";
 import { db } from "@/lib/db";
@@ -44,6 +45,7 @@ describe("contract operation isolation", () => {
       },
     });
     const previous = process.env.ESCROW_ADAPTER_MODE;
+    await initializeTestRelease();
     process.env.ESCROW_ADAPTER_MODE = "onchain";
     try {
       await expect(
